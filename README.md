@@ -91,6 +91,10 @@ GPL-3.0-or-later as a whole. See `LICENSE` for the GPL text and
 The project is intended for local developer builds and does not target App
 Store distribution.
 
+## Screenshot
+
+![iosmacs running GNU Emacs in the iPad simulator](images/iosmacs-simulator-startup.png)
+
 ## Development Commands
 
 From a fresh checkout, run the project verification target:
