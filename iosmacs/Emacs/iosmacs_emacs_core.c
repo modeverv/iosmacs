@@ -1,0 +1,439 @@
+#include "iosmacs_emacs_core.h"
+
+#include "iosmacs_host_facade.h"
+#include "iosmacs_terminal_shim.h"
+
+#include <TargetConditionals.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#if TARGET_OS_SIMULATOR
+extern int iosmacs_emacs_main(int argc, char **argv);
+static int (*volatile iosmacs_emacs_entry_ref)(int, char **) = iosmacs_emacs_main;
+static pthread_mutex_t emacs_core_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_t emacs_core_thread;
+static bool emacs_core_started;
+static bool emacs_core_running;
+static int emacs_core_exit_status_value = -1;
+static const size_t emacs_core_stack_size = 16 * 1024 * 1024;
+
+typedef struct iosmacs_emacs_start_context {
+    char *lisp_dir;
+    char *etc_dir;
+    char *exec_dir;
+    char *dump_file;
+    char *workspace_root;
+} iosmacs_emacs_start_context;
+
+static char *copy_c_string(const char *value) {
+    if (value == NULL) {
+        return NULL;
+    }
+    return strdup(value);
+}
+
+static void free_start_context(iosmacs_emacs_start_context *context) {
+    if (context == NULL) {
+        return;
+    }
+    free(context->lisp_dir);
+    free(context->etc_dir);
+    free(context->exec_dir);
+    free(context->dump_file);
+    free(context->workspace_root);
+    free(context);
+}
+
+static void set_lisp_load_path(const char *lisp_dir) {
+    if (lisp_dir == NULL) {
+        return;
+    }
+
+    const char *suffix =
+        ":%s/emacs-lisp:%s/progmodes:%s/language:%s/international"
+        ":%s/textmodes:%s/vc:%s/calendar:%s/term:%s/mail:%s/net"
+        ":%s/url:%s/gnus:%s/use-package:%s/obsolete";
+    int length = snprintf(NULL, 0, "%s", lisp_dir)
+        + snprintf(NULL, 0, suffix, lisp_dir, lisp_dir, lisp_dir, lisp_dir,
+                   lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir,
+                   lisp_dir, lisp_dir, lisp_dir, lisp_dir)
+        + 1;
+    char *load_path = malloc((size_t)length);
+    if (load_path == NULL) {
+        setenv("EMACSLOADPATH", lisp_dir, 1);
+        return;
+    }
+    snprintf(load_path, (size_t)length, "%s", lisp_dir);
+    snprintf(load_path + strlen(load_path), (size_t)(length - (int)strlen(load_path)),
+             suffix, lisp_dir, lisp_dir, lisp_dir, lisp_dir,
+             lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir,
+             lisp_dir, lisp_dir, lisp_dir, lisp_dir);
+    setenv("EMACSLOADPATH", load_path, 1);
+    free(load_path);
+}
+
+static char *copy_lisp_string_literal(const char *value) {
+    size_t length = 2;
+    for (const char *p = value; p != NULL && *p != '\0'; p++) {
+        if (*p == '\\' || *p == '"') {
+            length++;
+        }
+        length++;
+    }
+
+    char *quoted = malloc(length + 1);
+    if (quoted == NULL) {
+        return NULL;
+    }
+
+    char *out = quoted;
+    *out++ = '"';
+    for (const char *p = value; p != NULL && *p != '\0'; p++) {
+        if (*p == '\\' || *p == '"') {
+            *out++ = '\\';
+        }
+        *out++ = *p;
+    }
+    *out++ = '"';
+    *out = '\0';
+    return quoted;
+}
+
+static char *copy_app_smoke_eval_form(void) {
+    const char *marker = getenv("IOSMACS_APP_SMOKE_MARKER");
+    if (marker == NULL || marker[0] == '\0') {
+        return NULL;
+    }
+
+    const char *expect = getenv("IOSMACS_APP_SMOKE_EXPECT");
+    if (expect == NULL || expect[0] == '\0') {
+        expect = "abc";
+    }
+
+    char *quoted_marker = copy_lisp_string_literal(marker);
+    char *quoted_expect = copy_lisp_string_literal(expect);
+    if (quoted_marker == NULL || quoted_expect == NULL) {
+        free(quoted_marker);
+        free(quoted_expect);
+        return NULL;
+    }
+
+    const char *format =
+        "(progn "
+        "(defun iosmacs-app-smoke-check () "
+        "(let ((text (save-current-buffer (set-buffer \"*scratch*\") (buffer-string)))) "
+        "(if (string-match-p %s text) "
+        "(progn "
+        "(write-region (concat (format \"iosmacs-app-smoke:%%S\\n\" text) "
+        "\"iosmacs-app-smoke-ok\\n\") nil %s nil nil) "
+        "(princ (format \"iosmacs-app-smoke:%%S\\n\" text) 'external-debugging-output) "
+        "(remove-hook 'post-command-hook 'iosmacs-app-smoke-check))))) "
+        "(add-hook 'post-command-hook 'iosmacs-app-smoke-check))";
+    int length = snprintf(NULL, 0, format, quoted_expect, quoted_marker);
+    if (length < 0) {
+        free(quoted_marker);
+        free(quoted_expect);
+        return NULL;
+    }
+
+    char *eval_form = malloc((size_t)length + 1);
+    if (eval_form != NULL) {
+        snprintf(eval_form, (size_t)length + 1, format, quoted_expect, quoted_marker);
+    }
+    free(quoted_marker);
+    free(quoted_expect);
+    return eval_form;
+}
+
+static char *copy_app_file_smoke_eval_form(void) {
+    const char *marker = getenv("IOSMACS_APP_FILE_SMOKE_MARKER");
+    if (marker == NULL || marker[0] == '\0') {
+        return NULL;
+    }
+
+    char *quoted_marker = copy_lisp_string_literal(marker);
+    if (quoted_marker == NULL) {
+        return NULL;
+    }
+
+    const char *format =
+        "(progn "
+        "(run-at-time 3 nil "
+        "(lambda () "
+        "(condition-case err "
+        "(let* ((dir \"/home/user/notes/\") "
+        "(file (concat dir \"iosmacs-file-smoke.txt\")) "
+        "(text \"iosmacs-file-smoke\\n\")) "
+        "(require 'ls-lisp) "
+        "(setq ls-lisp-use-insert-directory-program nil "
+        "insert-directory-program nil "
+        "dired-use-ls-dired nil) "
+        "(require 'dired) "
+        "(require 'dired-aux) "
+        "(make-directory dir t) "
+        "(find-file file) "
+        "(erase-buffer) "
+        "(insert text) "
+        "(save-buffer) "
+        "(kill-buffer (current-buffer)) "
+        "(find-file file) "
+        "(unless (string-match-p \"iosmacs-file-smoke\" (buffer-string)) "
+        "(error \"reloaded file did not contain smoke text\")) "
+        "(let ((dired-buffer (dired-noselect dir))) "
+        "(with-current-buffer dired-buffer "
+        "(goto-char (point-min)) "
+        "(unless (search-forward \"iosmacs-file-smoke.txt\" nil t) "
+        "(error \"dired did not list smoke file\")))) "
+        "(write-region \"iosmacs-app-file-smoke-ok\\n\" nil %s nil nil) "
+        "(princ \"iosmacs-app-file-smoke-ok\\n\" 'external-debugging-output)) "
+        "(error "
+        "(write-region (format \"iosmacs-app-file-smoke-error:%%S\\n\" err) nil %s nil nil) "
+        "(princ (format \"iosmacs-app-file-smoke-error:%%S\\n\" err) "
+        "'external-debugging-output))))))";
+    int length = snprintf(NULL, 0, format, quoted_marker, quoted_marker);
+    if (length < 0) {
+        free(quoted_marker);
+        return NULL;
+    }
+
+    char *eval_form = malloc((size_t)length + 1);
+    if (eval_form != NULL) {
+        snprintf(eval_form, (size_t)length + 1, format, quoted_marker, quoted_marker);
+    }
+    free(quoted_marker);
+    return eval_form;
+}
+
+static char *copy_app_color_smoke_eval_form(void) {
+    const char *marker = getenv("IOSMACS_APP_COLOR_SMOKE_MARKER");
+    if (marker == NULL || marker[0] == '\0') {
+        return NULL;
+    }
+
+    char *quoted_marker = copy_lisp_string_literal(marker);
+    if (quoted_marker == NULL) {
+        return NULL;
+    }
+
+    const char *format =
+        "(progn "
+        "(run-at-time 4 nil "
+        "(lambda () "
+        "(send-string-to-terminal "
+        "\"\\033[38;5;196mred256 \\033[38;5;46mgreen256 "
+        "\\033[38;5;21mblue256 \\033[48;5;226m bg256 \\033[0m\\n\") "
+        "(write-region \"iosmacs-app-color-smoke-ok\\n\" nil %s nil nil) "
+        "(princ \"iosmacs-app-color-smoke-ok\\n\" 'external-debugging-output))))";
+    int length = snprintf(NULL, 0, format, quoted_marker);
+    if (length < 0) {
+        free(quoted_marker);
+        return NULL;
+    }
+
+    char *eval_form = malloc((size_t)length + 1);
+    if (eval_form != NULL) {
+        snprintf(eval_form, (size_t)length + 1, format, quoted_marker);
+    }
+    free(quoted_marker);
+    return eval_form;
+}
+
+static char *copy_runtime_eval_form(void) {
+    const char *form =
+        "(progn "
+        "(setq default-directory \"/home/user/\" "
+        "command-line-default-directory \"/home/user/\") "
+        "(require 'cl-extra) "
+        "(require 'ls-lisp) "
+        "(setq ls-lisp-use-insert-directory-program nil "
+        "insert-directory-program nil "
+        "dired-use-ls-dired nil) "
+        "(with-eval-after-load 'dired "
+        "(setq dired-use-ls-dired nil)) "
+        "(with-eval-after-load 'dired-aux "
+        "(setq dired-use-ls-dired nil)))";
+    return strdup(form);
+}
+
+static void *emacs_core_thread_main(void *arg) {
+    iosmacs_emacs_start_context *context = (iosmacs_emacs_start_context *)arg;
+    bool app_smoke_enabled = getenv("IOSMACS_APP_SMOKE_MARKER") != NULL
+        || getenv("IOSMACS_APP_FILE_SMOKE_MARKER") != NULL
+        || getenv("IOSMACS_APP_COLOR_SMOKE_MARKER") != NULL;
+
+    iosmacs_terminal_shim_enable();
+    int mirror_fd = app_smoke_enabled ? dup(STDERR_FILENO) : -1;
+    iosmacs_terminal_shim_set_mirror_fd(mirror_fd);
+    if (iosmacs_terminal_shim_attach_stdio() != 0) {
+        iosmacs_os_set_lifecycle_state("iosmacs: fake tty attach failed");
+        pthread_mutex_lock(&emacs_core_mutex);
+        emacs_core_exit_status_value = 125;
+        emacs_core_running = false;
+        pthread_mutex_unlock(&emacs_core_mutex);
+        free_start_context(context);
+        return NULL;
+    }
+    set_lisp_load_path(context->lisp_dir);
+    if (context->etc_dir != NULL) {
+        setenv("EMACSDATA", context->etc_dir, 1);
+        setenv("EMACSDOC", context->etc_dir, 1);
+    }
+    if (context->exec_dir != NULL) {
+        setenv("EMACSPATH", context->exec_dir, 1);
+    }
+    if (context->workspace_root != NULL) {
+        setenv("IOSMACS_WORKSPACE_ROOT", context->workspace_root, 1);
+        setenv("HOME", "/home/user", 1);
+        setenv("USER", "user", 1);
+        setenv("LOGNAME", "user", 1);
+        chdir("/home/user");
+    }
+    setenv("TERM", "xterm-256color", 1);
+    setenv("IOSMACS_NW_SKIP_GC", "1", 1);
+    setenv("IOSMACS_PDMP_FALLBACK_CHARPROP", "1", 1);
+    if (app_smoke_enabled) {
+        setenv("IOSMACS_NW_DEBUG_ERROR", "1", 1);
+    }
+    iosmacs_os_set_lifecycle_state("iosmacs: GNU Emacs -nw running");
+
+    char *runtime_eval_form = copy_runtime_eval_form();
+    char *app_smoke_eval_form = copy_app_smoke_eval_form();
+    char *app_file_smoke_eval_form = copy_app_file_smoke_eval_form();
+    char *app_color_smoke_eval_form = copy_app_color_smoke_eval_form();
+    char *argv[17];
+    int argc = 0;
+    argv[argc++] = "temacs";
+    if (context->dump_file != NULL) {
+        argv[argc++] = "--dump-file";
+        argv[argc++] = context->dump_file;
+    }
+    argv[argc++] = "--quick";
+    argv[argc++] = "--no-site-file";
+    argv[argc++] = "--no-site-lisp";
+    argv[argc++] = "--no-splash";
+    argv[argc++] = "-nw";
+    if (runtime_eval_form != NULL) {
+        argv[argc++] = "--eval";
+        argv[argc++] = runtime_eval_form;
+    }
+    if (app_smoke_eval_form != NULL) {
+        argv[argc++] = "--eval";
+        argv[argc++] = app_smoke_eval_form;
+    }
+    if (app_file_smoke_eval_form != NULL) {
+        argv[argc++] = "--eval";
+        argv[argc++] = app_file_smoke_eval_form;
+    }
+    if (app_color_smoke_eval_form != NULL) {
+        argv[argc++] = "--eval";
+        argv[argc++] = app_color_smoke_eval_form;
+    }
+    argv[argc] = NULL;
+    int status = iosmacs_emacs_entry_ref(argc, argv);
+    free(runtime_eval_form);
+    free(app_smoke_eval_form);
+    free(app_file_smoke_eval_form);
+    free(app_color_smoke_eval_form);
+
+    pthread_mutex_lock(&emacs_core_mutex);
+    emacs_core_exit_status_value = status;
+    emacs_core_running = false;
+    pthread_mutex_unlock(&emacs_core_mutex);
+    iosmacs_os_set_lifecycle_state("iosmacs: GNU Emacs exited");
+    free_start_context(context);
+    return NULL;
+}
+#endif
+
+bool iosmacs_emacs_core_link_available(void) {
+#if TARGET_OS_SIMULATOR
+    return iosmacs_emacs_entry_ref != 0;
+#else
+    return false;
+#endif
+}
+
+const char *iosmacs_emacs_core_entry_symbol_name(void) {
+#if TARGET_OS_SIMULATOR
+    return "iosmacs_emacs_main";
+#else
+    return "iosmacs_emacs_main unavailable for this platform build";
+#endif
+}
+
+bool iosmacs_emacs_core_start(const char *lisp_dir,
+                              const char *etc_dir,
+                              const char *exec_dir,
+                              const char *dump_file,
+                              const char *workspace_root) {
+#if TARGET_OS_SIMULATOR
+    pthread_mutex_lock(&emacs_core_mutex);
+    if (emacs_core_started) {
+        bool running = emacs_core_running;
+        pthread_mutex_unlock(&emacs_core_mutex);
+        return running;
+    }
+
+    iosmacs_emacs_start_context *context = calloc(1, sizeof(*context));
+    if (context == NULL) {
+        pthread_mutex_unlock(&emacs_core_mutex);
+        return false;
+    }
+    context->lisp_dir = copy_c_string(lisp_dir);
+    context->etc_dir = copy_c_string(etc_dir);
+    context->exec_dir = copy_c_string(exec_dir);
+    context->dump_file = copy_c_string(dump_file);
+    context->workspace_root = copy_c_string(workspace_root);
+
+    emacs_core_started = true;
+    emacs_core_running = true;
+    emacs_core_exit_status_value = -1;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, emacs_core_stack_size);
+    int result = pthread_create(&emacs_core_thread, &attr, emacs_core_thread_main, context);
+    pthread_attr_destroy(&attr);
+    if (result != 0) {
+        emacs_core_started = false;
+        emacs_core_running = false;
+        free_start_context(context);
+        pthread_mutex_unlock(&emacs_core_mutex);
+        return false;
+    }
+    pthread_detach(emacs_core_thread);
+    pthread_mutex_unlock(&emacs_core_mutex);
+    return true;
+#else
+    (void)lisp_dir;
+    (void)etc_dir;
+    (void)exec_dir;
+    (void)dump_file;
+    (void)workspace_root;
+    return false;
+#endif
+}
+
+bool iosmacs_emacs_core_is_running(void) {
+#if TARGET_OS_SIMULATOR
+    pthread_mutex_lock(&emacs_core_mutex);
+    bool running = emacs_core_running;
+    pthread_mutex_unlock(&emacs_core_mutex);
+    return running;
+#else
+    return false;
+#endif
+}
+
+int iosmacs_emacs_core_exit_status(void) {
+#if TARGET_OS_SIMULATOR
+    pthread_mutex_lock(&emacs_core_mutex);
+    int status = emacs_core_exit_status_value;
+    pthread_mutex_unlock(&emacs_core_mutex);
+    return status;
+#else
+    return -1;
+#endif
+}

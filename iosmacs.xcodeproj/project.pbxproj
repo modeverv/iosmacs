@@ -1,0 +1,489 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		100000000000000000000001 /* IOSMacsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000101 /* IOSMacsApp.swift */; };
+		100000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000102 /* ContentView.swift */; };
+		100000000000000000000003 /* IOSMacsTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000103 /* IOSMacsTerminalView.swift */; };
+		100000000000000000000004 /* EmacsSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000104 /* EmacsSession.swift */; };
+		100000000000000000000005 /* iosmacs_host_facade.c in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000105 /* iosmacs_host_facade.c */; };
+		100000000000000000000006 /* iosmacs_emacs_diagnostic.c in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000106 /* iosmacs_emacs_diagnostic.c */; };
+		100000000000000000000007 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000301 /* SwiftTerm */; };
+		100000000000000000000008 /* iosmacs_emacs_core.c in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000111 /* iosmacs_emacs_core.c */; };
+		100000000000000000000009 /* lisp in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000113 /* lisp */; };
+		10000000000000000000000A /* etc in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000114 /* etc */; };
+		10000000000000000000000B /* iosmacs_terminal_shim.c in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000115 /* iosmacs_terminal_shim.c */; };
+		10000000000000000000000C /* emacs.pdmp in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000117 /* emacs.pdmp */; };
+		10000000000000000000000D /* lib-src in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000118 /* lib-src */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		100000000000000000000101 /* IOSMacsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSMacsApp.swift; sourceTree = "<group>"; };
+		100000000000000000000102 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		100000000000000000000103 /* IOSMacsTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSMacsTerminalView.swift; sourceTree = "<group>"; };
+		100000000000000000000104 /* EmacsSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmacsSession.swift; sourceTree = "<group>"; };
+		100000000000000000000105 /* iosmacs_host_facade.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = iosmacs_host_facade.c; sourceTree = "<group>"; };
+		100000000000000000000106 /* iosmacs_emacs_diagnostic.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = iosmacs_emacs_diagnostic.c; sourceTree = "<group>"; };
+		100000000000000000000107 /* iosmacs_host_facade.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = iosmacs_host_facade.h; sourceTree = "<group>"; };
+		100000000000000000000108 /* iosmacs_emacs_diagnostic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = iosmacs_emacs_diagnostic.h; sourceTree = "<group>"; };
+		100000000000000000000109 /* iosmacs-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "iosmacs-Bridging-Header.h"; sourceTree = "<group>"; };
+		100000000000000000000110 /* iosmacs.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosmacs.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		100000000000000000000111 /* iosmacs_emacs_core.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = iosmacs_emacs_core.c; sourceTree = "<group>"; };
+		100000000000000000000112 /* iosmacs_emacs_core.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = iosmacs_emacs_core.h; sourceTree = "<group>"; };
+		100000000000000000000113 /* lisp */ = {isa = PBXFileReference; lastKnownFileType = folder; path = build/emacs-ios-probe/source/lisp; sourceTree = SOURCE_ROOT; };
+		100000000000000000000114 /* etc */ = {isa = PBXFileReference; lastKnownFileType = folder; path = build/emacs-ios-probe/source/etc; sourceTree = SOURCE_ROOT; };
+		100000000000000000000115 /* iosmacs_terminal_shim.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = iosmacs_terminal_shim.c; sourceTree = "<group>"; };
+		100000000000000000000116 /* iosmacs_terminal_shim.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = iosmacs_terminal_shim.h; sourceTree = "<group>"; };
+		100000000000000000000117 /* emacs.pdmp */ = {isa = PBXFileReference; lastKnownFileType = file; path = build/emacs-ios-probe/iosmacs/nw-pdmp/emacs.pdmp; sourceTree = SOURCE_ROOT; };
+		100000000000000000000118 /* lib-src */ = {isa = PBXFileReference; lastKnownFileType = folder; path = build/emacs-ios-probe/lib-src; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		100000000000000000000201 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000007 /* SwiftTerm in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		100000000000000000000401 = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000402 /* iosmacs */,
+				100000000000000000000409 /* Emacs Resources */,
+				100000000000000000000403 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		100000000000000000000402 /* iosmacs */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000404 /* App */,
+				100000000000000000000405 /* Terminal */,
+				100000000000000000000406 /* Emacs */,
+				100000000000000000000407 /* Host */,
+				100000000000000000000408 /* Support */,
+			);
+			path = iosmacs;
+			sourceTree = "<group>";
+		};
+		100000000000000000000403 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000110 /* iosmacs.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		100000000000000000000404 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000101 /* IOSMacsApp.swift */,
+				100000000000000000000102 /* ContentView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		100000000000000000000405 /* Terminal */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000103 /* IOSMacsTerminalView.swift */,
+			);
+			path = Terminal;
+			sourceTree = "<group>";
+		};
+		100000000000000000000406 /* Emacs */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000104 /* EmacsSession.swift */,
+				100000000000000000000112 /* iosmacs_emacs_core.h */,
+				100000000000000000000111 /* iosmacs_emacs_core.c */,
+				100000000000000000000108 /* iosmacs_emacs_diagnostic.h */,
+				100000000000000000000106 /* iosmacs_emacs_diagnostic.c */,
+			);
+			path = Emacs;
+			sourceTree = "<group>";
+		};
+		100000000000000000000407 /* Host */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000107 /* iosmacs_host_facade.h */,
+				100000000000000000000105 /* iosmacs_host_facade.c */,
+				100000000000000000000116 /* iosmacs_terminal_shim.h */,
+				100000000000000000000115 /* iosmacs_terminal_shim.c */,
+			);
+			path = Host;
+			sourceTree = "<group>";
+		};
+		100000000000000000000408 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000109 /* iosmacs-Bridging-Header.h */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
+		100000000000000000000409 /* Emacs Resources */ = {
+			isa = PBXGroup;
+				children = (
+					100000000000000000000113 /* lisp */,
+					100000000000000000000114 /* etc */,
+					100000000000000000000118 /* lib-src */,
+					100000000000000000000117 /* emacs.pdmp */,
+				);
+			name = "Emacs Resources";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		100000000000000000000501 /* iosmacs */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 100000000000000000000601 /* Build configuration list for PBXNativeTarget "iosmacs" */;
+			buildPhases = (
+				100000000000000000000704 /* Build Emacs Core Probe */,
+				100000000000000000000701 /* Sources */,
+				100000000000000000000201 /* Frameworks */,
+				100000000000000000000703 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = iosmacs;
+			packageProductDependencies = (
+				100000000000000000000301 /* SwiftTerm */,
+			);
+			productName = iosmacs;
+			productReference = 100000000000000000000110 /* iosmacs.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		100000000000000000000801 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2650;
+				LastUpgradeCheck = 2650;
+				TargetAttributes = {
+					100000000000000000000501 = {
+						CreatedOnToolsVersion = 26.5;
+					};
+				};
+			};
+			buildConfigurationList = 100000000000000000000602 /* Build configuration list for PBXProject "iosmacs" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 100000000000000000000401;
+			packageReferences = (
+				100000000000000000000302 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+			);
+			productRefGroup = 100000000000000000000403 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				100000000000000000000501 /* iosmacs */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		100000000000000000000703 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+				files = (
+					100000000000000000000009 /* lisp in Resources */,
+					10000000000000000000000A /* etc in Resources */,
+					10000000000000000000000D /* lib-src in Resources */,
+					10000000000000000000000C /* emacs.pdmp in Resources */,
+				);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		100000000000000000000704 /* Build Emacs Core Probe */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Emacs Core Probe";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/build/emacs-ios-probe/iosmacs/libiosmacs-temacs.a",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"${PLATFORM_NAME}\" = \"iphonesimulator\" ]; then\n  \"${SRCROOT}/scripts/build-emacs-ios-static-probe.sh\"\nelse\n  echo \"iosmacs: Emacs static archive integration is currently simulator-only (${PLATFORM_NAME})\"\nfi\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		100000000000000000000701 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000001 /* IOSMacsApp.swift in Sources */,
+				100000000000000000000002 /* ContentView.swift in Sources */,
+				100000000000000000000003 /* IOSMacsTerminalView.swift in Sources */,
+				100000000000000000000004 /* EmacsSession.swift in Sources */,
+				100000000000000000000005 /* iosmacs_host_facade.c in Sources */,
+				10000000000000000000000B /* iosmacs_terminal_shim.c in Sources */,
+				100000000000000000000006 /* iosmacs_emacs_diagnostic.c in Sources */,
+				100000000000000000000008 /* iosmacs_emacs_core.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		100000000000000000000901 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		100000000000000000000902 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		100000000000000000000903 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ARCHS = arm64;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/iosmacs/Host",
+					"$(SRCROOT)/iosmacs/Emacs",
+				);
+				INFOPLIST_KEY_CFBundleDisplayName = iosmacs;
+				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
+				INFOPLIST_KEY_UIRequiresFullScreen = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				ONLY_ACTIVE_ARCH = YES;
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"$(SRCROOT)/build/emacs-ios-probe/iosmacs/libiosmacs-temacs.a",
+					"-lncurses",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = local.iosmacs;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_OBJC_BRIDGING_HEADER = "iosmacs/Support/iosmacs-Bridging-Header.h";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		100000000000000000000904 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ARCHS = arm64;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/iosmacs/Host",
+					"$(SRCROOT)/iosmacs/Emacs",
+				);
+				INFOPLIST_KEY_CFBundleDisplayName = iosmacs;
+				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
+				INFOPLIST_KEY_UIRequiresFullScreen = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				ONLY_ACTIVE_ARCH = YES;
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"$(SRCROOT)/build/emacs-ios-probe/iosmacs/libiosmacs-temacs.a",
+					"-lncurses",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = local.iosmacs;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_OBJC_BRIDGING_HEADER = "iosmacs/Support/iosmacs-Bridging-Header.h";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		100000000000000000000601 /* Build configuration list for PBXNativeTarget "iosmacs" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				100000000000000000000903 /* Debug */,
+				100000000000000000000904 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		100000000000000000000602 /* Build configuration list for PBXProject "iosmacs" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				100000000000000000000901 /* Debug */,
+				100000000000000000000902 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		100000000000000000000302 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.13.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		100000000000000000000301 /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 100000000000000000000302 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			productName = SwiftTerm;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 100000000000000000000801 /* Project object */;
+}

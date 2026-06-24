@@ -1,0 +1,3 @@
+[submodule "wasmacs"]
+	path = wasmacs
+	url = git@github.com:modeverv/wasmacs.git
