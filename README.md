@@ -1,11 +1,11 @@
 # iosmacs
 
-`iosmacs` is an experiment to run real GNU Emacs on iPadOS as a native Swift
-application.
+`iosmacs` is an experiment to run real GNU Emacs on iOS and iPadOS as a native
+Swift application.
 
 The project does not aim for App Store distribution. The expected user is a
 developer who builds the app locally with Xcode and installs it on their own
-iPad in a development state.
+iPhone or iPad in a development state.
 
 ## Goal
 
@@ -34,7 +34,7 @@ filesystem, terminal input, lifecycle, memory/root safety, network capability,
 and explicit unavailable process APIs.
 
 `iosmacs` does not intend to run the `wasmacs` browser bundle inside a WebView.
-Instead, it translates the same small-OS idea into a Swift/iPadOS host.
+Instead, it translates the same small-OS idea into a Swift iOS/iPadOS host.
 
 ## Terminal Layer
 
@@ -47,11 +47,26 @@ selection, cursor state, and keyboard input.
 SwiftTerm is intentionally used as a terminal emulator only. iosmacs does not
 delegate process, PTY, shell, or SSH ownership to SwiftTerm.
 
+## Supported Devices
+
+The Xcode target supports both iPhone and iPad device families
+(`TARGETED_DEVICE_FAMILY = "1,2"`). The current proof path is still simulator
+first:
+
+```sh
+make app
+make app-iphone
+```
+
+`make app` builds the default iOS simulator destination, and
+`make app-iphone` explicitly builds an iPhone simulator destination. Physical
+device builds still require local signing setup.
+
 ## MVP Scope
 
 The MVP should include:
 
-- Native iPadOS app shell written in Swift.
+- Native iOS/iPadOS app shell written in Swift.
 - GNU Emacs core built for iOS and linked or embedded with the app.
 - Standard Emacs Lisp tree bundled as read-only app resources.
 - Writable user workspace under the app container.
@@ -79,8 +94,9 @@ emulation. Unsupported behavior should fail clearly instead of pretending to
 work.
 
 The first useful milestone is not performance. It is seeing real Emacs reach
-`*scratch*` on an iPad and proving that input, redisplay, `find-file`, save,
-and Dired are owned by Emacs rather than reimplemented in Swift.
+`*scratch*` on an iPhone or iPad and proving that input, redisplay,
+`find-file`, save, and Dired are owned by Emacs rather than reimplemented in
+Swift.
 
 ## License
 
@@ -106,6 +122,8 @@ make verify
 `make verify` initializes submodules, prints the pinned Emacs source identity,
 builds the linkable Emacs archive, runs link and batch smoke checks, and builds
 the iOS simulator app. It expects macOS with Xcode command line tools available.
+Use `make verify-iphone` to run the same proof with an explicit iPhone
+simulator build.
 
 Initialize the reference source:
 

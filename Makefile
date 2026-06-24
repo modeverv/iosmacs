@@ -5,13 +5,15 @@ IOSMACS_SCHEME ?= iosmacs
 IOSMACS_CONFIGURATION ?= Debug
 IOSMACS_SDK ?= iphonesimulator
 IOSMACS_DESTINATION ?= generic/platform=iOS Simulator
+IOSMACS_IPHONE_DESTINATION ?= platform=iOS Simulator,name=iPhone 17
 IOSMACS_EMACS_SOURCE ?= wasmacs/vendor/emacs
 JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || printf '4')
 
 .DEFAULT_GOAL := help
 
 .PHONY: help deps bootstrap emacs-source emacs-info emacs-probe emacs-temacs emacs-static \
-	emacs-link-smoke emacs-batch-smoke emacs-nw-smoke app xcode-build smoke verify check clean
+	emacs-link-smoke emacs-batch-smoke emacs-nw-smoke app app-iphone xcode-build \
+	smoke verify verify-iphone check clean
 
 help:
 	@printf '%s\n' \
@@ -21,8 +23,10 @@ help:
 	  '  make emacs-temacs      Build the iOS simulator temacs probe' \
 	  '  make emacs-static      Build the app-linkable libiosmacs-temacs.a probe' \
 	  '  make app               Build the iOS simulator app with xcodebuild' \
+	  '  make app-iphone        Build the iPhone simulator app with xcodebuild' \
 	  '  make smoke             Run link and batch smoke checks' \
 	  '  make verify            Fresh-checkout verification: deps, smoke, app build' \
+	  '  make verify-iphone     Fresh-checkout verification for iPhone simulator' \
 	  '  make emacs-nw-smoke    Run the terminal -nw smoke check' \
 	  '  make clean             Remove generated build outputs'
 
@@ -69,6 +73,8 @@ smoke: emacs-link-smoke emacs-batch-smoke
 
 verify: emacs-info smoke app
 
+verify-iphone: emacs-info smoke app-iphone
+
 check: verify
 
 app: emacs-static
@@ -78,6 +84,15 @@ app: emacs-static
 	  -configuration "$(IOSMACS_CONFIGURATION)" \
 	  -sdk "$(IOSMACS_SDK)" \
 	  -destination "$(IOSMACS_DESTINATION)" \
+	  build
+
+app-iphone: emacs-static
+	xcodebuild \
+	  -project "$(IOSMACS_PROJECT)" \
+	  -scheme "$(IOSMACS_SCHEME)" \
+	  -configuration "$(IOSMACS_CONFIGURATION)" \
+	  -sdk "$(IOSMACS_SDK)" \
+	  -destination "$(IOSMACS_IPHONE_DESTINATION)" \
 	  build
 
 xcode-build: app

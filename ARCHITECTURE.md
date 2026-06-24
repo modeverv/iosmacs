@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`iosmacs` is a native iPadOS host for GNU Emacs.
+`iosmacs` is a native iOS/iPadOS host for GNU Emacs.
 
 The core idea is to provide the smallest runtime environment that lets the real
 GNU Emacs C core and standard Lisp runtime survive inside an iOS app sandbox.
@@ -10,7 +10,8 @@ Swift owns the app shell, rendering, storage bridge, and platform integration.
 Emacs owns editor semantics.
 
 This project intentionally does not target App Store distribution. The expected
-installation path is local developer build and deployment to a user's own iPad.
+installation path is local developer build and deployment to a user's own
+iPhone or iPad.
 
 ## Relationship To wasmacs
 
@@ -30,7 +31,7 @@ is not running on a normal Unix desktop.
 ## Layering
 
 ```text
-Swift iPadOS App
+Swift iOS/iPadOS App
   - window scene and lifecycle
   - terminal grid rendering
   - keyboard and touch input collection
