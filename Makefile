@@ -13,7 +13,7 @@ JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || printf '4')
 
 .PHONY: help deps bootstrap emacs-source emacs-info emacs-probe emacs-temacs emacs-static \
 	emacs-link-smoke emacs-batch-smoke emacs-nw-smoke app app-iphone xcode-build \
-	smoke verify verify-iphone check clean
+	smoke verify verify-iphone check clean distclean
 
 help:
 	@printf '%s\n' \
@@ -28,7 +28,8 @@ help:
 	  '  make verify            Fresh-checkout verification: deps, smoke, app build' \
 	  '  make verify-iphone     Fresh-checkout verification for iPhone simulator' \
 	  '  make emacs-nw-smoke    Run the terminal -nw smoke check' \
-	  '  make clean             Remove generated build outputs'
+	  '  make clean             Remove repo-local generated build outputs' \
+	  '  make distclean         Also remove this project scheme from Xcode DerivedData'
 
 deps:
 	git submodule update --init --recursive
@@ -99,3 +100,6 @@ xcode-build: app
 
 clean:
 	rm -rf build
+
+distclean: clean
+	rm -rf "$${HOME}/Library/Developer/Xcode/DerivedData/$(IOSMACS_SCHEME)-"*

@@ -140,6 +140,15 @@ Build the iOS simulator app:
 make app
 ```
 
+Remove generated build outputs:
+
+```sh
+make clean
+```
+
+`make clean` removes repo-local generated outputs under `build/`.
+`make distclean` also removes this project's Xcode DerivedData directory.
+
 The simulator app target runs `scripts/build-emacs-ios-static-probe.sh` before
 linking. If `build/emacs-ios-probe/iosmacs/libiosmacs-temacs.a` already exists
 and still exports `iosmacs_emacs_main` without exporting `main`, the build phase
