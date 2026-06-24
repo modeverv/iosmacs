@@ -104,7 +104,8 @@ The MVP filesystem is intentionally small:
 Rules:
 
 - `/system` is bundled with the app and read-only.
-- `/home/user` maps to the app container.
+- `/home/user` maps to the app container by default, or to a user-selected
+  document-provider folder after the next launch.
 - `find-file`, save, and Dired are scoped to `/home/user` for the MVP.
 - User import/export should be explicit and user initiated.
 - Dired should use Lisp-level directory listing behavior such as `ls-lisp`,

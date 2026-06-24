@@ -70,6 +70,7 @@ The MVP should include:
 - GNU Emacs core built for iOS and linked or embedded with the app.
 - Standard Emacs Lisp tree bundled as read-only app resources.
 - Writable user workspace under the app container.
+- User-selectable workspace folder mapped to `/home/user`.
 - A Swift terminal grid that displays the `--nw` terminal stream.
 - Keyboard input from hardware keyboard and software keyboard.
 - Basic file operations in the app container.
@@ -221,6 +222,10 @@ The pdump used by iosmacs records eager macro expansion as skipped at runtime so
 source Lisp loaded from the iOS bundle does not stop startup with eager
 macro-expansion warnings.
 
+`make app` and `make app-iphone` depend on that pdump path, so `make clean`
+followed by `make app` removes stale generated artifacts and rebuilds the
+bundled `emacs.pdmp` before Xcode packages the simulator app.
+
 The batch smoke defaults to the generated build tree. To verify the copied app
 bundle resources, pass `IOSMACS_EMACS_LISP_DIR` and `IOSMACS_EMACS_ETC_DIR`.
 For example:
@@ -252,12 +257,16 @@ env-gated test calls `TerminalView.insertText("abc")`, forwards the resulting
 delegate bytes to the fake TTY, and an Emacs marker confirms that `abc` appears
 in `*scratch*`.
 
-Local editing is rooted at `/home/user` inside Emacs and maps to
-`Documents/home/user` in the iOS app container. The app creates an initial
-`README.txt` and `notes/` directory on first launch. The path shim translates
-the POSIX file operations Emacs uses for `find-file`, save/reload, and Dired,
-while startup Lisp forces Dired through `ls-lisp` so it does not need an
-external `ls` process. Verify the script-level file path with:
+Local editing is rooted at `/home/user` inside Emacs. By default it maps to
+`Documents/home/user` in the app container, or to the app's iCloud ubiquity
+container when available. The toolbar workspace menu can save a user-selected
+folder as the next `/home/user` root; because GNU Emacs owns live buffers and
+the process cwd, a changed workspace takes effect on the next app launch.
+
+The app creates an initial `README.txt` and `notes/` directory on first launch.
+The path shim translates the POSIX file operations Emacs uses for `find-file`,
+save/reload, and Dired, while startup Lisp forces Dired through `ls-lisp` so it
+does not need an external `ls` process. Verify the script-level file path with:
 
 ```sh
 IOSMACS_NW_EXPECT_FILE_OPS=1 \
@@ -273,12 +282,13 @@ The app toolbar includes Import and Export controls: Import copies selected
 iPadOS document-picker files into `/home/user`, and Export presents the current
 workspace contents through the iPadOS document picker as copies.
 
-The bottom toolbar also includes font-size controls, workspace reset, and a
-terminal redraw action. The status strip shows the current lifecycle state plus
-simple startup elapsed time and resident-memory telemetry. Hardware keyboard
-shortcuts are available for the app-level controls: Command-- and Command-= for
-font size, Command-Shift-I for Import, Command-Shift-E for Export,
-Command-Shift-R for workspace reset, and Control-L for redraw.
+The bottom toolbar also includes workspace selection, font-size controls,
+workspace reset, and a terminal redraw action. The status strip shows the
+current lifecycle state plus simple startup elapsed time and resident-memory
+telemetry. Hardware keyboard shortcuts are available for the app-level
+controls: Command-- and Command-= for font size, Command-Shift-I for Import,
+Command-Shift-E for Export, Command-Shift-R for workspace reset, and Control-L
+for redraw.
 
 Known unsupported Emacs features in this MVP:
 

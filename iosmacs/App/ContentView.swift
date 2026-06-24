@@ -9,6 +9,7 @@ struct ContentView: View {
     @State private var exportURLs: [URL] = []
     @State private var documentStatus: String?
     @State private var showingResetConfirmation = false
+    @State private var showingWorkspacePicker = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,6 +29,22 @@ struct ContentView: View {
                     .lineLimit(1)
 
                 Spacer()
+
+                Menu {
+                    Button("Choose /home/user Folder") {
+                        showingWorkspacePicker = true
+                    }
+
+                    Button("Use Default Workspace") {
+                        documentStatus = session.clearWorkspaceRootSelection()
+                    }
+                } label: {
+                    Label("Workspace", systemImage: "folder.badge.gearshape")
+                }
+                .labelStyle(.iconOnly)
+                .frame(width: 44)
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Workspace")
 
                 Button {
                     session.decreaseFontSize()
@@ -115,6 +132,26 @@ struct ContentView: View {
                 }
             case .failure:
                 documentStatus = "Import failed"
+            }
+        }
+        .fileImporter(
+            isPresented: $showingWorkspacePicker,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else {
+                    documentStatus = "Workspace selection cancelled"
+                    return
+                }
+                do {
+                    documentStatus = try session.setWorkspaceRootSelection(url)
+                } catch {
+                    documentStatus = "Workspace selection failed"
+                }
+            case .failure:
+                documentStatus = "Workspace selection failed"
             }
         }
         .sheet(isPresented: $showingExporter) {

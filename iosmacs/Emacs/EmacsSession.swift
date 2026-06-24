@@ -6,16 +6,25 @@ final class EmacsSession: ObservableObject {
     @Published private(set) var lifecycleState: String = "iosmacs: created"
     @Published private(set) var outputPulse: UInt64 = 0
     @Published private(set) var workspaceRootPath: String?
+    @Published private(set) var pendingWorkspaceRootPath: String?
     @Published private(set) var metricsText: String = "startup: pending"
     @Published var fontSize: CGFloat = 15
+
+    private static let workspaceBookmarkDefaultsKey = "iosmacs.workspace.bookmark"
+    private static let workspacePathDefaultsKey = "iosmacs.workspace.path"
 
     private let maxDrainBytes = 16 * 1024
     private var didStart = false
     private var diagnosticMode = false
     private var outputPumpTask: Task<Void, Never>?
     private var cachedWorkspaceRootURL: URL?
+    private var selectedWorkspaceAccessURL: URL?
     private var startTime: Date?
     private var didRecordFirstOutput = false
+
+    init() {
+        pendingWorkspaceRootPath = UserDefaults.standard.string(forKey: Self.workspacePathDefaultsKey)
+    }
 
     func start() {
         guard !didStart else {
@@ -144,6 +153,46 @@ final class EmacsSession: ObservableObject {
         return urls.isEmpty ? [workspaceRoot] : urls.sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
+    func setWorkspaceRootSelection(_ url: URL) throws -> String {
+        let didAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if didAccess {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+
+        let bookmark = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
+        UserDefaults.standard.set(bookmark, forKey: Self.workspaceBookmarkDefaultsKey)
+        UserDefaults.standard.set(url.path, forKey: Self.workspacePathDefaultsKey)
+        pendingWorkspaceRootPath = url.path
+        if didStart {
+            return "Workspace saved for next launch"
+        }
+
+        cachedWorkspaceRootURL = nil
+        _ = ensureWorkspaceRootURL()
+        return "Workspace set"
+    }
+
+    func clearWorkspaceRootSelection() -> String {
+        UserDefaults.standard.removeObject(forKey: Self.workspaceBookmarkDefaultsKey)
+        UserDefaults.standard.removeObject(forKey: Self.workspacePathDefaultsKey)
+        pendingWorkspaceRootPath = nil
+        if didStart {
+            return "Default workspace saved for next launch"
+        }
+
+        cachedWorkspaceRootURL = nil
+        _ = ensureWorkspaceRootURL()
+        return "Default workspace set"
+    }
+
     private func startRealEmacs() -> Bool {
         guard iosmacs_emacs_core_link_available(),
               let lispDir = Bundle.main.path(forResource: "lisp", ofType: nil),
@@ -195,6 +244,10 @@ final class EmacsSession: ObservableObject {
     }
 
     private func prepareWorkspaceRoot() -> URL? {
+        if let selectedRoot = selectedWorkspaceRootURL() {
+            return prepareWorkspaceDirectory(selectedRoot)
+        }
+
         guard let documentsRoot = workspaceBaseURL() else {
             return nil
         }
@@ -202,6 +255,10 @@ final class EmacsSession: ObservableObject {
         let workspaceRoot = documentsRoot
             .appendingPathComponent("home", isDirectory: true)
             .appendingPathComponent("user", isDirectory: true)
+        return prepareWorkspaceDirectory(workspaceRoot)
+    }
+
+    private func prepareWorkspaceDirectory(_ workspaceRoot: URL) -> URL? {
         let notesRoot = workspaceRoot.appendingPathComponent("notes", isDirectory: true)
         do {
             try FileManager.default.createDirectory(at: notesRoot, withIntermediateDirectories: true)
@@ -214,6 +271,38 @@ final class EmacsSession: ObservableObject {
             return workspaceRoot
         } catch {
             iosmacs_os_set_lifecycle_state("iosmacs: workspace setup failed")
+            return nil
+        }
+    }
+
+    private func selectedWorkspaceRootURL() -> URL? {
+        guard let bookmark = UserDefaults.standard.data(forKey: Self.workspaceBookmarkDefaultsKey) else {
+            return nil
+        }
+
+        do {
+            var isStale = false
+            let url = try URL(
+                resolvingBookmarkData: bookmark,
+                options: [],
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            )
+            if isStale {
+                UserDefaults.standard.removeObject(forKey: Self.workspaceBookmarkDefaultsKey)
+                UserDefaults.standard.removeObject(forKey: Self.workspacePathDefaultsKey)
+                pendingWorkspaceRootPath = nil
+                return nil
+            }
+            if selectedWorkspaceAccessURL?.path != url.path {
+                _ = url.startAccessingSecurityScopedResource()
+                selectedWorkspaceAccessURL = url
+            }
+            return url
+        } catch {
+            UserDefaults.standard.removeObject(forKey: Self.workspaceBookmarkDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: Self.workspacePathDefaultsKey)
+            pendingWorkspaceRootPath = nil
             return nil
         }
     }

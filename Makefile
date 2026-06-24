@@ -12,7 +12,7 @@ JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || printf '4')
 .DEFAULT_GOAL := help
 
 .PHONY: help deps bootstrap emacs-source emacs-info emacs-probe emacs-temacs emacs-static \
-	emacs-link-smoke emacs-batch-smoke emacs-nw-smoke app app-iphone xcode-build \
+	emacs-link-smoke emacs-batch-smoke emacs-nw-smoke emacs-pdmp app app-iphone xcode-build \
 	smoke verify verify-iphone check clean distclean
 
 help:
@@ -22,6 +22,7 @@ help:
 	  '  make emacs-info        Print the pinned Emacs source remote, commit, and tag' \
 	  '  make emacs-temacs      Build the iOS simulator temacs probe' \
 	  '  make emacs-static      Build the app-linkable libiosmacs-temacs.a probe' \
+	  '  make emacs-pdmp        Build the bundled emacs.pdmp through the -nw smoke path' \
 	  '  make app               Build the iOS simulator app with xcodebuild' \
 	  '  make app-iphone        Build the iPhone simulator app with xcodebuild' \
 	  '  make smoke             Run link and batch smoke checks' \
@@ -70,6 +71,8 @@ emacs-batch-smoke: emacs-static
 emacs-nw-smoke: emacs-static
 	scripts/run-emacs-ios-nw-smoke.sh
 
+emacs-pdmp: emacs-nw-smoke
+
 smoke: emacs-link-smoke emacs-batch-smoke
 
 verify: emacs-info smoke app
@@ -78,7 +81,7 @@ verify-iphone: emacs-info smoke app-iphone
 
 check: verify
 
-app: emacs-static
+app: emacs-static emacs-pdmp
 	xcodebuild \
 	  -project "$(IOSMACS_PROJECT)" \
 	  -scheme "$(IOSMACS_SCHEME)" \
@@ -87,7 +90,7 @@ app: emacs-static
 	  -destination "$(IOSMACS_DESTINATION)" \
 	  build
 
-app-iphone: emacs-static
+app-iphone: emacs-static emacs-pdmp
 	xcodebuild \
 	  -project "$(IOSMACS_PROJECT)" \
 	  -scheme "$(IOSMACS_SCHEME)" \

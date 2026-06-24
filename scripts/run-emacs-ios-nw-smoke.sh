@@ -126,6 +126,8 @@ make -C "${target_build_root}/src" ../etc/DOC
 
 mkdir -p "${smoke_dir}"
 mkdir -p "${pdmp_dir}"
+mkdir -p "${smoke_dir}/etc"
+cp "${target_build_root}/etc/DOC" "${smoke_dir}/etc/DOC"
 mkdir -p "${workspace_root}/notes"
 rm -f "${ok_file}" "${input_ready_file}" "${input_injected_file}"
 if [[ "${write_network_smoke_el}" != "0" ]]; then
