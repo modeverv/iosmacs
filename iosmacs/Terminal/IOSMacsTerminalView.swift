@@ -82,6 +82,9 @@ struct IOSMacsTerminalView: UIViewRepresentable {
                 observeOutput(chunk)
                 terminalView.feed(byteArray: chunk[...])
             }
+            if byteCount > 0 {
+                hostView?.terminalCursorDidChange()
+            }
             return byteCount
         }
 
@@ -284,7 +287,7 @@ final class IOSMacsTerminalHostView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         terminalView.frame = bounds
-        keyboardInputView.frame = CGRect(x: 0, y: 0, width: 1, height: 1)
+        updateKeyboardInputAnchorFrame()
         updateMarkedTextOverlayFrame()
         requestTerminalFocus()
         reportLayoutIfNeeded()
@@ -303,13 +306,14 @@ final class IOSMacsTerminalHostView: UIView {
         iosmacsInputDelegate?.sendSpecialKey(bytes, reason: reason)
     }
 
-    func updateMarkedTextOverlay(_ text: String?) {
+    func updateMarkedTextOverlay(_ text: String?, selectedRange: NSRange? = nil) {
         guard let text, !text.isEmpty else {
             clearMarkedTextOverlay()
             return
         }
-        compositionOverlayLabel.text = text
+        compositionOverlayLabel.attributedText = markedTextAttributedString(text, selectedRange: selectedRange)
         compositionOverlayLabel.isHidden = false
+        updateKeyboardInputAnchorFrame()
         updateMarkedTextOverlayFrame()
     }
 
@@ -317,8 +321,14 @@ final class IOSMacsTerminalHostView: UIView {
         guard !compositionOverlayLabel.isHidden || compositionOverlayLabel.text != nil else {
             return
         }
-        compositionOverlayLabel.text = nil
+        compositionOverlayLabel.attributedText = nil
         compositionOverlayLabel.isHidden = true
+        updateKeyboardInputAnchorFrame()
+    }
+
+    func terminalCursorDidChange() {
+        updateKeyboardInputAnchorFrame()
+        updateMarkedTextOverlayFrame()
     }
 
     func sendDeleteBackward() {
@@ -434,13 +444,9 @@ final class IOSMacsTerminalHostView: UIView {
         iosmacsInputDelegate?.terminalLayoutChanged(cols: max(1, terminal.cols), rows: max(1, terminal.rows))
     }
 
-    private func updateMarkedTextOverlayFrame() {
-        guard !compositionOverlayLabel.isHidden,
-              let text = compositionOverlayLabel.text,
-              !text.isEmpty,
-              bounds.width > 0,
-              bounds.height > 0 else {
-            return
+    private func currentTerminalCursorRect() -> CGRect {
+        guard bounds.width > 0, bounds.height > 0 else {
+            return CGRect(x: 0, y: 0, width: 1, height: 1)
         }
 
         let terminal = terminalView.getTerminal()
@@ -450,17 +456,77 @@ final class IOSMacsTerminalHostView: UIView {
         let cellHeight = max(1, terminalView.bounds.height / CGFloat(rows))
         let col = min(max(terminal.buffer.x, 0), max(0, cols - 1))
         let row = min(max(terminal.buffer.y, 0), max(0, rows - 1))
+        return CGRect(
+            x: CGFloat(col) * cellWidth,
+            y: CGFloat(row) * cellHeight,
+            width: cellWidth,
+            height: cellHeight
+        )
+    }
+
+    private func updateKeyboardInputAnchorFrame() {
+        let cursorRect = currentTerminalCursorRect()
+        let widthToRightEdge = max(cursorRect.width, terminalView.bounds.width - cursorRect.minX)
+        keyboardInputView.frame = CGRect(
+            x: cursorRect.minX,
+            y: cursorRect.minY,
+            width: widthToRightEdge,
+            height: cursorRect.height
+        )
+    }
+
+    private func updateMarkedTextOverlayFrame() {
+        guard !compositionOverlayLabel.isHidden,
+              compositionOverlayLabel.attributedText?.length ?? 0 > 0,
+              bounds.width > 0,
+              bounds.height > 0 else {
+            return
+        }
+
+        let cursorRect = currentTerminalCursorRect()
         let fittingSize = compositionOverlayLabel.sizeThatFits(
-            CGSize(width: terminalView.bounds.width, height: cellHeight)
+            CGSize(width: terminalView.bounds.width, height: cursorRect.height)
         )
         let width = min(
-            max(cellWidth, ceil(fittingSize.width) + 6),
-            max(cellWidth, terminalView.bounds.width)
+            max(cursorRect.width, ceil(fittingSize.width) + 6),
+            max(cursorRect.width, terminalView.bounds.width)
         )
-        let height = max(cellHeight, ceil(fittingSize.height))
-        let originX = min(CGFloat(col) * cellWidth, max(0, terminalView.bounds.width - width))
-        let originY = min(CGFloat(row) * cellHeight, max(0, terminalView.bounds.height - height))
+        let height = max(cursorRect.height, ceil(fittingSize.height))
+        let originX = min(cursorRect.minX, max(0, terminalView.bounds.width - width))
+        let originY = min(cursorRect.minY, max(0, terminalView.bounds.height - height))
         compositionOverlayLabel.frame = CGRect(x: originX, y: originY, width: width, height: height)
+    }
+
+    private func markedTextAttributedString(_ text: String, selectedRange: NSRange?) -> NSAttributedString {
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: compositionOverlayLabel.font as Any,
+            .foregroundColor: UIColor.white,
+            .underlineStyle: NSUnderlineStyle.single.rawValue
+        ]
+        let result = NSMutableAttributedString(string: text, attributes: attributes)
+        guard let selectedRange,
+              selectedRange.location != NSNotFound,
+              selectedRange.location <= result.length else {
+            return result
+        }
+
+        let highlightRange: NSRange
+        if selectedRange.length > 0, selectedRange.location < result.length {
+            highlightRange = NSRange(
+                location: selectedRange.location,
+                length: min(selectedRange.length, result.length - selectedRange.location)
+            )
+        } else {
+            highlightRange = NSRange(location: 0, length: result.length)
+        }
+        result.addAttributes(
+            [
+                .backgroundColor: UIColor(white: 0.92, alpha: 0.35),
+                .foregroundColor: UIColor.white
+            ],
+            range: highlightRange
+        )
+        return result
     }
 }
 
@@ -558,7 +624,7 @@ final class IOSMacsKeyboardInputView: UITextView, UITextViewDelegate {
     override func setMarkedText(_ markedText: String?, selectedRange: NSRange) {
         super.setMarkedText(markedText, selectedRange: selectedRange)
         if let markedText, !markedText.isEmpty {
-            terminalHost?.updateMarkedTextOverlay(markedText)
+            terminalHost?.updateMarkedTextOverlay(markedText, selectedRange: selectedRange)
         } else {
             terminalHost?.clearMarkedTextOverlay()
         }
