@@ -132,6 +132,13 @@
       || inputType === "insertFromDrop";
   }
 
+  function insertedTextFromInputEvent(event) {
+    if (typeof event?.data === "string") {
+      return event.data;
+    }
+    return isSpaceKey(event) ? " " : "";
+  }
+
   function isImeProxyEvent(event) {
     if (!imeProxy) {
       return false;
@@ -221,7 +228,7 @@
     }
 
     if (event.ctrlKey) {
-      if (event.key === " ") {
+      if (isSpaceKey(event)) {
         return "\x00";
       }
       if (event.key.length === 1) {
@@ -252,6 +259,9 @@
     }
 
     if (event.altKey) {
+      if (isSpaceKey(event)) {
+        return "\x1b ";
+      }
       const ch = printableAsciiFromCode(event);
       if (ch) {
         return `\x1b${ch}`;
@@ -294,9 +304,28 @@
     }
   }
 
+  function isSpaceKey(event) {
+    const key = typeof event?.key === "string" ? event.key.toLowerCase() : "";
+    const code = typeof event?.code === "string" ? event.code.toLowerCase() : "";
+    const keyIdentifier = typeof event?.keyIdentifier === "string" ? event.keyIdentifier.toUpperCase() : "";
+    return event?.key === " "
+      || key === "space"
+      || key === "spacebar"
+      || code === "space"
+      || code === "spacebar"
+      || keyIdentifier === "U+0020"
+      || event?.keyCode === 32
+      || event?.which === 32
+      || event?.charCode === 32;
+  }
+
   function printableAsciiFromCode(event) {
     if (typeof event?.code !== "string") {
       return "";
+    }
+
+    if (isSpaceKey(event)) {
+      return " ";
     }
 
     if (/^Key[A-Z]$/.test(event.code)) {
@@ -314,6 +343,9 @@
   function printableAsciiFromKey(event) {
     if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing || event.keyCode === 229) {
       return "";
+    }
+    if (isSpaceKey(event)) {
+      return " ";
     }
     if (typeof event.key !== "string" || event.key.length !== 1) {
       return "";
@@ -359,7 +391,7 @@
         return;
       }
       if (handledInputType(event.inputType)) {
-        forwardEventText(event, event.data || "", true);
+        forwardEventText(event, insertedTextFromInputEvent(event), true);
         return;
       }
       if (event.inputType === "insertLineBreak" || event.inputType === "insertParagraph") {
@@ -454,7 +486,7 @@
         return;
       }
       debugIme(`beforeinput type=${event.inputType} data=${JSON.stringify(event.data || "")} value=${JSON.stringify(proxy.value)}`);
-      if (handledInputType(event.inputType) && forwardText(event.data, true)) {
+      if (handledInputType(event.inputType) && forwardText(insertedTextFromInputEvent(event), true)) {
         stopHandledImeEvent(event, proxy);
         return;
       }
