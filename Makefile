@@ -104,7 +104,7 @@ app-iphone: emacs-static emacs-pdmp
 
 xcode-build: app
 
-app-installl: app
+app-install: app
 	@set -euo pipefail; \
 	app_path="$$(xcodebuild \
 	  -project "$(IOSMACS_PROJECT)" \
