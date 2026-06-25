@@ -40,6 +40,7 @@ if [[ ! -x "${native_build}/lib-src/make-docfile" ]] \
       --without-threads \
       --without-tree-sitter \
       --with-modules=no
+    make -C lib all -j"${jobs}"
     make -C lib-src make-docfile make-fingerprint -j"${jobs}"
   )
 fi

@@ -39,7 +39,10 @@ expect_file_ops="${IOSMACS_NW_EXPECT_FILE_OPS:-0}"
 expect_network="${IOSMACS_NW_EXPECT_NETWORK:-0}"
 skip_term_init="${IOSMACS_NW_SKIP_TERM_INIT:-0}"
 write_network_smoke_el=0
-lisp_load_path="${lisp_dir}:${lisp_dir}/emacs-lisp:${lisp_dir}/progmodes:${lisp_dir}/language:${lisp_dir}/international:${lisp_dir}/textmodes:${lisp_dir}/vc:${lisp_dir}/calendar:${lisp_dir}/term:${lisp_dir}/mail:${lisp_dir}/net:${lisp_dir}/play:${lisp_dir}/url:${lisp_dir}/gnus:${lisp_dir}/use-package:${lisp_dir}/obsolete"
+lisp_load_path="${lisp_dir}"
+while IFS= read -r dir; do
+  lisp_load_path="${lisp_load_path}:${dir}"
+done < <(find "${lisp_dir}" -mindepth 1 -maxdepth 1 -type d | sort)
 if [[ -z "${dump_file}" && "${IOSMACS_NW_USE_LOCAL_PDMP:-1}" = "1" ]]; then
   dump_file="${pdmp_dir}/emacs.pdmp"
 fi

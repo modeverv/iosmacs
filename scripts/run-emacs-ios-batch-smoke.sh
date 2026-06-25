@@ -17,6 +17,10 @@ lisp_dir="${IOSMACS_EMACS_LISP_DIR:-${target_build_root}/source/lisp}"
 etc_dir="${IOSMACS_EMACS_ETC_DIR:-${target_build_root}/source/etc}"
 lib_src_dir="${IOSMACS_EMACS_EXEC_DIR:-${target_build_root}/lib-src}"
 dump_file="${IOSMACS_EMACS_DUMP_FILE:-}"
+lisp_load_path="${lisp_dir}"
+while IFS= read -r dir; do
+  lisp_load_path="${lisp_load_path}:${dir}"
+done < <(find "${lisp_dir}" -mindepth 1 -maxdepth 1 -type d | sort)
 
 escape_c_string() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
@@ -40,7 +44,7 @@ extern int iosmacs_emacs_main(int argc, char **argv);
 
 int main(int argc, char **process_argv) {
   (void)argc;
-  setenv("EMACSLOADPATH", "${lisp_dir}", 1);
+  setenv("EMACSLOADPATH", "${lisp_load_path}", 1);
   setenv("EMACSDATA", "${etc_dir}", 1);
   setenv("EMACSDOC", "${etc_dir}", 1);
   setenv("EMACSPATH", "${lib_src_dir}", 1);

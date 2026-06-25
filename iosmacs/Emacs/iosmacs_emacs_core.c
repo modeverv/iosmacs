@@ -4,11 +4,13 @@
 #include "iosmacs_terminal_shim.h"
 
 #include <TargetConditionals.h>
+#include <dirent.h>
 #include <locale.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #if TARGET_OS_SIMULATOR
@@ -36,6 +38,23 @@ static char *copy_c_string(const char *value) {
     return strdup(value);
 }
 
+static char *copy_parent_dir(const char *path) {
+    if (path == NULL) {
+        return NULL;
+    }
+    char *parent = strdup(path);
+    if (parent == NULL) {
+        return NULL;
+    }
+    char *slash = strrchr(parent, '/');
+    if (slash == NULL || slash == parent) {
+        free(parent);
+        return NULL;
+    }
+    *slash = '\0';
+    return parent;
+}
+
 static void free_start_context(iosmacs_emacs_start_context *context) {
     if (context == NULL) {
         return;
@@ -48,30 +67,95 @@ static void free_start_context(iosmacs_emacs_start_context *context) {
     free(context);
 }
 
-static void set_lisp_load_path(const char *lisp_dir) {
-    if (lisp_dir == NULL) {
+static void set_lisp_load_path(const char *physical_lisp_dir, const char *logical_lisp_dir) {
+    if (physical_lisp_dir == NULL || logical_lisp_dir == NULL) {
         return;
     }
 
-    const char *suffix =
-        ":%s/emacs-lisp:%s/progmodes:%s/language:%s/international"
-        ":%s/textmodes:%s/vc:%s/calendar:%s/term:%s/mail:%s/net:%s/play"
-        ":%s/url:%s/gnus:%s/use-package:%s/obsolete";
-    int length = snprintf(NULL, 0, "%s", lisp_dir)
-        + snprintf(NULL, 0, suffix, lisp_dir, lisp_dir, lisp_dir, lisp_dir,
-                   lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir,
-                   lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir)
-        + 1;
-    char *load_path = malloc((size_t)length);
-    if (load_path == NULL) {
-        setenv("EMACSLOADPATH", lisp_dir, 1);
+    size_t count = 0;
+    size_t capacity = 32;
+    char **dirs = calloc(capacity, sizeof(*dirs));
+    if (dirs == NULL) {
+        setenv("EMACSLOADPATH", logical_lisp_dir, 1);
         return;
     }
-    snprintf(load_path, (size_t)length, "%s", lisp_dir);
-    snprintf(load_path + strlen(load_path), (size_t)(length - (int)strlen(load_path)),
-             suffix, lisp_dir, lisp_dir, lisp_dir, lisp_dir,
-             lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir,
-             lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir);
+
+    DIR *dir = opendir(physical_lisp_dir);
+    if (dir != NULL) {
+        struct dirent *entry = NULL;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_name[0] == '.') {
+                continue;
+            }
+
+            int physical_length = snprintf(NULL, 0, "%s/%s", physical_lisp_dir, entry->d_name);
+            int logical_length = snprintf(NULL, 0, "%s/%s", logical_lisp_dir, entry->d_name);
+            if (physical_length <= 0 || logical_length <= 0) {
+                continue;
+            }
+            char *physical_path = malloc((size_t)physical_length + 1);
+            char *logical_path = malloc((size_t)logical_length + 1);
+            if (physical_path == NULL || logical_path == NULL) {
+                free(physical_path);
+                free(logical_path);
+                continue;
+            }
+            snprintf(physical_path, (size_t)physical_length + 1, "%s/%s", physical_lisp_dir, entry->d_name);
+            snprintf(logical_path, (size_t)logical_length + 1, "%s/%s", logical_lisp_dir, entry->d_name);
+
+            struct stat st;
+            if (stat(physical_path, &st) == 0 && S_ISDIR(st.st_mode)) {
+                if (count == capacity) {
+                    size_t next_capacity = capacity * 2;
+                    char **next_dirs = realloc(dirs, next_capacity * sizeof(*next_dirs));
+                    if (next_dirs == NULL) {
+                        free(physical_path);
+                        free(logical_path);
+                        continue;
+                    }
+                    dirs = next_dirs;
+                    capacity = next_capacity;
+                }
+                dirs[count++] = logical_path;
+            } else {
+                free(logical_path);
+            }
+            free(physical_path);
+        }
+        closedir(dir);
+    }
+
+    for (size_t i = 0; i < count; i++) {
+        for (size_t j = i + 1; j < count; j++) {
+            if (strcmp(dirs[i], dirs[j]) > 0) {
+                char *tmp = dirs[i];
+                dirs[i] = dirs[j];
+                dirs[j] = tmp;
+            }
+        }
+    }
+
+    size_t length = strlen(logical_lisp_dir) + 1;
+    for (size_t i = 0; i < count; i++) {
+        length += 1 + strlen(dirs[i]);
+    }
+    char *load_path = malloc(length);
+    if (load_path == NULL) {
+        setenv("EMACSLOADPATH", logical_lisp_dir, 1);
+        for (size_t i = 0; i < count; i++) {
+            free(dirs[i]);
+        }
+        free(dirs);
+        return;
+    }
+    snprintf(load_path, length, "%s", logical_lisp_dir);
+    for (size_t i = 0; i < count; i++) {
+        strlcat(load_path, ":", length);
+        strlcat(load_path, dirs[i], length);
+        free(dirs[i]);
+    }
+    free(dirs);
+
     setenv("EMACSLOADPATH", load_path, 1);
     free(load_path);
 }
@@ -262,6 +346,15 @@ static char *copy_runtime_eval_form(void) {
         "(progn "
         "(setq default-directory \"/home/user/\" "
         "command-line-default-directory \"/home/user/\") "
+        "(defun iosmacs-ensure-bundled-lisp-load-path () "
+        "(let ((dir (getenv \"IOSMACS_LISP_DIR\"))) "
+        "(when (and dir (file-directory-p dir)) "
+        "(add-to-list 'load-path dir t) "
+        "(dolist (child (directory-files dir t \"\\\\`[^.]\")) "
+        "(when (file-directory-p child) "
+        "(add-to-list 'load-path child t)))))) "
+        "(iosmacs-ensure-bundled-lisp-load-path) "
+        "(add-hook 'emacs-startup-hook #'iosmacs-ensure-bundled-lisp-load-path) "
         "(defun iosmacs-force-utf8-terminal () "
         "(set-language-environment \"UTF-8\") "
         "(prefer-coding-system 'utf-8-unix) "
@@ -286,9 +379,13 @@ static char *copy_runtime_eval_form(void) {
 
 static void *emacs_core_thread_main(void *arg) {
     iosmacs_emacs_start_context *context = (iosmacs_emacs_start_context *)arg;
+    static const char logical_lisp_dir[] = "/system/lisp";
+    static const char logical_etc_dir[] = "/system/etc";
+    static const char logical_exec_dir[] = "/system/lib-src";
     bool app_smoke_enabled = getenv("IOSMACS_APP_SMOKE_MARKER") != NULL
         || getenv("IOSMACS_APP_FILE_SMOKE_MARKER") != NULL
         || getenv("IOSMACS_APP_COLOR_SMOKE_MARKER") != NULL;
+    char *system_root = copy_parent_dir(context->lisp_dir);
 
     iosmacs_terminal_shim_enable();
     int mirror_fd = app_smoke_enabled ? dup(STDERR_FILENO) : -1;
@@ -299,16 +396,21 @@ static void *emacs_core_thread_main(void *arg) {
         emacs_core_exit_status_value = 125;
         emacs_core_running = false;
         pthread_mutex_unlock(&emacs_core_mutex);
+        free(system_root);
         free_start_context(context);
         return NULL;
     }
-    set_lisp_load_path(context->lisp_dir);
+    if (system_root != NULL) {
+        setenv("IOSMACS_SYSTEM_ROOT", system_root, 1);
+    }
+    set_lisp_load_path(context->lisp_dir, logical_lisp_dir);
+    setenv("IOSMACS_LISP_DIR", logical_lisp_dir, 1);
     if (context->etc_dir != NULL) {
-        setenv("EMACSDATA", context->etc_dir, 1);
-        setenv("EMACSDOC", context->etc_dir, 1);
+        setenv("EMACSDATA", logical_etc_dir, 1);
+        setenv("EMACSDOC", logical_etc_dir, 1);
     }
     if (context->exec_dir != NULL) {
-        setenv("EMACSPATH", context->exec_dir, 1);
+        setenv("EMACSPATH", logical_exec_dir, 1);
     }
     if (context->workspace_root != NULL) {
         setenv("IOSMACS_WORKSPACE_ROOT", context->workspace_root, 1);
@@ -379,6 +481,7 @@ static void *emacs_core_thread_main(void *arg) {
     emacs_core_running = false;
     pthread_mutex_unlock(&emacs_core_mutex);
     iosmacs_os_set_lifecycle_state("iosmacs: GNU Emacs exited");
+    free(system_root);
     free_start_context(context);
     return NULL;
 }

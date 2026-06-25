@@ -88,31 +88,90 @@ static void shim_debug_log_bytes(const char *label, const uint8_t *bytes, size_t
     syscall(SYS_close, fd);
 }
 
-static const char *translate_workspace_path(const char *path, char *buffer, size_t buffer_size) {
-    static const char logical_home[] = "/home/user";
-    const char *workspace_root = getenv("IOSMACS_WORKSPACE_ROOT");
-    size_t logical_len = sizeof(logical_home) - 1;
-    size_t root_len;
+static const char *translate_prefixed_path(const char *path,
+                                           const char *logical_prefix,
+                                           const char *physical_prefix,
+                                           char *buffer,
+                                           size_t buffer_size) {
+    size_t logical_len;
+    size_t physical_len;
 
-    if (path == NULL || workspace_root == NULL || workspace_root[0] == '\0') {
-        return path;
+    if (path == NULL || logical_prefix == NULL || physical_prefix == NULL || physical_prefix[0] == '\0') {
+        return NULL;
     }
-    if (strncmp(path, logical_home, logical_len) != 0) {
-        return path;
+
+    logical_len = strlen(logical_prefix);
+    if (strncmp(path, logical_prefix, logical_len) != 0) {
+        return NULL;
     }
     if (path[logical_len] != '\0' && path[logical_len] != '/') {
-        return path;
+        return NULL;
     }
 
-    root_len = strlen(workspace_root);
-    if (root_len + strlen(path + logical_len) + 1 > buffer_size) {
+    physical_len = strlen(physical_prefix);
+    if (physical_len + strlen(path + logical_len) + 1 > buffer_size) {
         errno = ENAMETOOLONG;
         return NULL;
     }
 
-    memcpy(buffer, workspace_root, root_len);
-    strcpy(buffer + root_len, path + logical_len);
+    memcpy(buffer, physical_prefix, physical_len);
+    strcpy(buffer + physical_len, path + logical_len);
     return buffer;
+}
+
+static bool path_has_prefix(const char *path, const char *prefix) {
+    size_t prefix_len;
+    if (path == NULL || prefix == NULL) {
+        return false;
+    }
+    prefix_len = strlen(prefix);
+    return strncmp(path, prefix, prefix_len) == 0
+        && (path[prefix_len] == '\0' || path[prefix_len] == '/');
+}
+
+static bool is_system_path(const char *path) {
+    return path_has_prefix(path, "/system");
+}
+
+static const char *translate_system_path(const char *path, char *buffer, size_t buffer_size) {
+    static const char logical_system[] = "/system";
+    const char *system_root = getenv("IOSMACS_SYSTEM_ROOT");
+    const char *mapped = translate_prefixed_path(path, logical_system, system_root, buffer, buffer_size);
+    if (mapped != NULL) {
+        return mapped;
+    }
+    return path;
+}
+
+static const char *translate_workspace_path(const char *path, char *buffer, size_t buffer_size) {
+    static const char logical_home[] = "/home/user";
+    const char *workspace_root = getenv("IOSMACS_WORKSPACE_ROOT");
+    const char *mapped;
+
+    if (path == NULL) {
+        return path;
+    }
+    mapped = translate_prefixed_path(path, logical_home, workspace_root, buffer, buffer_size);
+    if (mapped != NULL) {
+        return mapped;
+    }
+    return translate_system_path(path, buffer, buffer_size);
+}
+
+static int reject_read_only_system_path(const char *path) {
+    if (is_system_path(path)) {
+        errno = EROFS;
+        return 1;
+    }
+    return 0;
+}
+
+static int open_flags_write_to_path(int flags) {
+    return (flags & O_CREAT) != 0
+        || (flags & O_TRUNC) != 0
+        || (flags & O_APPEND) != 0
+        || (flags & O_ACCMODE) == O_WRONLY
+        || (flags & O_ACCMODE) == O_RDWR;
 }
 
 static int is_iosmacs_tty_fd(int fd) {
@@ -452,6 +511,9 @@ int openat(int fd, const char *path, int flags, ...) {
     if (shim_enabled && path != NULL && strcmp(path, "/dev/tty") == 0) {
         return open_fake_tty();
     }
+    if (open_flags_write_to_path(flags) && reject_read_only_system_path(path)) {
+        return -1;
+    }
     actual_path = translate_workspace_path(path, translated, sizeof(translated));
     if (actual_path == NULL) {
         return -1;
@@ -472,6 +534,9 @@ int open(const char *path, int flags, ...) {
     if (shim_enabled && path != NULL && strcmp(path, "/dev/tty") == 0) {
         return open_fake_tty();
     }
+    if (open_flags_write_to_path(flags) && reject_read_only_system_path(path)) {
+        return -1;
+    }
     actual_path = translate_workspace_path(path, translated, sizeof(translated));
     if (actual_path == NULL) {
         return -1;
@@ -481,6 +546,10 @@ int open(const char *path, int flags, ...) {
 
 int access(const char *path, int mode) {
     char translated[PATH_MAX];
+    if ((mode & W_OK) != 0 && is_system_path(path)) {
+        errno = EACCES;
+        return -1;
+    }
     const char *actual_path = translate_workspace_path(path, translated, sizeof(translated));
     if (actual_path == NULL) {
         return -1;
@@ -490,6 +559,10 @@ int access(const char *path, int mode) {
 
 int faccessat(int fd, const char *path, int mode, int flags) {
     char translated[PATH_MAX];
+    if ((mode & W_OK) != 0 && is_system_path(path)) {
+        errno = EACCES;
+        return -1;
+    }
     const char *actual_path = translate_workspace_path(path, translated, sizeof(translated));
     if (actual_path == NULL) {
         return -1;
@@ -526,6 +599,9 @@ int lstat(const char *path, struct stat *st) {
 
 int mkdir(const char *path, mode_t mode) {
     char translated[PATH_MAX];
+    if (reject_read_only_system_path(path)) {
+        return -1;
+    }
     const char *actual_path = translate_workspace_path(path, translated, sizeof(translated));
     if (actual_path == NULL) {
         return -1;
@@ -535,6 +611,9 @@ int mkdir(const char *path, mode_t mode) {
 
 int mkdirat(int fd, const char *path, mode_t mode) {
     char translated[PATH_MAX];
+    if (reject_read_only_system_path(path)) {
+        return -1;
+    }
     const char *actual_path = translate_workspace_path(path, translated, sizeof(translated));
     if (actual_path == NULL) {
         return -1;
@@ -544,6 +623,9 @@ int mkdirat(int fd, const char *path, mode_t mode) {
 
 int rmdir(const char *path) {
     char translated[PATH_MAX];
+    if (reject_read_only_system_path(path)) {
+        return -1;
+    }
     const char *actual_path = translate_workspace_path(path, translated, sizeof(translated));
     if (actual_path == NULL) {
         return -1;
@@ -553,6 +635,9 @@ int rmdir(const char *path) {
 
 int unlink(const char *path) {
     char translated[PATH_MAX];
+    if (reject_read_only_system_path(path)) {
+        return -1;
+    }
     const char *actual_path = translate_workspace_path(path, translated, sizeof(translated));
     if (actual_path == NULL) {
         return -1;
@@ -562,6 +647,9 @@ int unlink(const char *path) {
 
 int unlinkat(int fd, const char *path, int flags) {
     char translated[PATH_MAX];
+    if (reject_read_only_system_path(path)) {
+        return -1;
+    }
     const char *actual_path = translate_workspace_path(path, translated, sizeof(translated));
     if (actual_path == NULL) {
         return -1;
@@ -572,6 +660,9 @@ int unlinkat(int fd, const char *path, int flags) {
 int rename(const char *old_path, const char *new_path) {
     char translated_old[PATH_MAX];
     char translated_new[PATH_MAX];
+    if (reject_read_only_system_path(old_path) || reject_read_only_system_path(new_path)) {
+        return -1;
+    }
     const char *actual_old = translate_workspace_path(old_path, translated_old, sizeof(translated_old));
     const char *actual_new = translate_workspace_path(new_path, translated_new, sizeof(translated_new));
     if (actual_old == NULL || actual_new == NULL) {
@@ -583,6 +674,9 @@ int rename(const char *old_path, const char *new_path) {
 int renameat(int old_fd, const char *old_path, int new_fd, const char *new_path) {
     char translated_old[PATH_MAX];
     char translated_new[PATH_MAX];
+    if (reject_read_only_system_path(old_path) || reject_read_only_system_path(new_path)) {
+        return -1;
+    }
     const char *actual_old = translate_workspace_path(old_path, translated_old, sizeof(translated_old));
     const char *actual_new = translate_workspace_path(new_path, translated_new, sizeof(translated_new));
     if (actual_old == NULL || actual_new == NULL) {
@@ -602,6 +696,9 @@ int chdir(const char *path) {
 
 int chmod(const char *path, mode_t mode) {
     char translated[PATH_MAX];
+    if (reject_read_only_system_path(path)) {
+        return -1;
+    }
     const char *actual_path = translate_workspace_path(path, translated, sizeof(translated));
     if (actual_path == NULL) {
         return -1;
@@ -611,6 +708,9 @@ int chmod(const char *path, mode_t mode) {
 
 int fchmodat(int fd, const char *path, mode_t mode, int flags) {
     char translated[PATH_MAX];
+    if (reject_read_only_system_path(path)) {
+        return -1;
+    }
     const char *actual_path = translate_workspace_path(path, translated, sizeof(translated));
     if (actual_path == NULL) {
         return -1;
@@ -620,6 +720,9 @@ int fchmodat(int fd, const char *path, mode_t mode, int flags) {
 
 int chown(const char *path, uid_t owner, gid_t group) {
     char translated[PATH_MAX];
+    if (reject_read_only_system_path(path)) {
+        return -1;
+    }
     const char *actual_path = translate_workspace_path(path, translated, sizeof(translated));
     if (actual_path == NULL) {
         return -1;
@@ -629,6 +732,9 @@ int chown(const char *path, uid_t owner, gid_t group) {
 
 int fchownat(int fd, const char *path, uid_t owner, gid_t group, int flags) {
     char translated[PATH_MAX];
+    if (reject_read_only_system_path(path)) {
+        return -1;
+    }
     const char *actual_path = translate_workspace_path(path, translated, sizeof(translated));
     if (actual_path == NULL) {
         return -1;
@@ -647,6 +753,9 @@ ssize_t readlink(const char *path, char *buffer, size_t buffer_size) {
 
 int symlink(const char *target, const char *link_path) {
     char translated_link[PATH_MAX];
+    if (reject_read_only_system_path(link_path)) {
+        return -1;
+    }
     const char *actual_link = translate_workspace_path(link_path, translated_link, sizeof(translated_link));
     if (actual_link == NULL) {
         return -1;

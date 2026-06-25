@@ -18,7 +18,10 @@ device="${IOSMACS_SIMULATOR_UDID:-booted}"
 lisp_dir="${IOSMACS_EMACS_LISP_DIR:-${target_build_root}/source/lisp}"
 etc_dir="${IOSMACS_EMACS_ETC_DIR:-${target_build_root}/source/etc}"
 lib_src_dir="${IOSMACS_EMACS_EXEC_DIR:-${target_build_root}/lib-src}"
-lisp_load_path="${lisp_dir}:${lisp_dir}/emacs-lisp:${lisp_dir}/progmodes:${lisp_dir}/language:${lisp_dir}/international:${lisp_dir}/textmodes:${lisp_dir}/vc:${lisp_dir}/play"
+lisp_load_path="${lisp_dir}"
+while IFS= read -r dir; do
+  lisp_load_path="${lisp_load_path}:${dir}"
+done < <(find "${lisp_dir}" -mindepth 1 -maxdepth 1 -type d | sort)
 timeout_seconds="${IOSMACS_PDMP_SMOKE_TIMEOUT:-120}"
 
 escape_c_string() {
