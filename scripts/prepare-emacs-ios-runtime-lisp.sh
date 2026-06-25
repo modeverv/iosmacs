@@ -121,6 +121,8 @@ while IFS= read -r source_file; do
 EOF
 done < <(find "${runtime_lisp}" -mindepth 2 -maxdepth 2 -type f -name '*.el' | sort)
 
+rsync -a "${repo_root}/iosmacs/Emacs/iosmacs-grep.el" "${runtime_lisp}/"
+
 if [[ -d "${artifact_etc}" ]]; then
   rsync -a \
     --include='*/' \

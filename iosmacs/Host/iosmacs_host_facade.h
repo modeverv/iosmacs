@@ -42,6 +42,15 @@ int iosmacs_host_terminal_input_available(void);
 int iosmacs_host_flush_terminal_output(void);
 int iosmacs_host_is_tty_fd(int fd);
 void iosmacs_host_trace_event(const char *message);
+int iosmacs_host_url_retrieve(const char *url,
+                              int timeout_ms,
+                              int *status_code,
+                              char **headers,
+                              unsigned char **body,
+                              size_t *body_length,
+                              char **error_message,
+                              char **final_url);
+void iosmacs_host_free(void *pointer);
 
 int iosmacs_os_open(const char *path, int flags, int mode);
 ssize_t iosmacs_os_read(int fd, void *buffer, size_t count);

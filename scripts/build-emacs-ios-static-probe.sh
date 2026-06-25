@@ -23,6 +23,8 @@ verify_runtime_lisp() {
   [[ -d "${runtime_lisp}" ]] || return 1
   [[ "$(find "${runtime_lisp}" -type f -name '*.elc' | head -1)" ]] || return 1
   [[ "$(find "${runtime_lisp}" -type f -name '*loaddefs.el' | head -1)" ]] || return 1
+  [[ -f "${runtime_lisp}/iosmacs-grep.el" ]] || return 1
+  cmp -s "${repo_root}/iosmacs/Emacs/iosmacs-grep.el" "${runtime_lisp}/iosmacs-grep.el" || return 1
 }
 
 if [[ "${IOSMACS_FORCE_EMACS_BUILD:-0}" != "1" ]] && verify_static_probe && verify_runtime_lisp; then

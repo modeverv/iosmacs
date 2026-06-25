@@ -16,6 +16,38 @@
 #define IOSMACS_TERMINAL_BUFFER_SIZE (1024 * 1024)
 #define IOSMACS_LIFECYCLE_STATE_SIZE 128
 
+__attribute__((weak)) int iosmacs_swift_url_retrieve(const char *url,
+                                                     int32_t timeout_ms,
+                                                     int32_t *status_code,
+                                                     unsigned char **body,
+                                                     size_t *body_length,
+                                                     char **headers,
+                                                     char **error_message,
+                                                     char **final_url) {
+    (void)url;
+    (void)timeout_ms;
+    if (status_code != NULL) {
+        *status_code = 0;
+    }
+    if (body != NULL) {
+        *body = NULL;
+    }
+    if (body_length != NULL) {
+        *body_length = 0;
+    }
+    if (headers != NULL) {
+        *headers = NULL;
+    }
+    if (error_message != NULL) {
+        *error_message = strdup("iosmacs Swift URLSession bridge is unavailable");
+    }
+    if (final_url != NULL) {
+        *final_url = NULL;
+    }
+    errno = ENOSYS;
+    return -1;
+}
+
 typedef struct iosmacs_ring_buffer {
     uint8_t bytes[IOSMACS_TERMINAL_BUFFER_SIZE];
     size_t head;
@@ -558,6 +590,50 @@ int iosmacs_host_is_tty_fd(int fd) {
 
 void iosmacs_host_trace_event(const char *message) {
     terminal_debug_log_message("emacs", message);
+}
+
+int iosmacs_host_url_retrieve(const char *url,
+                              int timeout_ms,
+                              int *status_code,
+                              char **headers,
+                              unsigned char **body,
+                              size_t *body_length,
+                              char **error_message,
+                              char **final_url) {
+    if (url == NULL || status_code == NULL || headers == NULL || body == NULL
+        || body_length == NULL || error_message == NULL || final_url == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+    *status_code = 0;
+    *headers = NULL;
+    *body = NULL;
+    *body_length = 0;
+    *error_message = NULL;
+    *final_url = NULL;
+    if (iosmacs_swift_url_retrieve == NULL) {
+        *error_message = strdup("iosmacs Swift URLSession bridge is unavailable");
+        errno = ENOSYS;
+        return -1;
+    }
+
+    int32_t swift_status_code = 0;
+    int result = iosmacs_swift_url_retrieve(
+        url,
+        (int32_t)timeout_ms,
+        &swift_status_code,
+        body,
+        body_length,
+        headers,
+        error_message,
+        final_url
+    );
+    *status_code = (int)swift_status_code;
+    return result;
+}
+
+void iosmacs_host_free(void *pointer) {
+    free(pointer);
 }
 
 int iosmacs_os_open(const char *path, int flags, int mode) {

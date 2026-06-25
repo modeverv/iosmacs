@@ -483,7 +483,7 @@
         debugIme(`keydown composing key=${event.key} keyCode=${event.keyCode}`);
         return;
       }
-      const sequence = terminalKeySequence(event);
+      const sequence = terminalKeySequence(event) || printableAsciiFromKey(event);
       if (sequence) {
         debugIme(`keydown key=${event.key} seq=${JSON.stringify(sequence)}`);
         forwardText(sequence);

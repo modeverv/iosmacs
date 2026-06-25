@@ -20,6 +20,8 @@
 		10000000000000000000000B /* iosmacs_terminal_shim.c in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000115 /* iosmacs_terminal_shim.c */; };
 		10000000000000000000000C /* emacs.pdmp in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000117 /* emacs.pdmp */; };
 		10000000000000000000000D /* lib-src in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000118 /* lib-src */; };
+		10000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000011A /* Assets.xcassets */; };
+		10000000000000000000000F /* IOSMacsURLSessionBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000011B /* IOSMacsURLSessionBridge.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,6 +44,8 @@
 		100000000000000000000117 /* emacs.pdmp */ = {isa = PBXFileReference; lastKnownFileType = file; path = build/emacs-ios-probe/iosmacs/nw-pdmp/emacs.pdmp; sourceTree = SOURCE_ROOT; };
 		100000000000000000000118 /* lib-src */ = {isa = PBXFileReference; lastKnownFileType = folder; path = build/emacs-ios-probe/lib-src; sourceTree = SOURCE_ROOT; };
 		100000000000000000000119 /* TerminalWeb */ = {isa = PBXFileReference; lastKnownFileType = folder; path = TerminalWeb; sourceTree = "<group>"; };
+		10000000000000000000011A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		10000000000000000000011B /* IOSMacsURLSessionBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSMacsURLSessionBridge.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -90,6 +94,7 @@
 			children = (
 				100000000000000000000101 /* IOSMacsApp.swift */,
 				100000000000000000000102 /* ContentView.swift */,
+				10000000000000000000011A /* Assets.xcassets */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -121,6 +126,7 @@
 				100000000000000000000105 /* iosmacs_host_facade.c */,
 				100000000000000000000116 /* iosmacs_terminal_shim.h */,
 				100000000000000000000115 /* iosmacs_terminal_shim.c */,
+				10000000000000000000011B /* IOSMacsURLSessionBridge.swift */,
 			);
 			path = Host;
 			sourceTree = "<group>";
@@ -212,6 +218,7 @@
 					10000000000000000000000D /* lib-src in Resources */,
 					10000000000000000000000C /* emacs.pdmp in Resources */,
 					100000000000000000000007 /* TerminalWeb in Resources */,
+					10000000000000000000000E /* Assets.xcassets in Resources */,
 				);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -254,6 +261,7 @@
 				10000000000000000000000B /* iosmacs_terminal_shim.c in Sources */,
 				100000000000000000000006 /* iosmacs_emacs_diagnostic.c in Sources */,
 				100000000000000000000008 /* iosmacs_emacs_core.c in Sources */,
+				10000000000000000000000F /* IOSMacsURLSessionBridge.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

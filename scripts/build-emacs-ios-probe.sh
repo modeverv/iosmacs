@@ -89,6 +89,13 @@ EOF
     --with-modules=no
 )
 
+loadup_el="${configure_root}/lisp/loadup.el"
+if [[ -f "${loadup_el}" ]] && ! grep -q "iosmacs: Dired without external ls" "${loadup_el}"; then
+  perl -0pi -e '
+    s/\(load "bindings"\)/(load "bindings")\n\n;; iosmacs: Dired without external ls.\n;; iOS app builds do not provide a usable subprocess-based ls route, so\n;; Dired must list through Emacs file primitives via ls-lisp.\n(load "ls-lisp" nil t)\n(setq ls-lisp-use-insert-directory-program nil)\n(setq insert-directory-program nil)\n/s
+  ' "${loadup_el}"
+fi
+
 sysdep_c="${configure_root}/src/sysdep.c"
 if [[ -f "${sysdep_c}" ]] && ! grep -q "iosmacs: libproc is macOS-only" "${sysdep_c}"; then
   perl -0pi -e '
@@ -180,6 +187,13 @@ fns_c="${configure_root}/src/fns.c"
 if [[ -f "${fns_c}" ]] && ! grep -q "IOSMACS_PDMP_ALLOW_REQUIRE_DURING_DUMP" "${fns_c}"; then
   perl -0pi -e '
     s/if \(will_dump_p \(\) && !will_bootstrap_p \(\)\)/if (will_dump_p () && !will_bootstrap_p ()\n          \&\& !getenv ("IOSMACS_PDMP_ALLOW_REQUIRE_DURING_DUMP"))/s
+  ' "${fns_c}"
+fi
+if [[ -f "${fns_c}" ]] && ! grep -q "iosmacs-url-retrieve-internal" "${fns_c}"; then
+  perl -0pi -e '
+    s/#include "lisp.h"/#include "lisp.h"\n\n__attribute__ ((weak)) int\niosmacs_host_url_retrieve (const char *url, int timeout_ms,\n                           int *status_code, char **headers,\n                           unsigned char **body, size_t *body_length,\n                           char **error_message, char **final_url)\n{\n  (void) url;\n  (void) timeout_ms;\n  if (status_code)\n    *status_code = 0;\n  if (headers)\n    *headers = NULL;\n  if (body)\n    *body = NULL;\n  if (body_length)\n    *body_length = 0;\n  if (error_message)\n    *error_message = NULL;\n  if (final_url)\n    *final_url = NULL;\n  errno = ENOSYS;\n  return -1;\n}\n\n__attribute__ ((weak)) void\niosmacs_host_free (void *pointer)\n{\n  (void) pointer;\n}\n/s;
+    s/(DEFUN \("md5")/DEFUN ("iosmacs-url-retrieve-internal", Fiosmacs_url_retrieve_internal,\n       Siosmacs_url_retrieve_internal, 1, 2, 0,\n       doc: \/* Retrieve URL through the iosmacs host bridge.\nReturn (STATUS HEADERS BODY ERROR FINAL-URL).  BODY is a unibyte string.  *\/)\n  (Lisp_Object url, Lisp_Object timeout_ms)\n{\n  int timeout = 10000;\n  int status = 0;\n  int result;\n  char *headers = NULL;\n  unsigned char *body = NULL;\n  size_t body_length = 0;\n  char *error_message = NULL;\n  char *final_url = NULL;\n  Lisp_Object headers_obj;\n  Lisp_Object body_obj;\n  Lisp_Object error_obj;\n  Lisp_Object final_url_obj;\n\n  CHECK_STRING (url);\n  if (!NILP (timeout_ms))\n    {\n      CHECK_FIXNUM (timeout_ms);\n      timeout = XFIXNUM (timeout_ms);\n      if (timeout <= 0)\n        timeout = 10000;\n    }\n\n  if (iosmacs_host_url_retrieve == NULL)\n    return list5 (make_fixnum (0), build_string (""), make_unibyte_string ("", 0),\n                  build_string ("iosmacs URL bridge unavailable"), url);\n\n  result = iosmacs_host_url_retrieve (SSDATA (url), timeout, &status,\n                                      &headers, &body, &body_length,\n                                      &error_message, &final_url);\n  headers_obj = headers ? build_string (headers) : build_string ("");\n  body_obj = body ? make_unibyte_string ((const char *) body, body_length)\n                  : make_unibyte_string ("", 0);\n  error_obj = error_message ? build_string (error_message)\n                            : (result == 0 ? Qnil : build_string ("iosmacs URL bridge failed"));\n  final_url_obj = final_url ? build_string (final_url) : url;\n\n  if (iosmacs_host_free != NULL)\n    {\n      iosmacs_host_free (headers);\n      iosmacs_host_free (body);\n      iosmacs_host_free (error_message);\n      iosmacs_host_free (final_url);\n    }\n\n  return list5 (make_fixnum (status), headers_obj, body_obj, error_obj,\n                final_url_obj);\n}\n\n$1/s;
+    s/  defsubr \(&Smd5\);/  defsubr (\&Siosmacs_url_retrieve_internal);\n  defsubr (\&Smd5);/s
   ' "${fns_c}"
 fi
 
