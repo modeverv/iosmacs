@@ -42,6 +42,18 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
                 .accessibilityLabel("Escape")
 
+                Button {
+                    session.sendSpace()
+                } label: {
+                    Text("Space")
+                        .font(.caption.weight(.semibold))
+                        .monospaced()
+                        .frame(maxWidth: .infinity)
+                }
+                .frame(width: 62)
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Space")
+
                 Menu {
                     Button("Choose /home/user Folder") {
                         showingWorkspacePicker = true

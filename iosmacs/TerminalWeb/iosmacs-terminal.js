@@ -19,6 +19,7 @@
   let imeComposition = null;
   let imeProxyAttached = false;
   let suppressXtermDataUntil = 0;
+  let ignoreCompositionEndUntil = 0;
 
   function post(message) {
     const handler = window.webkit?.messageHandlers?.iosmacsTerminal;
@@ -111,10 +112,33 @@
     }
   }
 
+  function resetNativeImeSession() {
+    if (!imeProxy) {
+      return;
+    }
+
+    clearTextareaValue(imeProxy);
+    try {
+      imeProxy.blur();
+    } catch (_error) {
+      // Some WebKit builds may reject blur on hidden inputs.
+    }
+    setTimeout(() => {
+      clearTextareaValue(imeProxy);
+      focusInput();
+    }, 0);
+    setTimeout(() => {
+      clearTextareaValue(imeProxy);
+      focusInput();
+    }, 80);
+  }
+
   function stopHandledImeEvent(event, textarea) {
-    event.preventDefault?.();
-    event.stopImmediatePropagation?.();
-    clearTextareaValue(textarea);
+    event?.preventDefault?.();
+    event?.stopImmediatePropagation?.();
+    if (textarea) {
+      clearTextareaValue(textarea);
+    }
   }
 
   function stopHandledTerminalEvent(event) {
@@ -219,6 +243,30 @@
     if (imeComposition) {
       imeComposition.textContent = "";
       imeComposition.style.display = "none";
+    }
+  }
+
+  function commitCompositionWithSuffix(suffix, event, textarea, options = {}) {
+    const text = `${compositionText || textarea?.value || ""}${suffix || ""}`;
+    isComposing = false;
+    hideImeComposition();
+    suppressXtermDataUntil = performance.now() + 500;
+    ignoreCompositionEndUntil = performance.now() + 500;
+    if (forwardText(text, true)) {
+      stopHandledImeEvent(event, textarea);
+    }
+    if (options.resetNativeIme) {
+      resetNativeImeSession();
+    }
+  }
+
+  function sendLiteralSpace() {
+    if (isComposing) {
+      commitCompositionWithSuffix(" ", null, imeProxy, { resetNativeIme: true });
+    } else {
+      forwardText(" ");
+      clearTextareaValue(imeProxy);
+      focusInput();
     }
   }
 
@@ -460,6 +508,12 @@
       if (!isImeProxyEvent(event)) {
         return;
       }
+      if (!isComposing && performance.now() < ignoreCompositionEndUntil) {
+        debugIme(`compositionend ignored after manual commit data=${JSON.stringify(event.data || "")} value=${JSON.stringify(proxy.value)}`);
+        hideImeComposition();
+        stopHandledImeEvent(event, proxy);
+        return;
+      }
       const committedText = event.data || proxy.value || compositionText;
       debugIme(`compositionend data=${JSON.stringify(event.data || "")} value=${JSON.stringify(proxy.value)} committed=${JSON.stringify(committedText)}`);
       isComposing = false;
@@ -482,6 +536,10 @@
       }
       if (isComposing) {
         debugIme(`beforeinput composing type=${event.inputType} data=${JSON.stringify(event.data || "")} value=${JSON.stringify(proxy.value)}`);
+        if (insertedTextFromInputEvent(event) === " ") {
+          commitCompositionWithSuffix(" ", event, proxy);
+          return;
+        }
         setImeCompositionText(event.data || proxy.value || compositionText);
         return;
       }
@@ -512,6 +570,11 @@
 
     proxy.addEventListener("keydown", (event) => {
       if (isComposing || event.isComposing || event.keyCode === 229) {
+        if (isComposing && isSpaceKey(event)) {
+          debugIme(`keydown composing-space key=${event.key} keyCode=${event.keyCode}`);
+          commitCompositionWithSuffix(" ", event, proxy);
+          return;
+        }
         debugIme(`keydown composing key=${event.key} keyCode=${event.keyCode}`);
         return;
       }
@@ -690,6 +753,7 @@
         postCurrentResize({ force: true });
       },
       setFontSize,
+      sendSpace: sendLiteralSpace,
       injectData(data) {
         const text = String(data ?? "");
         traceIo(`injectData text=${JSON.stringify(text)}`);

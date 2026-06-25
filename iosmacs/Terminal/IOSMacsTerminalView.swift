@@ -26,6 +26,7 @@ struct IOSMacsTerminalView: UIViewRepresentable {
     func updateUIView(_ uiView: WKWebView, context: Context) {
         context.coordinator.setFontSize(session.fontSize)
         context.coordinator.focusTerminalIfRequested(session.focusRequest)
+        context.coordinator.sendSpaceIfRequested(session.spaceRequest)
         context.coordinator.drainOutput()
     }
 
@@ -46,6 +47,7 @@ struct IOSMacsTerminalView: UIViewRepresentable {
         private var didStartAutomatedInputSmoke = false
         private var currentFontSize: CGFloat = 15
         private var lastFocusRequest: UInt64 = 0
+        private var lastSpaceRequest: UInt64 = 0
 
         init(session: EmacsSession) {
             self.session = session
@@ -86,6 +88,15 @@ struct IOSMacsTerminalView: UIViewRepresentable {
             }
             lastFocusRequest = request
             evaluate("window.iosmacsTerminal?.focus();")
+        }
+
+        @MainActor
+        func sendSpaceIfRequested(_ request: UInt64) {
+            guard request != lastSpaceRequest else {
+                return
+            }
+            lastSpaceRequest = request
+            evaluate("window.iosmacsTerminal?.sendSpace();")
         }
 
         @MainActor
