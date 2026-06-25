@@ -55,12 +55,12 @@ static void set_lisp_load_path(const char *lisp_dir) {
 
     const char *suffix =
         ":%s/emacs-lisp:%s/progmodes:%s/language:%s/international"
-        ":%s/textmodes:%s/vc:%s/calendar:%s/term:%s/mail:%s/net"
+        ":%s/textmodes:%s/vc:%s/calendar:%s/term:%s/mail:%s/net:%s/play"
         ":%s/url:%s/gnus:%s/use-package:%s/obsolete";
     int length = snprintf(NULL, 0, "%s", lisp_dir)
         + snprintf(NULL, 0, suffix, lisp_dir, lisp_dir, lisp_dir, lisp_dir,
                    lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir,
-                   lisp_dir, lisp_dir, lisp_dir, lisp_dir)
+                   lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir)
         + 1;
     char *load_path = malloc((size_t)length);
     if (load_path == NULL) {
@@ -71,7 +71,7 @@ static void set_lisp_load_path(const char *lisp_dir) {
     snprintf(load_path + strlen(load_path), (size_t)(length - (int)strlen(load_path)),
              suffix, lisp_dir, lisp_dir, lisp_dir, lisp_dir,
              lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir,
-             lisp_dir, lisp_dir, lisp_dir, lisp_dir);
+             lisp_dir, lisp_dir, lisp_dir, lisp_dir, lisp_dir);
     setenv("EMACSLOADPATH", load_path, 1);
     free(load_path);
 }
