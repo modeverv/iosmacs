@@ -18,6 +18,7 @@ device="${IOSMACS_SIMULATOR_UDID:-booted}"
 lisp_dir="${IOSMACS_EMACS_LISP_DIR:-${target_build_root}/source/lisp}"
 etc_dir="${IOSMACS_EMACS_ETC_DIR:-${target_build_root}/source/etc}"
 lib_src_dir="${IOSMACS_EMACS_EXEC_DIR:-${target_build_root}/lib-src}"
+opt_flags="${IOSMACS_EMACS_OPT_FLAGS:--O0 -g}"
 lisp_load_path="${lisp_dir}"
 while IFS= read -r dir; do
   lisp_load_path="${lisp_load_path}:${dir}"
@@ -107,8 +108,7 @@ sysroot="$(xcrun --sdk "${sdk}" --show-sdk-path)"
   -target "${target}" \
   -isysroot "${sysroot}" \
   -Wno-deprecated-declarations \
-  -O0 \
-  -g \
+  ${opt_flags} \
   "${smoke_c}" \
   "${static_lib}" \
   -lncurses \

@@ -38,6 +38,7 @@ expect_japanese_input="${IOSMACS_NW_EXPECT_JAPANESE_INPUT:-0}"
 expect_file_ops="${IOSMACS_NW_EXPECT_FILE_OPS:-0}"
 expect_network="${IOSMACS_NW_EXPECT_NETWORK:-0}"
 skip_term_init="${IOSMACS_NW_SKIP_TERM_INIT:-0}"
+opt_flags="${IOSMACS_EMACS_OPT_FLAGS:--O0 -g}"
 write_network_smoke_el=0
 lisp_load_path="${lisp_dir}"
 while IFS= read -r dir; do
@@ -427,8 +428,7 @@ sysroot="$(xcrun --sdk "${sdk}" --show-sdk-path)"
   -target "${target}" \
   -isysroot "${sysroot}" \
   -Wno-deprecated-declarations \
-  -O0 \
-  -g \
+  ${opt_flags} \
   -I"${repo_root}/iosmacs/Host" \
   "${smoke_c}" \
   "${host_facade_c}" \

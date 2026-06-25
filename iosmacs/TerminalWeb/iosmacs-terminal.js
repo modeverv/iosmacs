@@ -4,16 +4,19 @@
   const DEFAULT_DIMENSIONS = Object.freeze({ cols: 80, rows: 24 });
   const MIN_COLS = 20;
   const MIN_ROWS = 3;
+  const RESIZE_KEEPALIVE_INTERVAL_MS = 60000;
   const encoder = new TextEncoder();
   let terminal = null;
   let fitAddon = null;
   let lastDimensions = DEFAULT_DIMENSIONS;
+  let resizeKeepaliveId = 0;
   let initialized = false;
   let isComposing = false;
   let compositionText = "";
   let lastForwardedText = "";
   let lastForwardedTextTime = 0;
   let imeProxy = null;
+  let imeComposition = null;
   let imeProxyAttached = false;
   let suppressXtermDataUntil = 0;
 
@@ -47,9 +50,9 @@
     };
   }
 
-  function postResize(cols, rows) {
+  function postResize(cols, rows, options = {}) {
     const next = normalizeDimensions(cols, rows);
-    if (next.cols === lastDimensions.cols && next.rows === lastDimensions.rows) {
+    if (!options.force && next.cols === lastDimensions.cols && next.rows === lastDimensions.rows) {
       return;
     }
     lastDimensions = next;
@@ -134,6 +137,82 @@
       return false;
     }
     return event.target === imeProxy;
+  }
+
+  function terminalCellDimensions() {
+    const dimensions = terminal?._core?._renderService?.dimensions?.css?.cell;
+    const fontSize = Number(terminal?.options?.fontSize) || 15;
+    return {
+      width: Math.max(1, Number(dimensions?.width) || fontSize * 0.62),
+      height: Math.max(1, Number(dimensions?.height) || fontSize * 1.35),
+    };
+  }
+
+  function terminalCursorRect() {
+    const screen = document.querySelector("#terminal .xterm-screen") || document.getElementById("terminal");
+    const rect = screen?.getBoundingClientRect?.();
+    if (!rect || !terminal?.buffer?.active) {
+      return null;
+    }
+
+    const cell = terminalCellDimensions();
+    const buffer = terminal.buffer.active;
+    return {
+      left: rect.left + buffer.cursorX * cell.width,
+      top: rect.top + buffer.cursorY * cell.height,
+      width: cell.width,
+      height: cell.height,
+    };
+  }
+
+  function moveImeSurface() {
+    if (!imeProxy) {
+      return;
+    }
+
+    const cursor = terminalCursorRect();
+    if (!cursor) {
+      return;
+    }
+
+    const fontSize = Number(terminal?.options?.fontSize) || 15;
+    const left = `${Math.round(cursor.left)}px`;
+    const top = `${Math.round(cursor.top)}px`;
+    const height = `${Math.ceil(cursor.height)}px`;
+    const width = `${Math.max(1, Math.ceil(cursor.width))}px`;
+
+    imeProxy.style.left = left;
+    imeProxy.style.top = top;
+    imeProxy.style.width = width;
+    imeProxy.style.height = height;
+    imeProxy.style.fontSize = `${fontSize}px`;
+    imeProxy.style.lineHeight = height;
+
+    if (imeComposition) {
+      imeComposition.style.left = left;
+      imeComposition.style.top = top;
+      imeComposition.style.minHeight = height;
+      imeComposition.style.fontSize = `${fontSize}px`;
+      imeComposition.style.lineHeight = height;
+    }
+  }
+
+  function setImeCompositionText(text) {
+    compositionText = String(text || "");
+    moveImeSurface();
+    if (!imeComposition) {
+      return;
+    }
+    imeComposition.textContent = compositionText;
+    imeComposition.style.display = compositionText ? "block" : "none";
+  }
+
+  function hideImeComposition() {
+    compositionText = "";
+    if (imeComposition) {
+      imeComposition.textContent = "";
+      imeComposition.style.display = "none";
+    }
   }
 
   function terminalKeySequence(event) {
@@ -310,6 +389,7 @@
     if (!imeProxy) {
       return;
     }
+    moveImeSurface();
     try {
       imeProxy.focus({ preventScroll: true });
     } catch (_error) {
@@ -322,6 +402,7 @@
       return;
     }
     imeProxy = proxy;
+    imeComposition = document.getElementById("ime-composition");
     imeProxyAttached = true;
 
     proxy.addEventListener("compositionstart", (event) => {
@@ -329,7 +410,7 @@
         return;
       }
       isComposing = true;
-      compositionText = "";
+      setImeCompositionText(event.data || proxy.value || "");
       suppressXtermDataUntil = performance.now() + 1000;
       debugIme(`compositionstart data=${JSON.stringify(event.data || "")} value=${JSON.stringify(proxy.value)}`);
     });
@@ -338,7 +419,7 @@
       if (!isImeProxyEvent(event)) {
         return;
       }
-      compositionText = event.data || compositionText;
+      setImeCompositionText(event.data || proxy.value || compositionText);
       suppressXtermDataUntil = performance.now() + 1000;
       debugIme(`compositionupdate data=${JSON.stringify(event.data || "")} value=${JSON.stringify(proxy.value)}`);
     });
@@ -350,7 +431,7 @@
       const committedText = event.data || proxy.value || compositionText;
       debugIme(`compositionend data=${JSON.stringify(event.data || "")} value=${JSON.stringify(proxy.value)} committed=${JSON.stringify(committedText)}`);
       isComposing = false;
-      compositionText = "";
+      hideImeComposition();
       suppressXtermDataUntil = performance.now() + 500;
       if (forwardText(committedText, true)) {
         stopHandledImeEvent(event, proxy);
@@ -369,6 +450,7 @@
       }
       if (isComposing) {
         debugIme(`beforeinput composing type=${event.inputType} data=${JSON.stringify(event.data || "")} value=${JSON.stringify(proxy.value)}`);
+        setImeCompositionText(event.data || proxy.value || compositionText);
         return;
       }
       debugIme(`beforeinput type=${event.inputType} data=${JSON.stringify(event.data || "")} value=${JSON.stringify(proxy.value)}`);
@@ -386,6 +468,7 @@
       if (!isImeProxyEvent(event) || isComposing) {
         if (isImeProxyEvent(event)) {
           debugIme(`input ignored composing value=${JSON.stringify(proxy.value)}`);
+          setImeCompositionText(proxy.value || compositionText);
         }
         return;
       }
@@ -425,14 +508,19 @@
     });
   }
 
-  function fit() {
+  function fit(options = {}) {
     if (!terminal) {
       return;
     }
 
+    const notify = options.notify !== false;
+
     if (fitAddon) {
       fitAddon.fit();
-      postResize(terminal.cols, terminal.rows);
+      if (notify) {
+        postResize(terminal.cols, terminal.rows);
+      }
+      moveImeSurface();
       return;
     }
 
@@ -442,7 +530,27 @@
     const rows = Math.floor(container.clientHeight / Math.max(1, fontSize * 1.35));
     const next = normalizeDimensions(cols, rows);
     terminal.resize(next.cols, next.rows);
-    postResize(next.cols, next.rows);
+    if (notify) {
+      postResize(next.cols, next.rows);
+    }
+    moveImeSurface();
+  }
+
+  function postCurrentResize(options = {}) {
+    if (!terminal) {
+      return;
+    }
+    fit({ notify: false });
+    postResize(terminal.cols, terminal.rows, options);
+  }
+
+  function startResizeKeepalive() {
+    if (resizeKeepaliveId || !terminal) {
+      return;
+    }
+    resizeKeepaliveId = window.setInterval(() => {
+      postCurrentResize({ force: true });
+    }, RESIZE_KEEPALIVE_INTERVAL_MS);
   }
 
   function bytesFromBase64(base64) {
@@ -474,6 +582,10 @@
       return;
     }
     terminal.options.fontSize = Math.max(10, Math.min(28, fontSize));
+    document.getElementById("terminal")?.style.setProperty(
+      "--iosmacs-terminal-font-size",
+      `${terminal.options.fontSize}px`
+    );
     requestAnimationFrame(fit);
   }
 
@@ -505,8 +617,10 @@
       convertEol: false,
       cursorBlink: true,
       cursorStyle: "block",
-      fontFamily: "'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Menlo', monospace, sans-serif",
+      fontFamily: "'Menlo', 'SF Mono', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', monospace, sans-serif",
       fontSize: 15,
+      fontWeight: 400,
+      fontWeightBold: 700,
       macOptionIsMeta: true,
       rows: DEFAULT_DIMENSIONS.rows,
       cols: DEFAULT_DIMENSIONS.cols,
@@ -540,6 +654,9 @@
         focusInput();
       },
       fit,
+      forceResize() {
+        postCurrentResize({ force: true });
+      },
       setFontSize,
       injectData(data) {
         const text = String(data ?? "");
@@ -549,6 +666,7 @@
       writeBase64(base64) {
         terminal.write(bytesFromBase64(base64));
         debugTerminalBuffer("writeBase64");
+        moveImeSurface();
         focusInput();
       },
     };
@@ -557,6 +675,7 @@
       fit();
       focusInput();
       post({ type: "ready", cols: terminal.cols, rows: terminal.rows });
+      startResizeKeepalive();
     });
   }
 

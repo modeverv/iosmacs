@@ -18,6 +18,7 @@ esac
 # a small, explicit Emacs config.sub/configure port patch.
 host="${IOSMACS_HOST:-${configure_arch}-apple-darwin}"
 target="${IOSMACS_TARGET:-${clang_arch}-apple-ios${min_ios}-simulator}"
+opt_flags="${IOSMACS_EMACS_OPT_FLAGS:--O0 -g}"
 
 mkdir -p "${build_root}"
 rsync -a --delete --exclude .git "${source_root}/" "${source_work}/"
@@ -56,7 +57,7 @@ EOF
 (
   cd "${build_root}"
   CC="${cc}" \
-  CFLAGS="-target ${target} -isysroot ${sysroot} -O0 -g" \
+  CFLAGS="-target ${target} -isysroot ${sysroot} ${opt_flags}" \
   CPPFLAGS="-target ${target} -isysroot ${sysroot}" \
   LDFLAGS="-target ${target} -isysroot ${sysroot}" \
   ac_cv_func_fork=no \

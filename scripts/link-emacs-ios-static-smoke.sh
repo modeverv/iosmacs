@@ -11,6 +11,7 @@ smoke_dir="${target_build_root}/iosmacs"
 smoke_c="${smoke_dir}/iosmacs-static-link-smoke.c"
 smoke_bin="${smoke_dir}/iosmacs-static-link-smoke"
 static_lib="${smoke_dir}/libiosmacs-temacs.a"
+opt_flags="${IOSMACS_EMACS_OPT_FLAGS:--O0 -g}"
 
 "${repo_root}/scripts/build-emacs-ios-static-probe.sh"
 
@@ -32,8 +33,7 @@ sysroot="$(xcrun --sdk "${sdk}" --show-sdk-path)"
 "${cc}" \
   -target "${target}" \
   -isysroot "${sysroot}" \
-  -O0 \
-  -g \
+  ${opt_flags} \
   "${smoke_c}" \
   "${static_lib}" \
   -lncurses \
