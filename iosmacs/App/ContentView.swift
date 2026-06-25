@@ -93,7 +93,7 @@ struct ContentView: View {
                 .accessibilityLabel("Larger")
 
                 Button {
-                    session.resetDiagnosticSession()
+                    session.sendRedraw()
                 } label: {
                     Label("Redraw", systemImage: "arrow.clockwise")
                 }

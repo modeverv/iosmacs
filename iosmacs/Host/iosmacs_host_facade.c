@@ -204,6 +204,9 @@ static bool terminal_auto_xterm_replies_enabled(void) {
 }
 
 static void terminal_push_reply_locked(const char *reply) {
+    if (direct_tty_mode) {
+        return;
+    }
     if (ring_write(&input_ring, (const uint8_t *)reply, strlen(reply)) > 0) {
         input_generation++;
         pthread_cond_broadcast(&terminal_cond);

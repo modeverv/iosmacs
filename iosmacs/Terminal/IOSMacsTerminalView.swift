@@ -1,51 +1,36 @@
 import Foundation
+import SwiftTerm
 import SwiftUI
 import UIKit
-@preconcurrency import WebKit
 
 struct IOSMacsTerminalView: UIViewRepresentable {
     @ObservedObject var session: EmacsSession
 
-    func makeUIView(context: Context) -> WKWebView {
-        let configuration = WKWebViewConfiguration()
-        configuration.defaultWebpagePreferences.allowsContentJavaScript = true
-        configuration.userContentController.add(context.coordinator, name: "iosmacsTerminal")
-
-        let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.navigationDelegate = context.coordinator
-        webView.isOpaque = false
-        webView.backgroundColor = .black
-        webView.scrollView.backgroundColor = .black
-        webView.scrollView.bounces = false
-        webView.scrollView.contentInsetAdjustmentBehavior = .never
-        context.coordinator.attach(webView)
-        context.coordinator.loadTerminalPage()
-        return webView
+    func makeUIView(context: Context) -> IOSMacsTerminalHostView {
+        let view = IOSMacsTerminalHostView(frame: .zero)
+        view.iosmacsInputDelegate = context.coordinator
+        view.font = .monospacedSystemFont(ofSize: session.fontSize, weight: .regular)
+        context.coordinator.attach(view)
+        return view
     }
 
-    func updateUIView(_ uiView: WKWebView, context: Context) {
-        context.coordinator.setFontSize(session.fontSize)
+    func updateUIView(_ uiView: IOSMacsTerminalHostView, context: Context) {
+        uiView.font = .monospacedSystemFont(ofSize: session.fontSize, weight: .regular)
         context.coordinator.focusTerminalIfRequested(session.focusRequest)
         context.coordinator.sendSpaceIfRequested(session.spaceRequest)
         context.coordinator.drainOutput()
-    }
-
-    static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
-        uiView.configuration.userContentController.removeScriptMessageHandler(forName: "iosmacsTerminal")
     }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(session: session)
     }
 
-    final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
+    final class Coordinator: NSObject, @preconcurrency TerminalViewDelegate, IOSMacsTerminalInputDelegate {
         private let session: EmacsSession
-        private weak var webView: WKWebView?
-        private var isTerminalReady = false
+        private weak var terminalView: TerminalView?
+        private weak var hostView: IOSMacsTerminalHostView?
         private var observedOutput = ""
-        private var pendingOutputChunks: [[UInt8]] = []
         private var didStartAutomatedInputSmoke = false
-        private var currentFontSize: CGFloat = 15
         private var lastFocusRequest: UInt64 = 0
         private var lastSpaceRequest: UInt64 = 0
 
@@ -54,31 +39,13 @@ struct IOSMacsTerminalView: UIViewRepresentable {
         }
 
         @MainActor
-        func attach(_ webView: WKWebView) {
-            self.webView = webView
-        }
-
-        @MainActor
-        func loadTerminalPage() {
-            guard let url = Bundle.main.url(
-                forResource: "terminal",
-                withExtension: "html",
-                subdirectory: "TerminalWeb"
-            ) else {
-                session.noteTerminalBridge("terminal web resource missing")
-                return
-            }
-
-            webView?.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
-        }
-
-        @MainActor
-        func setFontSize(_ fontSize: CGFloat) {
-            guard currentFontSize != fontSize else {
-                return
-            }
-            currentFontSize = fontSize
-            evaluate("window.iosmacsTerminal?.setFontSize(\(Double(fontSize)));")
+        func attach(_ hostView: IOSMacsTerminalHostView) {
+            self.hostView = hostView
+            self.terminalView = hostView.terminalView
+            hostView.terminalView.terminalDelegate = self
+            focusTerminal()
+            drainOutput()
+            startAutomatedInputSmokeIfRequested()
         }
 
         @MainActor
@@ -87,7 +54,7 @@ struct IOSMacsTerminalView: UIViewRepresentable {
                 return
             }
             lastFocusRequest = request
-            evaluate("window.iosmacsTerminal?.focus();")
+            focusTerminal()
         }
 
         @MainActor
@@ -96,130 +63,102 @@ struct IOSMacsTerminalView: UIViewRepresentable {
                 return
             }
             lastSpaceRequest = request
-            evaluate("window.iosmacsTerminal?.sendSpace();")
+            focusTerminal()
+            sendBytes([32], reason: "toolbar-space")
+            drainOutputAfterInput()
         }
 
         @MainActor
-        func drainOutput() {
+        @discardableResult
+        func drainOutput() -> Int {
+            guard let terminalView else {
+                return 0
+            }
             let chunks = session.drainTerminalOutput()
+            var byteCount = 0
             for chunk in chunks where !chunk.isEmpty {
-                session.noteTerminalBridge("swift drain-output count=\(chunk.count) bytes=\(hexPreview(chunk))")
+                byteCount += chunk.count
+                session.noteTerminalBridge("swiftterm feed count=\(chunk.count) bytes=\(hexPreview(chunk))")
                 observeOutput(chunk)
-                pendingOutputChunks.append(chunk)
+                terminalView.feed(byteArray: chunk[...])
             }
-            flushPendingOutput()
+            return byteCount
         }
 
-        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            Task { @MainActor [weak self] in
-                self?.handleMessage(message.body)
+        @MainActor
+        func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
+            resize(cols: newCols, rows: newRows)
+        }
+
+        func setTerminalTitle(source: TerminalView, title: String) {}
+        func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
+
+        @MainActor
+        func send(source: TerminalView, data: ArraySlice<UInt8>) {
+            let bytes = Array(data)
+            session.noteTerminalBridge("swiftterm renderer-reply ignored count=\(bytes.count) bytes=\(hexPreview(bytes))")
+        }
+
+        func scrolled(source: TerminalView, position: Double) {}
+        func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {}
+        func bell(source: TerminalView) {}
+        func clipboardCopy(source: TerminalView, content: Data) {}
+        func clipboardRead(source: TerminalView) -> Data? { nil }
+        func iTermContent(source: TerminalView, content: ArraySlice<UInt8>) {}
+        func rangeChanged(source: TerminalView, startY: Int, endY: Int) {}
+
+        @MainActor
+        func sendSpecialKey(_ bytes: [UInt8], reason: String) {
+            focusTerminal()
+            sendBytes(bytes, reason: reason)
+            if shouldRedrawAfterInput(bytes, reason: reason) {
+                sendBytes([12], reason: "\(reason)-redraw")
+            }
+            drainOutputAfterInput()
+        }
+
+        @MainActor
+        func terminalLayoutChanged(cols: Int, rows: Int) {
+            resize(cols: cols, rows: rows)
+        }
+
+        @MainActor
+        private func focusTerminal() {
+            DispatchQueue.main.async { [weak hostView] in
+                hostView?.requestTerminalFocus()
             }
         }
 
         @MainActor
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            if ProcessInfo.processInfo.environment["IOSMACS_IME_DEBUG"] == "1" {
-                evaluate("window.localStorage?.setItem('iosmacs-ime-debug', '1');")
-            } else {
-                evaluate("window.localStorage?.removeItem('iosmacs-ime-debug');")
-            }
-            evaluate("window.iosmacsTerminal?.focus(); window.iosmacsTerminal?.fit();")
-            Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: 200_000_000)
-                self?.checkTerminalBridgeReady()
-            }
-        }
-
-        @MainActor
-        private func handleMessage(_ body: Any) {
-            guard let message = body as? [String: Any],
-                  let type = message["type"] as? String else {
+        private func resize(cols: Int, rows: Int) {
+            guard cols > 0, rows > 0 else {
                 return
             }
-
-            switch type {
-            case "ready":
-                isTerminalReady = true
-                session.noteTerminalBridge("xterm.js terminal ready")
-                if let cols = message["cols"] as? Int,
-                   let rows = message["rows"] as? Int {
-                    session.resize(cols: cols, rows: rows)
-                }
-                flushPendingOutput()
-                startAutomatedInputSmokeIfRequested()
-            case "input":
-                let bytes = terminalBytes(from: message["bytes"])
-                if !bytes.isEmpty {
-                    session.noteTerminalBridge("swift recv-input count=\(bytes.count) bytes=\(hexPreview(bytes))")
-                    session.sendInput(bytes)
-                    drainOutput()
-                }
-            case "resize":
-                guard let cols = message["cols"] as? Int,
-                      let rows = message["rows"] as? Int else {
-                    return
-                }
-                session.resize(cols: cols, rows: rows)
-            case "focus":
-                break
-            case "log":
-                if let logMessage = message["message"] as? String {
-                    observedOutput.append("\niosmacs-web-terminal: \(logMessage)\n")
-                    session.noteTerminalBridge("xterm.js log: \(logMessage)")
-                }
-            default:
-                break
-            }
+            session.resize(cols: cols, rows: rows)
         }
 
         @MainActor
-        private func flushPendingOutput() {
-            guard isTerminalReady, webView != nil else {
+        private func sendBytes(_ bytes: [UInt8], reason: String) {
+            guard !bytes.isEmpty else {
                 return
             }
+            session.noteTerminalBridge("iosmacs \(reason) count=\(bytes.count) bytes=\(hexPreview(bytes))")
+            session.sendInput(bytes)
+        }
 
-            let chunks = pendingOutputChunks
-            pendingOutputChunks.removeAll(keepingCapacity: true)
-            for chunk in chunks {
-                writeBytesToTerminal(chunk)
+        @MainActor
+        private func drainOutputAfterInput() {
+            drainOutput()
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 20_000_000)
+                self?.drainOutput()
+                try? await Task.sleep(nanoseconds: 60_000_000)
+                self?.drainOutput()
             }
         }
 
-        @MainActor
-        private func writeBytesToTerminal(_ bytes: [UInt8]) {
-            let base64 = Data(bytes).base64EncodedString()
-            let literal = javaScriptStringLiteral(base64)
-            session.noteTerminalBridge("swift write-to-xterm count=\(bytes.count) bytes=\(hexPreview(bytes))")
-            evaluate("window.iosmacsTerminal?.writeBase64(\(literal));")
-        }
-
-        @MainActor
-        private func evaluate(_ script: String) {
-            webView?.evaluateJavaScript(script)
-        }
-
-        @MainActor
-        private func checkTerminalBridgeReady() {
-            webView?.evaluateJavaScript("Boolean(window.iosmacsTerminal)") { [weak self] result, error in
-                Task { @MainActor [weak self] in
-                    guard let self else {
-                        return
-                    }
-                    if let error {
-                        self.session.noteTerminalBridge("xterm.js probe failed: \(error.localizedDescription)")
-                        return
-                    }
-                    if (result as? Bool) == true {
-                        self.isTerminalReady = true
-                        self.session.noteTerminalBridge("xterm.js terminal ready")
-                        self.evaluate("window.iosmacsTerminal.focus(); window.iosmacsTerminal.fit();")
-                        self.flushPendingOutput()
-                        self.startAutomatedInputSmokeIfRequested()
-                    } else {
-                        self.session.noteTerminalBridge("xterm.js bridge not ready")
-                    }
-                }
-            }
+        private func shouldRedrawAfterInput(_ bytes: [UInt8], reason: String) -> Bool {
+            reason.contains("delete") || bytes == [127] || bytes == [27, 91, 51, 126]
         }
 
         private func observeOutput(_ chunk: [UInt8]) {
@@ -259,9 +198,12 @@ struct IOSMacsTerminalView: UIViewRepresentable {
                 }
 
                 try? await Task.sleep(nanoseconds: 500_000_000)
-                let literal = self.javaScriptStringLiteral(text)
-                self.evaluate("window.iosmacsTerminal?.focus(); window.iosmacsTerminal?.injectData(\(literal));")
-                self.writeAutomatedInputSmokeMarker("iosmacs-app-webview-injectData:\(text)\n")
+                guard let hostView = self.hostView else {
+                    return
+                }
+                hostView.requestTerminalFocus()
+                hostView.insertText(text)
+                self.writeAutomatedInputSmokeMarker("iosmacs-app-swiftterm-insertText:\(text)\n")
 
                 for _ in 0..<80 {
                     try? await Task.sleep(nanoseconds: 50_000_000)
@@ -284,33 +226,345 @@ struct IOSMacsTerminalView: UIViewRepresentable {
             try? text.write(to: url, atomically: true, encoding: .utf8)
         }
 
-        private func terminalBytes(from value: Any?) -> [UInt8] {
-            guard let values = value as? [Any] else {
-                return []
-            }
-            return values.compactMap { item in
-                if let number = item as? NSNumber {
-                    let intValue = number.intValue
-                    return (0...255).contains(intValue) ? UInt8(intValue) : nil
-                }
-                if let intValue = item as? Int {
-                    return (0...255).contains(intValue) ? UInt8(intValue) : nil
-                }
-                return nil
-            }
-        }
-
         private func hexPreview(_ bytes: [UInt8]) -> String {
             let preview = bytes.prefix(32).map { String(format: "%02x", $0) }.joined(separator: " ")
             return bytes.count > 32 ? "\(preview) ..." : preview
         }
+    }
+}
 
-        private func javaScriptStringLiteral(_ value: String) -> String {
-            guard let data = try? JSONEncoder().encode(value),
-                  let literal = String(data: data, encoding: .utf8) else {
-                return "\"\""
-            }
-            return literal
+final class IOSMacsTerminalHostView: UIView {
+    let terminalView = TerminalView(frame: .zero)
+    weak var iosmacsInputDelegate: IOSMacsTerminalInputDelegate?
+    private let keyboardInputView = IOSMacsKeyboardInputView(frame: .zero)
+    private var lastReportedBoundsSize: CGSize = .zero
+    private var lastReportedTerminalSize: CGSize = .zero
+
+    var font: UIFont {
+        get { terminalView.font }
+        set { terminalView.font = newValue }
+    }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .black
+        autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        terminalView.backgroundColor = .black
+        terminalView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        terminalView.isUserInteractionEnabled = false
+        addSubview(terminalView)
+        keyboardInputView.terminalHost = self
+        addSubview(keyboardInputView)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        requestTerminalFocus()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        terminalView.frame = bounds
+        keyboardInputView.frame = CGRect(x: 0, y: 0, width: 1, height: 1)
+        requestTerminalFocus()
+        reportLayoutIfNeeded()
+    }
+
+    func insertText(_ text: String) {
+        sendCommittedText(text, reason: text == " " ? "textinput-space" : "textinput")
+    }
+
+    func sendCommittedText(_ text: String, reason: String) {
+        let bytes = Array(text.utf8)
+        guard !bytes.isEmpty else {
+            return
+        }
+        iosmacsInputDelegate?.sendSpecialKey(bytes, reason: reason)
+    }
+
+    func sendDeleteBackward() {
+        sendKey([127], reason: "textinput-delete")
+    }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        requestTerminalFocus()
+        super.touchesBegan(touches, with: event)
+    }
+
+    @objc func handleDeleteKey(_ command: UIKeyCommand) {
+        sendKey([127], reason: "hardware-delete")
+    }
+
+    @objc func handleUpArrowKey(_ command: UIKeyCommand) {
+        sendKey([27, 91, 65], reason: "hardware-up")
+    }
+
+    @objc func handleDownArrowKey(_ command: UIKeyCommand) {
+        sendKey([27, 91, 66], reason: "hardware-down")
+    }
+
+    @objc func handleRightArrowKey(_ command: UIKeyCommand) {
+        sendKey([27, 91, 67], reason: "hardware-right")
+    }
+
+    @objc func handleLeftArrowKey(_ command: UIKeyCommand) {
+        sendKey([27, 91, 68], reason: "hardware-left")
+    }
+
+    private func sendKey(_ bytes: [UInt8], reason: String) {
+        requestTerminalFocus()
+        iosmacsInputDelegate?.sendSpecialKey(bytes, reason: reason)
+    }
+
+    func requestTerminalFocus() {
+        guard window != nil, !keyboardInputView.isFirstResponder else {
+            return
+        }
+        DispatchQueue.main.async { [weak keyboardInputView] in
+            _ = keyboardInputView?.becomeFirstResponder()
         }
     }
+
+    func terminalBytes(for key: UIKey) -> [UInt8]? {
+        switch key.keyCode {
+        case .keyboardReturnOrEnter:
+            return [13]
+        case .keyboardTab:
+            return [9]
+        case .keyboardEscape:
+            return [27]
+        case .keyboardDeleteOrBackspace:
+            return [127]
+        case .keyboardDeleteForward:
+            return [27, 91, 51, 126]
+        case .keyboardUpArrow:
+            return [27, 91, 65]
+        case .keyboardDownArrow:
+            return [27, 91, 66]
+        case .keyboardRightArrow:
+            return [27, 91, 67]
+        case .keyboardLeftArrow:
+            return [27, 91, 68]
+        default:
+            break
+        }
+
+        guard !key.modifierFlags.contains(.command) else {
+            return nil
+        }
+        let text = key.charactersIgnoringModifiers
+        guard !text.isEmpty else {
+            return nil
+        }
+
+        if key.modifierFlags.contains(.control),
+           text.count == 1,
+           let scalar = text.unicodeScalars.first {
+            let value = scalar.value
+            if (65...90).contains(value) {
+                return [UInt8(value - 64)]
+            }
+            if (97...122).contains(value) {
+                return [UInt8(value - 96)]
+            }
+        }
+
+        var bytes = Array((key.characters.isEmpty ? text : key.characters).utf8)
+        if key.modifierFlags.contains(.alternate) {
+            bytes.insert(27, at: 0)
+        }
+        return bytes
+    }
+
+    private func reportLayoutIfNeeded() {
+        guard bounds.width > 0, bounds.height > 0 else {
+            return
+        }
+
+        let boundsChanged = abs(lastReportedBoundsSize.width - bounds.size.width) > 0.5
+            || abs(lastReportedBoundsSize.height - bounds.size.height) > 0.5
+        let terminal = terminalView.getTerminal()
+        let terminalSize = CGSize(width: terminal.cols, height: terminal.rows)
+        let terminalChanged = lastReportedTerminalSize != terminalSize
+        guard boundsChanged || terminalChanged else {
+            return
+        }
+
+        lastReportedBoundsSize = bounds.size
+        lastReportedTerminalSize = terminalSize
+        iosmacsInputDelegate?.terminalLayoutChanged(cols: max(1, terminal.cols), rows: max(1, terminal.rows))
+    }
+}
+
+final class IOSMacsKeyboardInputView: UITextView, UITextViewDelegate {
+    weak var terminalHost: IOSMacsTerminalHostView?
+
+    override init(frame: CGRect, textContainer: NSTextContainer?) {
+        super.init(frame: frame, textContainer: textContainer)
+        delegate = self
+        backgroundColor = .clear
+        textColor = .clear
+        tintColor = .clear
+        isOpaque = false
+        isScrollEnabled = false
+        isEditable = true
+        isSelectable = true
+        autocapitalizationType = .none
+        autocorrectionType = .no
+        spellCheckingType = .no
+        smartQuotesType = .no
+        smartDashesType = .no
+        smartInsertDeleteType = .no
+        keyboardAppearance = .dark
+        textContainerInset = .zero
+        self.textContainer.lineFragmentPadding = 0
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var canBecomeFirstResponder: Bool {
+        true
+    }
+
+    func textViewDidChange(_ textView: UITextView) {
+        flushCommittedTextIfPossible(reason: text == " " ? "textinput-space" : "textinput")
+    }
+
+    override var keyCommands: [UIKeyCommand]? {
+        guard markedTextRange == nil else {
+            return super.keyCommands
+        }
+        let commands = [
+            keyCommand(
+                title: "Delete",
+                input: UIKeyCommand.inputDelete,
+                action: #selector(handleDeleteKey)
+            ),
+            keyCommand(
+                title: "Up",
+                input: UIKeyCommand.inputUpArrow,
+                action: #selector(handleUpArrowKey)
+            ),
+            keyCommand(
+                title: "Down",
+                input: UIKeyCommand.inputDownArrow,
+                action: #selector(handleDownArrowKey)
+            ),
+            keyCommand(
+                title: "Left",
+                input: UIKeyCommand.inputLeftArrow,
+                action: #selector(handleLeftArrowKey)
+            ),
+            keyCommand(
+                title: "Right",
+                input: UIKeyCommand.inputRightArrow,
+                action: #selector(handleRightArrowKey)
+            )
+        ]
+        return commands + (super.keyCommands ?? [])
+    }
+
+    override func deleteBackward() {
+        if markedTextRange != nil || !text.isEmpty {
+            super.deleteBackward()
+        } else {
+            terminalHost?.sendDeleteBackward()
+        }
+        flushCommittedTextIfPossible(reason: "textinput")
+    }
+
+    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        guard markedTextRange == nil else {
+            super.pressesBegan(presses, with: event)
+            return
+        }
+
+        var handled = false
+        for press in presses {
+            guard let key = press.key,
+                  shouldHandleOutsideTextInput(key),
+                  let bytes = terminalHost?.terminalBytes(for: key) else {
+                continue
+            }
+            terminalHost?.iosmacsInputDelegate?.sendSpecialKey(bytes, reason: "hardware-key")
+            handled = true
+        }
+        if !handled {
+            super.pressesBegan(presses, with: event)
+        }
+    }
+
+    @objc private func handleDeleteKey(_ command: UIKeyCommand) {
+        terminalHost?.handleDeleteKey(command)
+    }
+
+    @objc private func handleUpArrowKey(_ command: UIKeyCommand) {
+        terminalHost?.handleUpArrowKey(command)
+    }
+
+    @objc private func handleDownArrowKey(_ command: UIKeyCommand) {
+        terminalHost?.handleDownArrowKey(command)
+    }
+
+    @objc private func handleRightArrowKey(_ command: UIKeyCommand) {
+        terminalHost?.handleRightArrowKey(command)
+    }
+
+    @objc private func handleLeftArrowKey(_ command: UIKeyCommand) {
+        terminalHost?.handleLeftArrowKey(command)
+    }
+
+    private func keyCommand(title: String, input: String, action: Selector) -> UIKeyCommand {
+        UIKeyCommand(
+            title: title,
+            image: nil,
+            action: action,
+            input: input,
+            modifierFlags: [],
+            propertyList: nil,
+            alternates: [],
+            discoverabilityTitle: title,
+            attributes: [],
+            state: .off
+        )
+    }
+
+    private func shouldHandleOutsideTextInput(_ key: UIKey) -> Bool {
+        switch key.keyCode {
+        case .keyboardReturnOrEnter,
+             .keyboardTab,
+             .keyboardEscape,
+             .keyboardDeleteOrBackspace,
+             .keyboardDeleteForward,
+             .keyboardUpArrow,
+             .keyboardDownArrow,
+             .keyboardRightArrow,
+             .keyboardLeftArrow:
+            return true
+        default:
+            return key.modifierFlags.contains(.control) || key.modifierFlags.contains(.alternate)
+        }
+    }
+
+    private func flushCommittedTextIfPossible(reason: String) {
+        guard markedTextRange == nil, !text.isEmpty else {
+            return
+        }
+        let committedText = text ?? ""
+        terminalHost?.sendCommittedText(committedText, reason: reason)
+        text = ""
+        selectedRange = NSRange(location: 0, length: 0)
+    }
+}
+
+@MainActor
+protocol IOSMacsTerminalInputDelegate: AnyObject {
+    func sendSpecialKey(_ bytes: [UInt8], reason: String)
+    func terminalLayoutChanged(cols: Int, rows: Int)
 }

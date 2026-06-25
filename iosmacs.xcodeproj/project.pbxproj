@@ -13,7 +13,7 @@
 		100000000000000000000004 /* EmacsSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000104 /* EmacsSession.swift */; };
 		100000000000000000000005 /* iosmacs_host_facade.c in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000105 /* iosmacs_host_facade.c */; };
 		100000000000000000000006 /* iosmacs_emacs_diagnostic.c in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000106 /* iosmacs_emacs_diagnostic.c */; };
-		100000000000000000000007 /* TerminalWeb in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000119 /* TerminalWeb */; };
+		100000000000000000000007 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000301 /* SwiftTerm */; };
 		100000000000000000000008 /* iosmacs_emacs_core.c in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000111 /* iosmacs_emacs_core.c */; };
 		100000000000000000000009 /* lisp in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000113 /* lisp */; };
 		10000000000000000000000A /* etc in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000114 /* etc */; };
@@ -43,7 +43,6 @@
 		100000000000000000000116 /* iosmacs_terminal_shim.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = iosmacs_terminal_shim.h; sourceTree = "<group>"; };
 		100000000000000000000117 /* emacs.pdmp */ = {isa = PBXFileReference; lastKnownFileType = file; path = build/emacs-ios-probe/iosmacs/nw-pdmp/emacs.pdmp; sourceTree = SOURCE_ROOT; };
 		100000000000000000000118 /* lib-src */ = {isa = PBXFileReference; lastKnownFileType = folder; path = build/emacs-ios-probe/lib-src; sourceTree = SOURCE_ROOT; };
-		100000000000000000000119 /* TerminalWeb */ = {isa = PBXFileReference; lastKnownFileType = folder; path = TerminalWeb; sourceTree = "<group>"; };
 		10000000000000000000011A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		10000000000000000000011B /* IOSMacsURLSessionBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSMacsURLSessionBridge.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -53,6 +52,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				100000000000000000000007 /* SwiftTerm in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -73,7 +73,6 @@
 			children = (
 				100000000000000000000404 /* App */,
 				100000000000000000000405 /* Terminal */,
-				100000000000000000000119 /* TerminalWeb */,
 				100000000000000000000406 /* Emacs */,
 				100000000000000000000407 /* Host */,
 				100000000000000000000408 /* Support */,
@@ -168,6 +167,7 @@
 			);
 			name = iosmacs;
 			packageProductDependencies = (
+				100000000000000000000301 /* SwiftTerm */,
 			);
 			productName = iosmacs;
 			productReference = 100000000000000000000110 /* iosmacs.app */;
@@ -198,6 +198,7 @@
 			);
 			mainGroup = 100000000000000000000401;
 			packageReferences = (
+				100000000000000000000302 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
 			);
 			productRefGroup = 100000000000000000000403 /* Products */;
 			projectDirPath = "";
@@ -217,7 +218,6 @@
 					10000000000000000000000A /* etc in Resources */,
 					10000000000000000000000D /* lib-src in Resources */,
 					10000000000000000000000C /* emacs.pdmp in Resources */,
-					100000000000000000000007 /* TerminalWeb in Resources */,
 					10000000000000000000000E /* Assets.xcassets in Resources */,
 				);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -473,6 +473,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		100000000000000000000302 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.13.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		100000000000000000000301 /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 100000000000000000000302 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			productName = SwiftTerm;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 	};
 	rootObject = 100000000000000000000801 /* Project object */;

@@ -23,23 +23,21 @@ renames the process entrypoint to `iosmacs_emacs_main`, links that archive into
 the iOS simulator app, and bundles generated Emacs resources such as `lisp`,
 `etc`, `lib-src`, and `emacs.pdmp`.
 
-## xterm.js
+## SwiftTerm
 
-- Component: terminal emulator rendered inside the iOS app's `WKWebView`
-- Upstream: `https://github.com/xtermjs/xterm.js`
-- Package: `@xterm/xterm`
-- Version: `6.0.0`
+- Component: native terminal emulator used by the iOS app
+- Upstream: `https://github.com/migueldeicaza/SwiftTerm.git`
+- Version: `1.13.0`
 - License: MIT
-- License text: `LICENSES/xterm-MIT.txt`
+- License text: `LICENSES/SwiftTerm-MIT.txt`
 
-## xterm.js fit addon
+## swift-argument-parser
 
-- Component: xterm.js terminal resize fitting inside the WebView
-- Upstream: `https://github.com/xtermjs/xterm.js`
-- Package: `@xterm/addon-fit`
-- Version: `0.11.0`
-- License: MIT
-- License text: `LICENSES/xterm-addon-fit-MIT.txt`
+- Component: transitive Swift Package dependency from SwiftTerm
+- Upstream: `https://github.com/apple/swift-argument-parser`
+- Version: `1.8.2`
+- License: Apache-2.0
+- License text: `LICENSES/swift-argument-parser-Apache-2.0.txt`
 
 ## Distribution Notes
 

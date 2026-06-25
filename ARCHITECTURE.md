@@ -6,9 +6,8 @@
 
 The core idea is to provide the smallest runtime environment that lets the real
 GNU Emacs C core and standard Lisp runtime survive inside an iOS app sandbox.
-Swift owns the app shell, the `WKWebView` host, the storage bridge, and platform
-integration. xterm.js owns terminal rendering inside the WebView. Emacs owns
-editor semantics.
+Swift owns the app shell, the SwiftTerm host, the storage bridge, and platform
+integration. SwiftTerm owns terminal rendering. Emacs owns editor semantics.
 
 This project intentionally does not target App Store distribution. The expected
 installation path is local developer build and deployment to a user's own
@@ -28,10 +27,9 @@ is not running on a normal Unix desktop.
   deliberate unavailable boundaries.
 - Prefer small named facades over scattered ad hoc shims.
 - Separate product behavior from diagnostic probes.
-- Reuse the xterm.js terminal-front-end boundary, not the WebAssembly Emacs
-  runtime.
-- Treat xterm.js as a renderer/input surface only: no process, filesystem,
-  shell, PTY, or Emacs command semantics live in JavaScript.
+- Reuse the terminal-front-end boundary, not the WebAssembly Emacs runtime.
+- Treat SwiftTerm as a renderer/input surface only: no process, filesystem,
+  shell, PTY, or Emacs command semantics live in the terminal view.
 - Avoid importing `wasmacs` SharedArrayBuffer, Atomics, worker, or `.wasifs`
   runtime machinery into the iOS app.
 
@@ -40,17 +38,16 @@ is not running on a normal Unix desktop.
 ```text
 Swift iOS/iPadOS App
   - window scene and lifecycle
-  - WKWebView host and script message handlers
+  - SwiftTerm host and delegate callbacks
   - file import/export UI
   - app container persistence
   - diagnostics and logs
 
-Bundled Web Terminal
-  - xterm.js renderer
-  - terminal bridge JavaScript
-  - TextEncoder/TextDecoder byte conversion
-  - IME/composition surface
-  - browser keyboard, selection, cursor, and terminal grid behavior
+Native Terminal
+  - SwiftTerm renderer
+  - TerminalViewDelegate byte callbacks
+  - UIKit keyboard input
+  - selection, cursor, and terminal grid behavior
 
 Host Bridge
   - C/ObjC/Swift boundary
@@ -89,29 +86,27 @@ Emacs owns:
 Swift owns:
 
 - UIKit and SwiftUI lifecycle.
-- WKWebView lifecycle and configuration.
-- `WKScriptMessageHandler` dispatch for terminal events from JavaScript.
+- SwiftTerm lifecycle and configuration.
+- `TerminalViewDelegate` dispatch for terminal input and resize events.
 - Touch affordances around the terminal.
 - App container file access.
 - User-driven import/export.
 - iPadOS clipboard access, if and when exposed.
 - Diagnostics visible to the developer.
 
-xterm.js and the bundled bridge JavaScript own:
+SwiftTerm owns:
 
 - Terminal grid drawing.
 - ANSI/xterm parsing.
 - Cursor state.
 - Selection.
-- Browser text input.
-- IME marked-text/composition UI.
-- Conversion of committed `onData` strings to UTF-8 bytes.
-- Terminal resize calculation.
+- UIKit text input.
+- Terminal resize callbacks.
 
 The host bridge owns:
 
 - Translating Emacs file operations to the app container.
-- Translating terminal output bytes to the WebView terminal bridge.
+- Translating terminal output bytes to SwiftTerm.
 - Translating terminal input bytes back to Emacs.
 - Translating terminal resize events back to Emacs.
 - Returning explicit unavailable errors for unsupported process APIs.
@@ -141,29 +136,24 @@ Rules:
 The MVP uses terminal Emacs, not native GUI Emacs frames.
 
 Emacs starts in a `--quick --no-splash -nw` style mode. The host bridge provides
-a minimal tty-compatible byte stream. `WKWebView` hosts xterm.js, xterm.js
-renders the stream into a terminal grid, and committed terminal input returns to
-Swift as bytes.
+a minimal tty-compatible byte stream. SwiftTerm renders the stream into a
+terminal grid, and committed terminal input returns to Swift as bytes.
 
 The terminal byte paths are:
 
-- Input: `term.onData(data)` in JavaScript uses `TextEncoder` to produce UTF-8
-  bytes and posts `{ type: "input", bytes: [...] }` to Swift through
-  `WKScriptMessageHandler`.
-- Output: Swift drains `iosmacs_os_terminal_drain_output` and calls a bundled
-  JavaScript bridge function that writes a `Uint8Array` chunk into xterm.js.
-- Resize: xterm.js calculates rows and columns, then posts
-  `{ type: "resize", cols, rows }`; Swift forwards that to
-  `iosmacs_os_terminal_resize`.
-- Readiness and diagnostics: JavaScript posts explicit ready/focus/log events
-  so the native side can drive smoke tests and expose errors.
+- Input: `TerminalViewDelegate.send` forwards terminal bytes to Swift.
+- Output: Swift drains `iosmacs_os_terminal_drain_output` and calls
+  `TerminalView.feed`.
+- Resize: SwiftTerm reports columns and rows through `sizeChanged`; Swift
+  forwards that to `iosmacs_os_terminal_resize`.
+- Readiness and diagnostics: Swift observes terminal output and app lifecycle
+  state so native smoke tests can expose errors.
 
-IME composition is owned by the browser/xterm input surface. Uncommitted marked
-text must not be injected into Emacs or painted by Swift. Only committed
-`onData` text crosses to Swift as UTF-8 bytes.
+IME composition is owned by the native UIKit terminal surface. Committed text
+crosses to Swift as UTF-8 bytes.
 
-Swift must not reinterpret Emacs keymaps. JavaScript must not reinterpret Emacs
-keymaps either. The WebView bridge transports terminal bytes and resize events.
+Swift must not reinterpret Emacs keymaps. The native terminal bridge transports
+terminal bytes and resize events.
 
 ## Process And Network Boundaries
 
@@ -205,7 +195,7 @@ The first real acceptance test is:
 2. Launch the app.
 3. Start embedded Emacs with bundled standard Lisp.
 4. Reach `*scratch*`.
-5. Type ASCII and Japanese text through the xterm.js WebView terminal.
+5. Type ASCII and Japanese text through the SwiftTerm terminal.
 6. Open a file under `/home/user`.
 7. Save it.
 8. Open Dired for `/home/user`.

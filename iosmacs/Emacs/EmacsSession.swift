@@ -68,6 +68,11 @@ final class EmacsSession: ObservableObject {
         focusRequest &+= 1
     }
 
+    func sendRedraw() {
+        sendInput([12])
+        focusRequest &+= 1
+    }
+
     func sendInput(_ bytes: [UInt8]) {
         let shimWritten = bytes.withUnsafeBufferPointer { buffer in
             iosmacs_terminal_shim_push_input(buffer.baseAddress, buffer.count)
