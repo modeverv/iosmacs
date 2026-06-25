@@ -38,7 +38,7 @@ private func allocateBytes(_ data: Data) -> UnsafeMutablePointer<UInt8>? {
     return pointer
 }
 
-private func httpHeaderText(from response: HTTPURLResponse?) -> String {
+private func httpHeaderText(from response: HTTPURLResponse?, bodyLength: Int) -> String {
     guard let response else {
         return ""
     }
@@ -49,8 +49,15 @@ private func httpHeaderText(from response: HTTPURLResponse?) -> String {
         guard let value = response.allHeaderFields[key] else {
             continue
         }
-        lines.append("\(key): \(value)")
+        let headerName = "\(key)"
+        switch headerName.lowercased() {
+        case "content-encoding", "content-length", "transfer-encoding":
+            continue
+        default:
+            lines.append("\(headerName): \(value)")
+        }
     }
+    lines.append("Content-Length: \(bodyLength)")
     return lines.joined(separator: "\r\n") + "\r\n"
 }
 
@@ -113,11 +120,11 @@ public func iosmacsSwiftURLRetrieve(
     }
 
     let httpResponse = response as? HTTPURLResponse
+    let responseData = data ?? Data()
     statusCodeOut?.pointee = Int32(httpResponse?.statusCode ?? 0)
-    headersOut?.pointee = allocateCString(httpHeaderText(from: httpResponse))
+    headersOut?.pointee = allocateCString(httpHeaderText(from: httpResponse, bodyLength: responseData.count))
     finalURLOut?.pointee = allocateCString(response?.url?.absoluteString ?? url.absoluteString)
 
-    let responseData = data ?? Data()
     if !responseData.isEmpty {
         bodyOut?.pointee = allocateBytes(responseData)
         bodyLengthOut?.pointee = responseData.count

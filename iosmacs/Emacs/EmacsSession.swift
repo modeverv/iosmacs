@@ -8,6 +8,7 @@ final class EmacsSession: ObservableObject {
     @Published private(set) var workspaceRootPath: String?
     @Published private(set) var pendingWorkspaceRootPath: String?
     @Published private(set) var metricsText: String = "startup: pending"
+    @Published private(set) var focusRequest: UInt64 = 0
     @Published var fontSize: CGFloat = 15
 
     private static let workspaceBookmarkDefaultsKey = "iosmacs.workspace.bookmark"
@@ -58,6 +59,7 @@ final class EmacsSession: ObservableObject {
 
     func sendEscape() {
         sendInput([27])
+        focusRequest &+= 1
     }
 
     func sendInput(_ bytes: [UInt8]) {
