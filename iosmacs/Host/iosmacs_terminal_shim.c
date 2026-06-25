@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -32,8 +33,60 @@ static int stdio_redirected;
 static pthread_t output_thread;
 static pthread_t input_thread;
 static const char opened_marker[] = "iosmacs-nw-opened-tty\n";
+static struct termios fake_tty_termios;
+static int fake_tty_termios_initialized;
 
 static int open_fake_tty(void);
+static int open_pty_pair(int *tty_fd, int *peer_fd);
+static void apply_termios_to_fd(int fd, int optional_actions, const struct termios *term);
+
+static void init_fake_tty_termios(void) {
+    if (fake_tty_termios_initialized) {
+        return;
+    }
+
+    memset(&fake_tty_termios, 0, sizeof(fake_tty_termios));
+    fake_tty_termios.c_iflag = 0;
+    fake_tty_termios.c_oflag = 0;
+    fake_tty_termios.c_cflag = CREAD | CS8;
+    fake_tty_termios.c_lflag = 0;
+    fake_tty_termios.c_cc[VINTR] = 3;
+    fake_tty_termios.c_cc[VQUIT] = 28;
+    fake_tty_termios.c_cc[VERASE] = 127;
+    fake_tty_termios.c_cc[VKILL] = 21;
+    fake_tty_termios.c_cc[VEOF] = 4;
+    fake_tty_termios.c_cc[VMIN] = 1;
+    fake_tty_termios.c_cc[VTIME] = 0;
+    fake_tty_termios_initialized = 1;
+}
+
+static void shim_debug_log_bytes(const char *label, const uint8_t *bytes, size_t count) {
+    const char *path = getenv("IOSMACS_WEB_TERMINAL_DEBUG_MARKER");
+    if (path == NULL || path[0] == '\0' || label == NULL) {
+        return;
+    }
+
+    int fd = (int)syscall(SYS_open, path, O_WRONLY | O_CREAT | O_APPEND, 0600);
+    if (fd < 0) {
+        return;
+    }
+    char line[512];
+    int offset = snprintf(line, sizeof(line), "shim %s count=%zu bytes=", label, count);
+    size_t limit = count < 32 ? count : 32;
+    for (size_t i = 0; i < limit && offset > 0 && (size_t)offset < sizeof(line); i++) {
+        offset += snprintf(line + offset, sizeof(line) - (size_t)offset, "%s%02x", i == 0 ? "" : " ", bytes[i]);
+    }
+    if (count > limit && offset > 0 && (size_t)offset < sizeof(line)) {
+        offset += snprintf(line + offset, sizeof(line) - (size_t)offset, " ...");
+    }
+    if (offset > 0 && (size_t)offset < sizeof(line)) {
+        offset += snprintf(line + offset, sizeof(line) - (size_t)offset, "\n");
+    }
+    if (offset > 0) {
+        syscall(SYS_write, fd, line, (size_t)offset < sizeof(line) ? (size_t)offset : sizeof(line));
+    }
+    syscall(SYS_close, fd);
+}
 
 static const char *translate_workspace_path(const char *path, char *buffer, size_t buffer_size) {
     static const char logical_home[] = "/home/user";
@@ -73,8 +126,17 @@ static void *output_pump_main(void *arg) {
 
     for (;;) {
         ssize_t count = read(fake_peer_fd, buffer, sizeof(buffer));
+        if (count < 0 && errno == EINTR) {
+            continue;
+        }
         if (count <= 0) {
             break;
+        }
+        for (ssize_t i = 0; i < count; i++) {
+            if (buffer[i] >= 0x80) {
+                shim_debug_log_bytes("output-pump-read", buffer, (size_t)count);
+                break;
+            }
         }
         iosmacs_os_terminal_write(buffer, (size_t)count);
         if (mirror_fd >= 0) {
@@ -90,9 +152,20 @@ static void *input_pump_main(void *arg) {
     (void)arg;
 
     for (;;) {
+        if (iosmacs_os_terminal_direct_mode_enabled()) {
+            usleep(10000);
+            continue;
+        }
         ssize_t count = iosmacs_os_terminal_read(buffer, sizeof(buffer));
         if (count > 0) {
-            ssize_t ignored = write(fake_peer_fd, buffer, (size_t)count);
+            ssize_t ignored;
+            do {
+                ignored = write(fake_peer_fd, buffer, (size_t)count);
+            } while (ignored < 0 && errno == EINTR);
+            shim_debug_log_bytes("input-pump-write", buffer, (size_t)count);
+#ifdef SIGIO
+            raise(SIGIO);
+#endif
             (void)ignored;
         } else {
             usleep(10000);
@@ -128,6 +201,8 @@ int iosmacs_terminal_shim_attach_stdio(void) {
     if (dup2(fd, STDERR_FILENO) < 0) {
         return -1;
     }
+    iosmacs_os_terminal_note_tty_fd(fd);
+    iosmacs_os_terminal_note_stdio_redirected();
     setvbuf(stdin, NULL, _IONBF, 0);
     setvbuf(stdout, NULL, _IONBF, 0);
     setvbuf(stderr, NULL, _IONBF, 0);
@@ -157,28 +232,25 @@ int tcgetattr(int fd, struct termios *term) {
         return -1;
     }
 
-    memset(term, 0, sizeof(*term));
-    term->c_iflag = ICRNL | IXON;
-    term->c_oflag = OPOST | ONLCR;
-    term->c_cflag = CREAD | CS8;
-    term->c_lflag = ISIG | ICANON | ECHO | IEXTEN;
-    term->c_cc[VINTR] = 3;
-    term->c_cc[VQUIT] = 28;
-    term->c_cc[VERASE] = 127;
-    term->c_cc[VKILL] = 21;
-    term->c_cc[VEOF] = 4;
-    term->c_cc[VMIN] = 1;
-    term->c_cc[VTIME] = 0;
+    init_fake_tty_termios();
+    *term = fake_tty_termios;
     return 0;
 }
 
 int tcsetattr(int fd, int optional_actions, const struct termios *term) {
     (void)optional_actions;
-    (void)term;
     if (!shim_enabled || !is_iosmacs_tty_fd(fd)) {
         errno = ENOTTY;
         return -1;
     }
+    if (term == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    fake_tty_termios = *term;
+    fake_tty_termios_initialized = 1;
+    apply_termios_to_fd(fd, optional_actions, term);
     return 0;
 }
 
@@ -278,19 +350,70 @@ static int open_fake_tty(void) {
     if (fake_tty_fd >= 0) {
         return fake_tty_fd;
     }
-    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) != 0) {
-        return -1;
+    if (open_pty_pair(&fake_tty_fd, &fake_peer_fd) != 0) {
+        if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) != 0) {
+            return -1;
+        }
+        fake_tty_fd = fds[0];
+        fake_peer_fd = fds[1];
     }
 
-    fake_tty_fd = fds[0];
-    fake_peer_fd = fds[1];
     iosmacs_os_set_lifecycle_state("iosmacs: fake tty opened");
+    iosmacs_os_terminal_note_tty_fd(fake_tty_fd);
     if (mirror_fd >= 0) {
         syscall(SYS_write, mirror_fd, opened_marker, sizeof(opened_marker) - 1);
     }
     pthread_create(&output_thread, NULL, output_pump_main, NULL);
     pthread_create(&input_thread, NULL, input_pump_main, NULL);
     return fake_tty_fd;
+}
+
+static int open_pty_pair(int *tty_fd, int *peer_fd) {
+    int master_fd = posix_openpt(O_RDWR | O_NOCTTY);
+    if (master_fd < 0) {
+        return -1;
+    }
+    if (grantpt(master_fd) != 0 || unlockpt(master_fd) != 0) {
+        close(master_fd);
+        return -1;
+    }
+
+    char *slave_name = ptsname(master_fd);
+    if (slave_name == NULL) {
+        close(master_fd);
+        return -1;
+    }
+
+    int slave_fd = (int)syscall(SYS_open, slave_name, O_RDWR | O_NOCTTY, 0);
+    if (slave_fd < 0) {
+        close(master_fd);
+        return -1;
+    }
+
+    init_fake_tty_termios();
+    apply_termios_to_fd(slave_fd, TCSANOW, &fake_tty_termios);
+
+    *tty_fd = slave_fd;
+    *peer_fd = master_fd;
+    return 0;
+}
+
+static void apply_termios_to_fd(int fd, int optional_actions, const struct termios *term) {
+    unsigned long request = TIOCSETA;
+    if (term == NULL || fd < 0) {
+        return;
+    }
+#ifdef TIOCSETAW
+    if (optional_actions == TCSADRAIN) {
+        request = TIOCSETAW;
+    }
+#endif
+#ifdef TIOCSETAF
+    if (optional_actions == TCSAFLUSH) {
+        request = TIOCSETAF;
+    }
+#endif
+    syscall(SYS_ioctl, fd, request, term);
 }
 
 int openat(int fd, const char *path, int flags, ...) {

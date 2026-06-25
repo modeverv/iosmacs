@@ -34,6 +34,7 @@ term_name="${IOSMACS_NW_TERM:-xterm-256color}"
 dump_file="${IOSMACS_EMACS_DUMP_FILE:-}"
 expect_input="${IOSMACS_NW_EXPECT_INPUT:-0}"
 expect_command_input="${IOSMACS_NW_EXPECT_COMMAND_INPUT:-0}"
+expect_japanese_input="${IOSMACS_NW_EXPECT_JAPANESE_INPUT:-0}"
 expect_file_ops="${IOSMACS_NW_EXPECT_FILE_OPS:-0}"
 expect_network="${IOSMACS_NW_EXPECT_NETWORK:-0}"
 skip_term_init="${IOSMACS_NW_SKIP_TERM_INIT:-0}"
@@ -48,8 +49,11 @@ fi
 if [[ "${expect_command_input}" != "0" && -z "${input_hex}" ]]; then
   input_hex="616263"
 fi
+if [[ "${expect_japanese_input}" != "0" && -z "${input_hex}" ]]; then
+  input_hex="E38182"
+fi
 if [[ -z "${input_delay_ms}" ]]; then
-  if [[ "${expect_command_input}" != "0" ]]; then
+  if [[ "${expect_command_input}" != "0" || "${expect_japanese_input}" != "0" ]]; then
     input_delay_ms=500
   else
     input_delay_ms=1000
@@ -59,6 +63,8 @@ if [[ -z "${eval_elisp}" && "${expect_input}" != "0" ]]; then
   eval_elisp="(progn (with-temp-file \"${input_ready_file}\" (insert \"ready\\n\")) (let ((event (read-char nil nil 10))) (with-temp-file \"${ok_file}\" (insert (if (characterp event) (format \"iosmacs-nw-input:%c/%S\\n\" event event) (format \"iosmacs-nw-input:%S\\n\" event)))) (princ (if (characterp event) (format \"iosmacs-nw-input:%c/%S\\n\" event event) (format \"iosmacs-nw-input:%S\\n\" event)) 'external-debugging-output) (kill-emacs (if (eq event ?x) 0 7))))"
 elif [[ -z "${eval_elisp}" && "${expect_command_input}" != "0" ]]; then
   eval_elisp="(progn (with-temp-file \"${input_ready_file}\" (insert \"ready\\n\")) (run-at-time 3 nil (lambda () (let ((text (with-current-buffer \"*scratch*\" (buffer-string)))) (with-temp-file \"${ok_file}\" (insert (format \"iosmacs-nw-command-input:%S\\n\" text))) (princ (format \"iosmacs-nw-command-input:%S\\n\" text) 'external-debugging-output) (kill-emacs (if (string-match-p \"abc\" text) 0 7))))))"
+elif [[ -z "${eval_elisp}" && "${expect_japanese_input}" != "0" ]]; then
+  eval_elisp="(progn (set-terminal-coding-system 'utf-8-unix) (set-keyboard-coding-system 'utf-8-unix) (ignore-errors (set-input-meta-mode 8)) (with-temp-file \"${input_ready_file}\" (insert \"ready\\n\")) (run-at-time 3 nil (lambda () (let ((text (with-current-buffer \"*scratch*\" (buffer-string)))) (with-temp-file \"${ok_file}\" (insert (format \"iosmacs-nw-japanese-input:%S\\n\" text))) (princ (format \"iosmacs-nw-japanese-input:%S\\n\" text) 'external-debugging-output) (kill-emacs (if (string-match-p \"あ\" text) 0 7))))))"
 elif [[ -z "${eval_elisp}" && "${expect_file_ops}" != "0" ]]; then
   eval_elisp="(progn (setq default-directory \"/home/user/\" command-line-default-directory \"/home/user/\") (require 'ls-lisp) (setq ls-lisp-use-insert-directory-program nil insert-directory-program nil dired-use-ls-dired nil) (require 'dired) (require 'dired-aux) (condition-case err (let* ((dir \"/home/user/notes/\") (file (concat dir \"iosmacs-file-smoke.txt\")) (text \"iosmacs-file-smoke\\n\")) (make-directory dir t) (find-file file) (erase-buffer) (insert text) (save-buffer) (kill-buffer (current-buffer)) (find-file file) (unless (string-match-p \"iosmacs-file-smoke\" (buffer-string)) (error \"reloaded file did not contain smoke text\")) (let ((dired-buffer (dired-noselect dir))) (with-current-buffer dired-buffer (goto-char (point-min)) (unless (search-forward \"iosmacs-file-smoke.txt\" nil t) (error \"dired did not list smoke file\")))) (with-temp-file \"${ok_file}\" (insert \"iosmacs-nw-file-ops-ok\\n\")) (princ \"iosmacs-nw-file-ops-ok\\n\" 'external-debugging-output) (kill-emacs 0)) (error (with-temp-file \"${ok_file}\" (insert (format \"iosmacs-nw-file-ops-error:%S\\n\" err))) (princ (format \"iosmacs-nw-file-ops-error:%S\\n\" err) 'external-debugging-output) (kill-emacs 9))))"
 elif [[ -z "${eval_elisp}" && "${expect_network}" != "0" ]]; then
@@ -83,7 +89,7 @@ dump_file_c="$(escape_c_string "${dump_file}")"
 input_ready_file_c="$(escape_c_string "${input_ready_file}")"
 input_injected_file_c="$(escape_c_string "${input_injected_file}")"
 wait_input_ready_c=0
-if [[ "${expect_input}" != "0" || "${expect_command_input}" != "0" ]]; then
+if [[ "${expect_input}" != "0" || "${expect_command_input}" != "0" || "${expect_japanese_input}" != "0" ]]; then
   wait_input_ready_c=1
 fi
 skip_term_init_c=0
@@ -507,6 +513,18 @@ if [ "${expect_command_input}" != "0" ] \
   && grep -aq "abc" "${smoke_log}"; then
   echo "Ran Emacs iOS -nw smoke to command-loop input redraw: ${smoke_bin}"
   exit 0
+fi
+
+if [ "${expect_japanese_input}" != "0" ] \
+  && grep -q "iosmacs-nw-japanese-input:" "${ok_file}" 2>/dev/null \
+  && grep -q "あ" "${ok_file}" 2>/dev/null; then
+  echo "Ran Emacs iOS -nw smoke to Japanese command-loop input: ${smoke_bin}"
+  exit 0
+fi
+
+if [ "${expect_japanese_input}" != "0" ]; then
+  echo "error: Emacs iOS -nw Japanese command-loop input did not reach marker with あ" >&2
+  exit 1
 fi
 
 if [ "${expect_file_ops}" != "0" ] && grep -q "iosmacs-nw-file-ops-ok" "${ok_file}" 2>/dev/null; then

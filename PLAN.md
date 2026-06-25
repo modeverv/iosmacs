@@ -38,7 +38,8 @@ Exit criteria:
 
 Status: met.
 
-- The iOS app target builds in the simulator with SwiftTerm.
+- The iOS app target builds in the simulator. The earlier SwiftTerm route is
+  now superseded by the WebView/xterm.js terminal direction.
 - The Emacs iOS simulator probe links `src/temacs` as an arm64 Mach-O
   executable.
 - A static archive probe now rebuilds the Emacs entry object as
@@ -55,10 +56,10 @@ Status: met.
   iOS simulator and reaches an evaluated Lisp marker.
 - The same batch smoke succeeds when pointed at the built app bundle's copied
   `lisp` and `etc` resources.
-- The app now starts linked GNU Emacs `-nw` through the SwiftTerm input/output
+- The app now starts linked GNU Emacs `-nw` through the terminal input/output
   path in the iOS simulator.
 - A simulator install/launch smoke reaches `*scratch*` in Lisp Interaction mode
-  through SwiftTerm without adding a new crash report.
+  without adding a new crash report.
 
 ## Phase 2: Minimal Host Facade
 
@@ -134,8 +135,8 @@ Status: met.
   stale versioned dump reuse.
 - The fake TTY now connects the socket-backed terminal endpoint to
   stdin/stdout/stderr with `dup2`, while a mirrored fd keeps simulator logs
-  observable. This is the shape needed for SwiftTerm to own rendering while
-  iosmacs owns the Emacs byte transport.
+  observable. This is the shape needed for a terminal renderer to own screen
+  parsing while iosmacs owns the Emacs byte transport.
 - `IOSMACS_NW_EXPECT_FULL=1 scripts/run-emacs-ios-nw-smoke.sh` now reaches
   `recursive_edit`, `normal-top-level`, `command-line-1`, draws the initial
   `*scratch*` terminal frame, runs the `--eval` form, and records
@@ -149,8 +150,8 @@ Status: met.
   terminal and calendar Lisp subdirectories needed by terminal startup.
 - The host facade has an env-gated smoke responder for common xterm DA, DSR,
   window-size, and OSC color queries via `IOSMACS_TERMINAL_AUTO_XTERM_REPLIES`.
-  The iOS app does not enable that responder; SwiftTerm remains responsible for
-  parsing those sequences and returning terminal replies through its delegate.
+  The iOS app should not enable that responder once the WebView terminal bridge
+  forwards xterm.js responses through the normal input-byte path.
 - The skip-free `xterm-256color` smoke now reaches the evaluated Lisp marker
   with smoke-only auto replies enabled, so GNU Emacs' xterm-specific startup is
   no longer gated on `IOSMACS_NW_SKIP_TERM_INIT=1` in the script harness.
@@ -167,51 +168,83 @@ Status: met.
   for iosmacs pdumps. That avoids runtime eager macro-expansion failures when
   the app loads source Lisp resources from the iOS bundle.
 
-## Phase 4: SwiftTerm Terminal Adapter
+## Phase 4: WKWebView xterm.js Terminal Adapter
 
-Goal: make the first usable iPad interface.
+Goal: replace the SwiftTerm spike with a WebView-hosted xterm.js terminal that
+keeps IME composition and terminal rendering on the JavaScript side while Swift
+continues to own the native Emacs session and tty-compatible byte queues.
 
 Tasks:
 
-- Use SwiftTerm as the iOS equivalent of the `wasmacs` xterm.js layer.
-- Add SwiftTerm through Swift Package Manager in the app target.
-- Wrap `SwiftTerm.TerminalView` in a SwiftUI/UIView adapter owned by iosmacs.
-- Feed Emacs terminal output bytes into `TerminalView.feed(byteArray:)`.
-- Handle resize and orientation changes.
-- Forward `TerminalViewDelegate.send(source:data:)` bytes to Emacs input.
-- Use SwiftTerm for the monospace grid, ANSI/xterm parsing, cursor, attributes,
-  Unicode rendering, selection, hardware keyboard input, and software keyboard
-  text entry.
-- Keep SwiftTerm as a terminal emulator only; do not introduce subprocess, PTY,
-  SSH, or shell ownership through the library.
+- Remove the SwiftTerm package dependency and native terminal adapter once the
+  WebView adapter is in place.
+- Bundle xterm.js and xterm.css as local app resources. Do not load them from a
+  CDN.
+- Add a small bundled HTML/JavaScript terminal bridge modeled after
+  `wasmacs/src/wasm/src/xterm-emacs-terminal.js`.
+- Host that page in `WKWebView` through a SwiftUI/UIView adapter owned by
+  iosmacs.
+- Add a `WKScriptMessageHandler` for `{ type: "ready" }`,
+  `{ type: "input", bytes }`, `{ type: "resize", cols, rows }`,
+  `{ type: "focus" }`, and `{ type: "log" }`.
+- Feed Emacs terminal output bytes into the WebView by calling a bundled JS
+  function that writes a `Uint8Array` into xterm.js.
+- Use `TextEncoder` for xterm.js `onData` strings so committed text crosses the
+  JS-to-Swift bridge as UTF-8 bytes.
+- Let browser/xterm composition own marked Japanese text. Only committed
+  `onData` text should reach Emacs.
+- Propagate xterm.js fit/resize measurements to
+  `iosmacs_os_terminal_resize`.
+- Keep xterm.js as a terminal emulator only; do not introduce subprocess, PTY,
+  SSH, shell, filesystem, or Emacs command ownership through JavaScript.
 - Add a simple developer log panel or exportable log file.
+- Add simulator UI smokes for the WebView path, including ASCII insertion and
+  Japanese IME composition/commit behavior.
 
 Exit criteria:
 
 - User can type into `*scratch*`.
 - Basic Emacs control keys work from a hardware keyboard.
 - Terminal redraw remains coherent across app resize/orientation changes.
+- Japanese IME composition does not corrupt the terminal while text is marked.
+- Committed Japanese text reaches Emacs as UTF-8 bytes.
+- SwiftTerm is no longer linked by the app target.
 
-Status: met.
+Status: implemented in the app build; simulator manual IME acceptance remains
+pending. This replaces the previously met SwiftTerm spike.
 
-- SwiftTerm is installed through Swift Package Manager.
-- `TerminalView` is wrapped in SwiftUI and connected to the iosmacs session
-  object.
-- The current app displays the real Emacs `-nw` fake TTY stream and forwards
-  keyboard bytes back to the session through SwiftTerm.
+- Historical SwiftTerm spike:
+  SwiftTerm was installed through Swift Package Manager, wrapped in SwiftUI, and
+  connected to the iosmacs session object. It proved that the real Emacs `-nw`
+  fake TTY stream could be rendered in the simulator and that keyboard bytes
+  could be forwarded back to Emacs. The route is now superseded because iOS
+  Japanese IME marked-text ownership is brittle in the native terminal path.
+- SwiftTerm has been removed from the Xcode target and Swift Package
+  resolution.
+- xterm.js `@xterm/xterm` 6.0.0 and `@xterm/addon-fit` 0.11.0 are bundled as
+  local app resources under `iosmacs/TerminalWeb`.
+- `IOSMacsTerminalView` now hosts a `WKWebView` and loads the bundled terminal
+  page.
+- The JavaScript bridge posts ready, input, resize, focus, and log messages to
+  Swift through `WKScriptMessageHandler`.
+- Swift drains Emacs terminal output and calls the JavaScript bridge to write
+  base64-encoded byte chunks into xterm.js as `Uint8Array`.
+- `IOSMACS_APP_AUTOTYPE_TEXT` now injects through the WebView bridge rather
+  than through a native terminal widget method.
+- The committed-text side channel from the SwiftTerm IME workaround has been
+  removed; Japanese input now uses the same tty byte path as ASCII input.
 - The app runner sets the same expanded Lisp load path and charprop fallback
   environment used by the passing simulator `-nw` smoke.
 - The script-level simulator proof verifies fake-TTY input through both
   `read-char` and command-loop insertion into `*scratch*`.
-- The app-level simulator smoke waits for SwiftTerm to render a ready Emacs
-  frame, calls `TerminalView.insertText("abc")`, and verifies through an Emacs
-  marker file that `abc` was inserted into `*scratch*`.
-- Simulator runtime screenshots confirm SwiftTerm renders the linked Emacs fake
-  TTY state and the final Lisp Interaction `*scratch*` frame without an
-  immediate app crash.
-- The current native terminal library decision is SwiftTerm: it fills the iOS
-  role corresponding to `wasmacs`' xterm.js layer, while iosmacs keeps ownership
-  of the embedded Emacs session and byte transport.
+- The app-level simulator smoke should be extended to assert the WebView bridge
+  marker and Japanese IME behavior.
+- Simulator runtime screenshots should be refreshed after the WebView adapter
+  renders the linked Emacs fake TTY state and final Lisp Interaction
+  `*scratch*` frame.
+- The current terminal library decision is xterm.js in `WKWebView`: it fills the
+  iOS role corresponding to `wasmacs`' xterm.js layer, while iosmacs keeps
+  ownership of the embedded native Emacs session and byte transport.
 - `/home/user` now maps to `Documents/home/user` in the iOS app container. The
   app creates an initial `README.txt` and `notes/` directory before starting
   Emacs.
@@ -225,8 +258,7 @@ Status: met.
   lists `/home/user/notes/iosmacs-file-smoke.txt`.
 - The simulator app also has an env-gated
   `IOSMACS_APP_FILE_SMOKE_MARKER` proof that performs the same file operation
-  sequence in the running SwiftTerm-backed app and leaves the saved file in the
-  app container.
+  sequence in the running app and leaves the saved file in the app container.
 - The bottom app toolbar now exposes document Import and Export controls.
   Import copies selected iPadOS document-picker files into `/home/user`; Export
   presents the current workspace contents through the iPadOS document picker as
@@ -307,9 +339,9 @@ Status: met.
   available, and falls back to app Documents otherwise. The same path shim and
   Dired/file-save smoke cover the visible filesystem behavior; simulator iCloud
   availability still depends on signing/account/entitlement setup.
-- The app-level `IOSMACS_APP_COLOR_SMOKE_MARKER` proof sends 256-color SGR
-  sequences through Emacs terminal output, and the SwiftTerm screenshot shows
-  the expected foreground/background colors.
+- The script-level color proof sends 256-color SGR sequences through Emacs
+  terminal output. The app-level color screenshot should be refreshed after
+  WebView/xterm.js simulator IME QA.
 - `scripts/run-emacs-ios-nw-smoke.sh` now has
   `IOSMACS_NW_EXPECT_NETWORK=1`, which generates an Emacs Lisp package smoke
   that downloads `a68-mode-1.3.tar` from GNU ELPA over HTTP, writes the tarball

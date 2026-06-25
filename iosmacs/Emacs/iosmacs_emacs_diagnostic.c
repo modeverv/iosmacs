@@ -16,7 +16,7 @@ void iosmacs_emacs_diagnostic_start(void) {
         banner,
         sizeof(banner),
         "\033[2J\033[Hiosmacs diagnostic terminal\r\n"
-        "SwiftTerm is rendering the iOS xterm layer.\r\n"
+        "xterm.js is rendering the iOS terminal layer in WKWebView.\r\n"
         "Emacs core link: %s (%s)\r\n"
         "Emacs source: wasmacs/vendor/emacs\r\n"
         "Terminal: %d cols x %d rows\r\n\r\n"

@@ -14,7 +14,8 @@ The first goal is a small, honest Emacs:
 - Bundle the GNU Emacs C core and standard Lisp files inside the app.
 - Start Emacs in a `--quick --no-splash -nw` style session.
 - Reach `*scratch*`.
-- Connect Emacs terminal input and output to a Swift terminal grid.
+- Connect Emacs terminal input and output to an xterm.js terminal embedded in
+  `WKWebView`.
 - Support `find-file`, save, and Dired inside the app container.
 
 This is not an Emacs-like editor. The editor semantics should remain owned by
@@ -33,19 +34,29 @@ boundaries for running GNU Emacs outside a normal POSIX desktop environment:
 filesystem, terminal input, lifecycle, memory/root safety, network capability,
 and explicit unavailable process APIs.
 
-`iosmacs` does not intend to run the `wasmacs` browser bundle inside a WebView.
-Instead, it translates the same small-OS idea into a Swift iOS/iPadOS host.
+`iosmacs` still does not intend to run the `wasmacs` Emacs WebAssembly runtime
+inside a WebView. The Emacs core remains a native iOS artifact linked into the
+app. The part now reused from the browser design is the terminal boundary:
+xterm.js is the terminal renderer, while Swift owns the native tty-compatible
+host layer.
 
 ## Terminal Layer
 
-The iOS terminal view uses
-[SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) as the native
-counterpart to the `wasmacs` xterm.js layer. iosmacs owns the embedded Emacs
-session and byte transport; SwiftTerm owns terminal parsing, rendering,
-selection, cursor state, and keyboard input.
+The iOS terminal view uses xterm.js inside `WKWebView`, following the proven
+shape of `wasmacs/src/wasm/src/xterm-emacs-terminal.js`:
 
-SwiftTerm is intentionally used as a terminal emulator only. iosmacs does not
-delegate process, PTY, shell, or SSH ownership to SwiftTerm.
+- JS owns terminal parsing, rendering, cursor state, selection, composition, and
+  browser-style keyboard text input through xterm.js.
+- Swift owns the native Emacs session, app lifecycle, resource packaging,
+  workspace UI, and the fake tty byte queues.
+- `WKScriptMessageHandler` carries JS-origin terminal events into Swift:
+  terminal-ready, input bytes, resize, focus, and diagnostic messages.
+- Swift sends Emacs output bytes back to JS by invoking a small bundled bridge
+  function that writes `Uint8Array` chunks into xterm.js.
+
+xterm.js is intentionally used as a terminal emulator only. iosmacs does not
+delegate process, PTY, shell, SSH, filesystem, or Emacs command semantics to
+JavaScript.
 
 ## Supported Devices
 
@@ -71,7 +82,7 @@ The MVP should include:
 - Standard Emacs Lisp tree bundled as read-only app resources.
 - Writable user workspace under the app container.
 - User-selectable workspace folder mapped to `/home/user`.
-- A Swift terminal grid that displays the `--nw` terminal stream.
+- An xterm.js terminal in `WKWebView` that displays the `--nw` terminal stream.
 - Keyboard input from hardware keyboard and software keyboard.
 - Basic file operations in the app container.
 - Dired using Emacs Lisp filesystem primitives, not an external `ls`.
@@ -187,12 +198,12 @@ make emacs-nw-smoke
 ```
 
 That smoke provides the minimum iOS-side TTY answers that terminal Emacs asks
-for before SwiftTerm can render the byte stream: `isatty`, `/dev/tty`,
+for before xterm.js can render the byte stream: `isatty`, `/dev/tty`,
 `tcgetattr`/`tcsetattr`, `tcflow`, `tcdrain`, `tcflush`,
 `tcgetpgrp`/`tcsetpgrp`, and window-size ioctls. The fake TTY is backed by a
 socketpair and is attached to stdin/stdout/stderr with `dup2`; a mirrored fd
-keeps simulator logs observable while SwiftTerm receives the same ANSI/xterm
-byte stream through the app-owned ring buffer.
+keeps simulator logs observable while the app receives the same ANSI/xterm byte
+stream through the app-owned ring buffer.
 
 The implementation now lives in `iosmacs/Host/iosmacs_terminal_shim.c` and is
 compiled into the app target; the smoke uses the same source file. The smoke
@@ -205,12 +216,12 @@ frame, evaluates the `--eval` form, and exits with the `iosmacs-nw-ok` marker.
 The smoke also writes a marker file next to the generated executable so success
 does not depend only on terminal-output flush timing around `kill-emacs`.
 
-The skip-free `xterm-256color` smoke now reaches the evaluated-Lisp marker.
-The host facade includes an env-gated smoke helper,
+The skip-free `xterm-256color` smoke now reaches the evaluated-Lisp marker. The
+host facade includes an env-gated smoke helper,
 `IOSMACS_TERMINAL_AUTO_XTERM_REPLIES=1`, for common xterm DA, DSR, window-size,
-and OSC color replies. The app leaves that helper off because SwiftTerm is
-expected to own those terminal replies through its parser and delegate
-callbacks.
+and OSC color replies. The app can keep that helper disabled once the WebView
+terminal bridge forwards xterm.js responses through the normal input-byte path;
+script smokes keep it available for non-UI testing.
 
 The smoke has two input-oriented modes:
 `IOSMACS_NW_EXPECT_INPUT=1` attempts to read a byte from `--eval`, and
@@ -237,25 +248,26 @@ IOSMACS_EMACS_ETC_DIR="$APP/etc" \
   scripts/run-emacs-ios-batch-smoke.sh
 ```
 
-The current app starts the linked GNU Emacs `-nw` probe through SwiftTerm in
-the iOS simulator. The Emacs probes prove that the simulator `temacs` artifact
+The current app starts the linked GNU Emacs `-nw` probe in the iOS simulator.
+The Emacs probes prove that the simulator `temacs` artifact
 links and that the same object set can be packaged as
 `build/emacs-ios-probe/iosmacs/libiosmacs-temacs.a` with `main` renamed to
 `iosmacs_emacs_main`. The Xcode simulator target links that archive, copies the
 generated `lisp`, `etc`, `lib-src`, and `emacs.pdmp` resources into the app
 bundle, and launches the renamed entrypoint on a background thread.
 
-The `-nw` path now opens the app-owned fake TTY, emits ANSI/xterm bytes through
-the shared ring buffer, and SwiftTerm renders that stream. The script-level full
-smoke proves skip-free `-nw` startup through the evaluated-Lisp marker. The
-script-level input smokes prove fake-TTY bytes reach both `read-char` and
-command-loop insertion into `*scratch*`.
+The `-nw` path now opens the app-owned fake TTY and emits ANSI/xterm bytes
+through the shared ring buffer. The UI adapter is `WKWebView + xterm.js`, not
+SwiftTerm. The script-level full smoke proves skip-free `-nw` startup through
+the evaluated-Lisp marker. The script-level input smokes prove fake-TTY bytes
+reach both `read-char` and command-loop insertion into `*scratch*`.
 
-The app-level SwiftTerm smoke now verifies the same input path in the running
-iOS simulator app: after SwiftTerm renders a ready Lisp Interaction frame, an
-env-gated test calls `TerminalView.insertText("abc")`, forwards the resulting
-delegate bytes to the fake TTY, and an Emacs marker confirms that `abc` appears
-in `*scratch*`.
+The app-level UI bridge is wired around xterm.js: after xterm.js renders a
+ready Lisp Interaction frame, input crosses the same JS `onData` ->
+`WKScriptMessageHandler` -> fake TTY path used by real keyboard input. Japanese
+IME input is an explicit acceptance target: uncommitted composition must remain
+in xterm.js/browser composition UI, while committed text must cross the bridge
+as UTF-8 bytes into Emacs.
 
 Local editing is rooted at `/home/user` inside Emacs. By default it maps to
 `Documents/home/user` in the app container, or to the app's iCloud ubiquity
@@ -276,8 +288,8 @@ IOSMACS_NW_EXPECT_FULL=1 \
 
 The simulator app has an env-gated file smoke,
 `IOSMACS_APP_FILE_SMOKE_MARKER`, that creates, saves, reopens, and lists
-`/home/user/notes/iosmacs-file-smoke.txt` from the running SwiftTerm-backed
-app. The saved file persists under the app container's `Documents/home/user`.
+`/home/user/notes/iosmacs-file-smoke.txt` from the running app. The saved file
+persists under the app container's `Documents/home/user`.
 The app toolbar includes Import and Export controls: Import copies selected
 iPadOS document-picker files into `/home/user`, and Export presents the current
 workspace contents through the iPadOS document picker as copies.
@@ -303,8 +315,8 @@ Known unsupported Emacs features in this MVP:
 - `/home/user` prefers the app's iCloud ubiquity container when available and
   falls back to app Documents otherwise; simulator iCloud behavior still
   depends on signing/account/entitlement setup.
-- xterm 256-color style SGR output is covered by the app color smoke through
-  SwiftTerm.
+- xterm 256-color style SGR output is covered by script-level smokes; the
+  WebView/xterm.js app screenshot should be refreshed after simulator IME QA.
 - Network package installation is covered for pure Elisp packages by
   `IOSMACS_NW_EXPECT_NETWORK=1 scripts/run-emacs-ios-nw-smoke.sh`: it downloads
   `a68-mode` from GNU ELPA, installs it with byte/native compilation disabled,

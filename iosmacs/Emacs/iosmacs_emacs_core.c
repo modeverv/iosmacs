@@ -4,6 +4,7 @@
 #include "iosmacs_terminal_shim.h"
 
 #include <TargetConditionals.h>
+#include <locale.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -123,16 +124,23 @@ static char *copy_app_smoke_eval_form(void) {
 
     const char *format =
         "(progn "
+        "(defun iosmacs-app-smoke-write (text) "
+        "(write-region (concat (format \"iosmacs-app-smoke:%%S\\n\" text) "
+        "\"iosmacs-app-smoke-ok\\n\") nil %s nil nil) "
+        "(princ (format \"iosmacs-app-smoke:%%S\\n\" text) 'external-debugging-output)) "
         "(defun iosmacs-app-smoke-check () "
         "(let ((text (save-current-buffer (set-buffer \"*scratch*\") (buffer-string)))) "
         "(if (string-match-p %s text) "
         "(progn "
-        "(write-region (concat (format \"iosmacs-app-smoke:%%S\\n\" text) "
-        "\"iosmacs-app-smoke-ok\\n\") nil %s nil nil) "
-        "(princ (format \"iosmacs-app-smoke:%%S\\n\" text) 'external-debugging-output) "
+        "(iosmacs-app-smoke-write text) "
         "(remove-hook 'post-command-hook 'iosmacs-app-smoke-check))))) "
-        "(add-hook 'post-command-hook 'iosmacs-app-smoke-check))";
-    int length = snprintf(NULL, 0, format, quoted_expect, quoted_marker);
+        "(add-hook 'post-command-hook 'iosmacs-app-smoke-check) "
+        "(run-at-time 8 1 "
+        "(lambda () "
+        "(let ((text (save-current-buffer (set-buffer \"*scratch*\") (buffer-string)))) "
+        "(when (string-match-p %s text) "
+        "(iosmacs-app-smoke-write text))))))";
+    int length = snprintf(NULL, 0, format, quoted_marker, quoted_expect, quoted_expect);
     if (length < 0) {
         free(quoted_marker);
         free(quoted_expect);
@@ -141,7 +149,7 @@ static char *copy_app_smoke_eval_form(void) {
 
     char *eval_form = malloc((size_t)length + 1);
     if (eval_form != NULL) {
-        snprintf(eval_form, (size_t)length + 1, format, quoted_expect, quoted_marker);
+        snprintf(eval_form, (size_t)length + 1, format, quoted_marker, quoted_expect, quoted_expect);
     }
     free(quoted_marker);
     free(quoted_expect);
@@ -241,12 +249,30 @@ static char *copy_app_color_smoke_eval_form(void) {
     return eval_form;
 }
 
+static char *copy_app_custom_eval_form(void) {
+    const char *form = getenv("IOSMACS_APP_ELISP");
+    if (form == NULL || form[0] == '\0') {
+        return NULL;
+    }
+    return strdup(form);
+}
+
 static char *copy_runtime_eval_form(void) {
     const char *form =
         "(progn "
         "(setq default-directory \"/home/user/\" "
         "command-line-default-directory \"/home/user/\") "
-        "(require 'cl-extra) "
+        "(defun iosmacs-force-utf8-terminal () "
+        "(set-language-environment \"UTF-8\") "
+        "(prefer-coding-system 'utf-8-unix) "
+        "(setq locale-coding-system 'utf-8-unix "
+        "default-enable-multibyte-characters t) "
+        "(set-keyboard-coding-system 'utf-8-unix) "
+        "(set-terminal-coding-system 'utf-8-unix) "
+        "(ignore-errors (set-input-meta-mode 8))) "
+        "(iosmacs-force-utf8-terminal) "
+        "(add-hook 'emacs-startup-hook #'iosmacs-force-utf8-terminal) "
+        "(run-at-time 2 nil #'iosmacs-force-utf8-terminal) "
         "(require 'ls-lisp) "
         "(setq ls-lisp-use-insert-directory-program nil "
         "insert-directory-program nil "
@@ -291,7 +317,11 @@ static void *emacs_core_thread_main(void *arg) {
         setenv("LOGNAME", "user", 1);
         chdir("/home/user");
     }
+    setenv("LANG", "en_US.UTF-8", 1);
+    setenv("LC_CTYPE", "en_US.UTF-8", 1);
+    setlocale(LC_ALL, "");
     setenv("TERM", "xterm-256color", 1);
+    setenv("IOSMACS_TERMINAL_AUTO_XTERM_REPLIES", "1", 1);
     setenv("IOSMACS_NW_SKIP_GC", "1", 1);
     setenv("IOSMACS_PDMP_FALLBACK_CHARPROP", "1", 1);
     if (app_smoke_enabled) {
@@ -303,7 +333,8 @@ static void *emacs_core_thread_main(void *arg) {
     char *app_smoke_eval_form = copy_app_smoke_eval_form();
     char *app_file_smoke_eval_form = copy_app_file_smoke_eval_form();
     char *app_color_smoke_eval_form = copy_app_color_smoke_eval_form();
-    char *argv[17];
+    char *app_custom_eval_form = copy_app_custom_eval_form();
+    char *argv[19];
     int argc = 0;
     argv[argc++] = "temacs";
     if (context->dump_file != NULL) {
@@ -331,12 +362,17 @@ static void *emacs_core_thread_main(void *arg) {
         argv[argc++] = "--eval";
         argv[argc++] = app_color_smoke_eval_form;
     }
+    if (app_custom_eval_form != NULL) {
+        argv[argc++] = "--eval";
+        argv[argc++] = app_custom_eval_form;
+    }
     argv[argc] = NULL;
     int status = iosmacs_emacs_entry_ref(argc, argv);
     free(runtime_eval_form);
     free(app_smoke_eval_form);
     free(app_file_smoke_eval_form);
     free(app_color_smoke_eval_form);
+    free(app_custom_eval_form);
 
     pthread_mutex_lock(&emacs_core_mutex);
     emacs_core_exit_status_value = status;

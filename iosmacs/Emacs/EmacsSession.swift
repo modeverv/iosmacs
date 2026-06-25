@@ -71,6 +71,28 @@ final class EmacsSession: ObservableObject {
         iosmacs_os_terminal_resize(Int32(cols), Int32(rows))
     }
 
+    func noteTerminalBridge(_ message: String) {
+        lifecycleState = "iosmacs: \(message)"
+        guard let path = ProcessInfo.processInfo.environment["IOSMACS_WEB_TERMINAL_DEBUG_MARKER"],
+              !path.isEmpty else {
+            return
+        }
+        let url = URL(fileURLWithPath: path)
+        try? FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        let line = "\(Date()): \(message)\n"
+        if FileManager.default.fileExists(atPath: url.path),
+           let handle = try? FileHandle(forWritingTo: url) {
+            try? handle.seekToEnd()
+            try? handle.write(contentsOf: Data(line.utf8))
+            try? handle.close()
+        } else {
+            try? line.write(to: url, atomically: true, encoding: .utf8)
+        }
+    }
+
     func drainTerminalOutput() -> [[UInt8]] {
         var chunks: [[UInt8]] = []
         while true {

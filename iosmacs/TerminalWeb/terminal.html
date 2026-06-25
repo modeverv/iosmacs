@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <link rel="stylesheet" href="vendor/xterm/xterm.css">
+  <style>
+    html,
+    body,
+    #terminal {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+    }
+
+    body {
+      -webkit-text-size-adjust: 100%;
+      overscroll-behavior: none;
+    }
+
+    #terminal {
+      box-sizing: border-box;
+      padding: 0;
+    }
+
+    .xterm {
+      height: 100%;
+      font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Menlo", monospace, sans-serif;
+    }
+
+    .xterm .xterm-helper-textarea {
+      position: fixed !important;
+      top: -100px !important;
+      left: -100px !important;
+      width: 1px !important;
+      height: 1px !important;
+      min-width: 1px !important;
+      min-height: 1px !important;
+      max-width: 1px !important;
+      max-height: 1px !important;
+      opacity: 0 !important;
+      color: transparent !important;
+      background: transparent !important;
+      -webkit-text-fill-color: transparent !important;
+      caret-color: transparent !important;
+      box-shadow: none !important;
+      outline: none !important;
+      resize: none !important;
+    }
+
+    .xterm .composition-view {
+      display: none !important;
+    }
+
+    #ime-proxy {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 1px;
+      height: 1px;
+      min-width: 1px;
+      min-height: 1px;
+      opacity: 0.01;
+      color: transparent;
+      background: transparent;
+      -webkit-text-fill-color: transparent;
+      caret-color: transparent;
+      border: 0;
+      box-shadow: none;
+      outline: none;
+      resize: none;
+      pointer-events: none;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="terminal"></div>
+  <textarea id="ime-proxy" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+  <script src="vendor/xterm/xterm.js"></script>
+  <script src="vendor/xterm-addon-fit/addon-fit.js"></script>
+  <script src="iosmacs-terminal.js"></script>
+</body>
+</html>

@@ -7,13 +7,15 @@ IOSMACS_SDK ?= iphonesimulator
 IOSMACS_DESTINATION ?= generic/platform=iOS Simulator
 IOSMACS_IPHONE_DESTINATION ?= platform=iOS Simulator,name=iPhone 17
 IOSMACS_EMACS_SOURCE ?= wasmacs/vendor/emacs
+IOSMACS_SIMULATOR_UDID ?= booted
+IOSMACS_APP_BUNDLE_ID ?= local.iosmacs
 JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || printf '4')
 
 .DEFAULT_GOAL := help
 
 .PHONY: help deps bootstrap emacs-source emacs-info emacs-probe emacs-temacs emacs-static \
 	emacs-link-smoke emacs-batch-smoke emacs-nw-smoke emacs-pdmp app app-iphone xcode-build \
-	smoke verify verify-iphone check clean distclean
+	app-installl smoke verify verify-iphone check clean distclean
 
 help:
 	@printf '%s\n' \
@@ -25,6 +27,7 @@ help:
 	  '  make emacs-pdmp        Build the bundled emacs.pdmp through the -nw smoke path' \
 	  '  make app               Build the iOS simulator app with xcodebuild' \
 	  '  make app-iphone        Build the iPhone simulator app with xcodebuild' \
+	  '  make app-installl      Build, reinstall, and launch the simulator app' \
 	  '  make smoke             Run link and batch smoke checks' \
 	  '  make verify            Fresh-checkout verification: deps, smoke, app build' \
 	  '  make verify-iphone     Fresh-checkout verification for iPhone simulator' \
@@ -100,6 +103,27 @@ app-iphone: emacs-static emacs-pdmp
 	  build
 
 xcode-build: app
+
+app-installl: app
+	@set -euo pipefail; \
+	app_path="$$(xcodebuild \
+	  -project "$(IOSMACS_PROJECT)" \
+	  -scheme "$(IOSMACS_SCHEME)" \
+	  -configuration "$(IOSMACS_CONFIGURATION)" \
+	  -sdk "$(IOSMACS_SDK)" \
+	  -destination "$(IOSMACS_DESTINATION)" \
+	  -showBuildSettings 2>/dev/null | \
+	  awk -F'= ' '\
+	    / TARGET_BUILD_DIR = / { target_build_dir = $$2 } \
+	    / WRAPPER_NAME = / { wrapper_name = $$2 } \
+	    END { if (target_build_dir && wrapper_name) print target_build_dir "/" wrapper_name }')"; \
+	if [[ -z "$$app_path" || ! -d "$$app_path" ]]; then \
+	  printf 'error: built app not found: %s\n' "$$app_path" >&2; \
+	  exit 1; \
+	fi; \
+	xcrun simctl terminate "$(IOSMACS_SIMULATOR_UDID)" "$(IOSMACS_APP_BUNDLE_ID)" >/dev/null 2>&1 || true; \
+	xcrun simctl install "$(IOSMACS_SIMULATOR_UDID)" "$$app_path"; \
+	xcrun simctl launch "$(IOSMACS_SIMULATOR_UDID)" "$(IOSMACS_APP_BUNDLE_ID)"
 
 clean:
 	rm -rf build

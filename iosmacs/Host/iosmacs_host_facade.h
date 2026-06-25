@@ -21,6 +21,20 @@ ssize_t iosmacs_os_terminal_read(uint8_t *buffer, size_t capacity);
 ssize_t iosmacs_os_terminal_write(const uint8_t *bytes, size_t count);
 ssize_t iosmacs_os_terminal_push_input(const uint8_t *bytes, size_t count);
 ssize_t iosmacs_os_terminal_drain_output(uint8_t *buffer, size_t capacity);
+int iosmacs_os_terminal_wait_for_input(int timeout_ms);
+int iosmacs_os_terminal_read_byte(void);
+int iosmacs_os_terminal_input_available(void);
+int iosmacs_os_terminal_flush_output(void);
+void iosmacs_os_terminal_note_tty_fd(int fd);
+void iosmacs_os_terminal_note_stdio_redirected(void);
+int iosmacs_os_terminal_is_tty_fd(int fd);
+int iosmacs_os_terminal_direct_mode_enabled(void);
+
+int iosmacs_host_wait_for_input(void);
+int iosmacs_host_terminal_read_byte(void);
+int iosmacs_host_terminal_input_available(void);
+int iosmacs_host_flush_terminal_output(void);
+int iosmacs_host_is_tty_fd(int fd);
 
 int iosmacs_os_open(const char *path, int flags, int mode);
 ssize_t iosmacs_os_read(int fd, void *buffer, size_t count);

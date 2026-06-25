@@ -1,0 +1,507 @@
+(function () {
+  "use strict";
+
+  const DEFAULT_DIMENSIONS = Object.freeze({ cols: 80, rows: 24 });
+  const MIN_COLS = 20;
+  const MIN_ROWS = 3;
+  const encoder = new TextEncoder();
+  let terminal = null;
+  let fitAddon = null;
+  let lastDimensions = DEFAULT_DIMENSIONS;
+  let initialized = false;
+  let isComposing = false;
+  let compositionText = "";
+  let lastForwardedText = "";
+  let lastForwardedTextTime = 0;
+  let imeProxy = null;
+  let imeProxyAttached = false;
+  let suppressXtermDataUntil = 0;
+
+  function post(message) {
+    const handler = window.webkit?.messageHandlers?.iosmacsTerminal;
+    if (!handler) {
+      return;
+    }
+    handler.postMessage(message);
+  }
+
+  function debugIme(message) {
+    if (window.localStorage?.getItem("iosmacs-ime-debug") !== "1") {
+      return;
+    }
+    post({ type: "log", level: "debug", message: `ime ${message}` });
+  }
+
+  function normalizeDimensions(cols, rows) {
+    return {
+      cols: Math.max(MIN_COLS, Number.isInteger(cols) ? cols : DEFAULT_DIMENSIONS.cols),
+      rows: Math.max(MIN_ROWS, Number.isInteger(rows) ? rows : DEFAULT_DIMENSIONS.rows),
+    };
+  }
+
+  function postResize(cols, rows) {
+    const next = normalizeDimensions(cols, rows);
+    if (next.cols === lastDimensions.cols && next.rows === lastDimensions.rows) {
+      return;
+    }
+    lastDimensions = next;
+    post({ type: "resize", cols: next.cols, rows: next.rows });
+  }
+
+  function stripBracketedPasteMarkers(data) {
+    return data.replaceAll("\x1b[200~", "").replaceAll("\x1b[201~", "");
+  }
+
+  function postInput(data, options = {}) {
+    const text = options.stripPasteMarkers ? stripBracketedPasteMarkers(data) : data;
+    const bytes = Array.from(encoder.encode(text));
+    if (bytes.length > 0) {
+      post({ type: "input", bytes });
+    }
+  }
+
+  function normalizeInsertedText(data) {
+    return String(data ?? "").replace(/\r\n|\n/g, "\r");
+  }
+
+  function forwardText(data, dedupe = false) {
+    const text = normalizeInsertedText(data);
+    if (!text) {
+      debugIme("forward skipped empty text");
+      return false;
+    }
+
+    const now = performance.now();
+    if (dedupe && text === lastForwardedText && now - lastForwardedTextTime < 80) {
+      return true;
+    }
+
+    lastForwardedText = text;
+    lastForwardedTextTime = now;
+    debugIme(`forward ${JSON.stringify(text)}`);
+    postInput(text);
+    return true;
+  }
+
+  function handleTerminalData(data) {
+    if (isComposing || performance.now() < suppressXtermDataUntil) {
+      return;
+    }
+    postInput(data);
+  }
+
+  function clearTextareaValue(textarea) {
+    try {
+      textarea.value = "";
+    } catch (_error) {
+      // Some WebKit builds protect xterm's helper textarea. Leaving the value is harmless.
+    }
+  }
+
+  function stopHandledImeEvent(event, textarea) {
+    event.preventDefault?.();
+    event.stopImmediatePropagation?.();
+    clearTextareaValue(textarea);
+  }
+
+  function handledInputType(inputType) {
+    return inputType === "insertText"
+      || inputType === "insertReplacementText"
+      || inputType === "insertFromPaste"
+      || inputType === "insertFromDrop";
+  }
+
+  function isImeProxyEvent(event) {
+    if (!imeProxy) {
+      return false;
+    }
+    return event.target === imeProxy;
+  }
+
+  function terminalKeySequence(event) {
+    if (event.metaKey || event.isComposing || event.keyCode === 229) {
+      return "";
+    }
+
+    if (event.ctrlKey) {
+      if (event.key === " ") {
+        return "\x00";
+      }
+      if (event.key.length === 1) {
+        const key = event.key.toLowerCase();
+        if (key >= "a" && key <= "z") {
+          return String.fromCharCode(key.charCodeAt(0) - 96);
+        }
+        if (event.key === "[") {
+          return "\x1b";
+        }
+        if (event.key === "]") {
+          return "\x1d";
+        }
+        if (event.key === "\\") {
+          return "\x1c";
+        }
+        if (event.key === "^") {
+          return "\x1e";
+        }
+        if (event.key === "_") {
+          return "\x1f";
+        }
+        if (event.key === "?") {
+          return "\x7f";
+        }
+      }
+      return "";
+    }
+
+    if (event.altKey) {
+      const ch = printableAsciiFromCode(event);
+      if (ch) {
+        return `\x1b${ch}`;
+      }
+      if (typeof event.key === "string" && event.key.length === 1 && event.key.charCodeAt(0) < 128) {
+        return `\x1b${event.key}`;
+      }
+      return "";
+    }
+
+    switch (event.key) {
+      case "Enter":
+        return "\r";
+      case "Backspace":
+        return "\x7f";
+      case "Tab":
+        return "\t";
+      case "Escape":
+        return "\x1b";
+      case "ArrowUp":
+        return "\x1b[A";
+      case "ArrowDown":
+        return "\x1b[B";
+      case "ArrowRight":
+        return "\x1b[C";
+      case "ArrowLeft":
+        return "\x1b[D";
+      case "Home":
+        return "\x1b[H";
+      case "End":
+        return "\x1b[F";
+      case "PageUp":
+        return "\x1b[5~";
+      case "PageDown":
+        return "\x1b[6~";
+      case "Delete":
+        return "\x1b[3~";
+      default:
+        return "";
+    }
+  }
+
+  function printableAsciiFromCode(event) {
+    if (typeof event?.code !== "string") {
+      return "";
+    }
+
+    if (/^Key[A-Z]$/.test(event.code)) {
+      const ch = event.code.slice(3).toLowerCase();
+      return event.shiftKey ? ch.toUpperCase() : ch;
+    }
+
+    if (/^Digit[0-9]$/.test(event.code)) {
+      return event.code.slice(5);
+    }
+
+    return "";
+  }
+
+  function captureEmacsKey(event) {
+    const sequence = terminalKeySequence(event);
+    if (!sequence) {
+      return true;
+    }
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    postInput(sequence);
+    return false;
+  }
+
+  function focusInput() {
+    if (!imeProxy) {
+      return;
+    }
+    try {
+      imeProxy.focus({ preventScroll: true });
+    } catch (_error) {
+      imeProxy.focus();
+    }
+  }
+
+  function attachImeProxy(proxy, container) {
+    if (!proxy || imeProxyAttached) {
+      return;
+    }
+    imeProxy = proxy;
+    imeProxyAttached = true;
+
+    proxy.addEventListener("compositionstart", (event) => {
+      if (!isImeProxyEvent(event)) {
+        return;
+      }
+      isComposing = true;
+      compositionText = "";
+      suppressXtermDataUntil = performance.now() + 1000;
+      debugIme(`compositionstart data=${JSON.stringify(event.data || "")} value=${JSON.stringify(proxy.value)}`);
+    });
+
+    proxy.addEventListener("compositionupdate", (event) => {
+      if (!isImeProxyEvent(event)) {
+        return;
+      }
+      compositionText = event.data || compositionText;
+      suppressXtermDataUntil = performance.now() + 1000;
+      debugIme(`compositionupdate data=${JSON.stringify(event.data || "")} value=${JSON.stringify(proxy.value)}`);
+    });
+
+    proxy.addEventListener("compositionend", (event) => {
+      if (!isImeProxyEvent(event)) {
+        return;
+      }
+      const committedText = event.data || proxy.value || compositionText;
+      debugIme(`compositionend data=${JSON.stringify(event.data || "")} value=${JSON.stringify(proxy.value)} committed=${JSON.stringify(committedText)}`);
+      isComposing = false;
+      compositionText = "";
+      suppressXtermDataUntil = performance.now() + 500;
+      if (forwardText(committedText, true)) {
+        stopHandledImeEvent(event, proxy);
+      }
+      setTimeout(() => {
+        debugIme(`compositionend deferred value=${JSON.stringify(proxy.value)}`);
+        if (forwardText(proxy.value, true)) {
+          clearTextareaValue(proxy);
+        }
+      }, 0);
+    });
+
+    proxy.addEventListener("beforeinput", (event) => {
+      if (!isImeProxyEvent(event)) {
+        return;
+      }
+      if (isComposing) {
+        debugIme(`beforeinput composing type=${event.inputType} data=${JSON.stringify(event.data || "")} value=${JSON.stringify(proxy.value)}`);
+        return;
+      }
+      debugIme(`beforeinput type=${event.inputType} data=${JSON.stringify(event.data || "")} value=${JSON.stringify(proxy.value)}`);
+      if (handledInputType(event.inputType) && forwardText(event.data, true)) {
+        stopHandledImeEvent(event, proxy);
+        return;
+      }
+      if (event.inputType === "insertLineBreak" || event.inputType === "insertParagraph") {
+        forwardText("\r");
+        stopHandledImeEvent(event, proxy);
+      }
+    });
+
+    proxy.addEventListener("input", (event) => {
+      if (!isImeProxyEvent(event) || isComposing) {
+        if (isImeProxyEvent(event)) {
+          debugIme(`input ignored composing value=${JSON.stringify(proxy.value)}`);
+        }
+        return;
+      }
+      debugIme(`input value=${JSON.stringify(proxy.value)}`);
+      if (forwardText(proxy.value, true)) {
+        stopHandledImeEvent(event, proxy);
+      }
+    });
+
+    proxy.addEventListener("keydown", (event) => {
+      if (isComposing || event.isComposing || event.keyCode === 229) {
+        debugIme(`keydown composing key=${event.key} keyCode=${event.keyCode}`);
+        return;
+      }
+      const sequence = terminalKeySequence(event);
+      if (sequence) {
+        debugIme(`keydown key=${event.key} seq=${JSON.stringify(sequence)}`);
+        forwardText(sequence);
+        stopHandledImeEvent(event, proxy);
+      }
+    });
+
+    proxy.addEventListener("paste", (event) => {
+      const text = event.clipboardData?.getData("text/plain") || "";
+      if (forwardText(text)) {
+        stopHandledImeEvent(event, proxy);
+      }
+    });
+
+    container.addEventListener("pointerdown", () => {
+      focusInput();
+      setTimeout(focusInput, 0);
+    }, true);
+
+    terminal?.textarea?.addEventListener("focus", () => {
+      setTimeout(focusInput, 0);
+    });
+  }
+
+  function fit() {
+    if (!terminal) {
+      return;
+    }
+
+    if (fitAddon) {
+      fitAddon.fit();
+      postResize(terminal.cols, terminal.rows);
+      return;
+    }
+
+    const container = document.getElementById("terminal");
+    const fontSize = Number(terminal.options.fontSize) || 15;
+    const cols = Math.floor(container.clientWidth / Math.max(1, fontSize * 0.62));
+    const rows = Math.floor(container.clientHeight / Math.max(1, fontSize * 1.35));
+    const next = normalizeDimensions(cols, rows);
+    terminal.resize(next.cols, next.rows);
+    postResize(next.cols, next.rows);
+  }
+
+  function bytesFromBase64(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  function debugTerminalBuffer(reason) {
+    if (window.localStorage?.getItem("iosmacs-ime-debug") !== "1" || !terminal?.buffer?.active) {
+      return;
+    }
+
+    const buffer = terminal.buffer.active;
+    const row = buffer.baseY + buffer.cursorY;
+    const line = buffer.getLine(row)?.translateToString(true) || "";
+    post({
+      type: "log",
+      level: "debug",
+      message: `xterm ${reason} row=${row} cursor=${buffer.cursorX},${buffer.cursorY} line=${JSON.stringify(line)}`,
+    });
+  }
+
+  function setFontSize(fontSize) {
+    if (!terminal || !Number.isFinite(fontSize)) {
+      return;
+    }
+    terminal.options.fontSize = Math.max(10, Math.min(28, fontSize));
+    requestAnimationFrame(fit);
+  }
+
+  function initialize() {
+    if (initialized) {
+      return;
+    }
+    initialized = true;
+    try {
+      initializeTerminal();
+    } catch (error) {
+      post({
+        type: "log",
+        level: "error",
+        message: `${error?.name || "Error"}: ${error?.message || String(error)}`,
+      });
+    }
+  }
+
+  function initializeTerminal() {
+    const container = document.getElementById("terminal");
+    if (!container || typeof window.Terminal !== "function") {
+      post({ type: "log", level: "error", message: "xterm.js Terminal global not found" });
+      return;
+    }
+
+    terminal = new window.Terminal({
+      allowProposedApi: false,
+      convertEol: false,
+      cursorBlink: true,
+      cursorStyle: "block",
+      fontFamily: "'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Menlo', monospace, sans-serif",
+      fontSize: 15,
+      macOptionIsMeta: true,
+      rows: DEFAULT_DIMENSIONS.rows,
+      cols: DEFAULT_DIMENSIONS.cols,
+      scrollback: 1000,
+      customKeyEventHandler: captureEmacsKey,
+      theme: {
+        background: "#000000",
+        foreground: "#d0d0d0",
+        cursor: "#f5f5f5",
+        cursorAccent: "#000000",
+        selectionBackground: "#4a5568",
+      },
+    });
+
+    const FitAddonClass = window.FitAddon?.FitAddon;
+    if (typeof FitAddonClass === "function") {
+      fitAddon = new FitAddonClass();
+      terminal.loadAddon(fitAddon);
+    }
+
+    terminal.open(container);
+    terminal.onData(handleTerminalData);
+    terminal.onResize(({ cols, rows }) => postResize(cols, rows));
+    attachImeProxy(document.getElementById("ime-proxy"), container);
+    imeProxy?.addEventListener("focus", () => post({ type: "focus", focused: true }));
+    imeProxy?.addEventListener("blur", () => post({ type: "focus", focused: false }));
+
+    window.iosmacsTerminal = {
+      focus() {
+        focusInput();
+      },
+      fit,
+      setFontSize,
+      injectData(data) {
+        postInput(String(data ?? ""));
+      },
+      writeBase64(base64) {
+        terminal.write(bytesFromBase64(base64));
+        debugTerminalBuffer("writeBase64");
+        focusInput();
+      },
+    };
+
+    requestAnimationFrame(() => {
+      fit();
+      focusInput();
+      post({ type: "ready", cols: terminal.cols, rows: terminal.rows });
+    });
+  }
+
+  window.addEventListener("error", (event) => {
+    post({
+      type: "log",
+      level: "error",
+      message: event.message || String(event.error || "unknown script error"),
+    });
+  });
+  window.addEventListener("unhandledrejection", (event) => {
+    post({
+      type: "log",
+      level: "error",
+      message: String(event.reason || "unhandled promise rejection"),
+    });
+  });
+  window.addEventListener("resize", () => requestAnimationFrame(fit));
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      requestAnimationFrame(() => {
+        fit();
+        focusInput();
+      });
+    }
+  });
+  if (document.readyState === "loading") {
+    window.addEventListener("DOMContentLoaded", initialize);
+  } else {
+    initialize();
+  }
+}());

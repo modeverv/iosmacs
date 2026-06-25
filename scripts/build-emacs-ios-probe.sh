@@ -95,6 +95,18 @@ if [[ -f "${sysdep_c}" ]] && ! grep -q "iosmacs: libproc is macOS-only" "${sysde
   ' "${sysdep_c}"
   perl -0pi -e '
     s/  char pathbuf\[PROC_PIDPATHINFO_MAXSIZE\];\n  char \*comm;\n\n  if \(proc_pidpath \(proc_id, pathbuf, sizeof\(pathbuf\)\) > 0\)\n    \{\n      if \(\(comm = strrchr \(pathbuf, \x27\/\x27\)\)\)\n        comm\+\+;\n      else\n        comm = pathbuf;\n    \}\n  else\n    comm = proc\.kp_proc\.p_comm;/  char *comm;\n\n#ifdef IOSMACS_HAS_LIBPROC\n  char pathbuf[PROC_PIDPATHINFO_MAXSIZE];\n  if (proc_pidpath (proc_id, pathbuf, sizeof(pathbuf)) > 0)\n    {\n      if ((comm = strrchr (pathbuf, \x27\/\x27)))\n        comm++;\n      else\n        comm = pathbuf;\n    }\n  else\n#endif\n    comm = proc.kp_proc.p_comm;/s
+	  ' "${sysdep_c}"
+fi
+
+if [[ -f "${sysdep_c}" ]] && ! grep -q "iosmacs: direct tty facade fallback definitions" "${sysdep_c}"; then
+  perl -0pi -e '
+    s/(\/\* Read from FD to a buffer BUF with size NBYTE\.)/__attribute__ ((weak)) int\niosmacs_host_wait_for_input (void)\n{\n  return 0;\n}\n\n__attribute__ ((weak)) int\niosmacs_host_terminal_read_byte (void)\n{\n  return -1;\n}\n\n__attribute__ ((weak)) int\niosmacs_host_is_tty_fd (int fd)\n{\n  (void) fd;\n  return 0;\n}\n\n\/* iosmacs: direct tty facade fallback definitions. *\/\n\n$1/s
+  ' "${sysdep_c}"
+fi
+
+if [[ -f "${sysdep_c}" ]] && ! grep -q "iosmacs: direct tty read path" "${sysdep_c}"; then
+  perl -0pi -e '
+    s/(  ssize_t result;\n)/$1\n  if (nbyte > 0 && iosmacs_host_is_tty_fd (fd))\n    {\n      unsigned char *tty_buf = buf;\n      ptrdiff_t bytes_read = 0;\n\n      while (bytes_read == 0)\n        {\n          while (bytes_read < nbyte)\n            {\n              int byte = iosmacs_host_terminal_read_byte ();\n              if (byte < 0)\n                break;\n              tty_buf[bytes_read++] = (unsigned char) byte;\n            }\n\n          if (bytes_read > 0)\n            return bytes_read;\n\n          if (interruptible)\n            maybe_quit ();\n          iosmacs_host_wait_for_input ();\n        }\n    }\n  \/* iosmacs: direct tty read path. *\/\n/s
   ' "${sysdep_c}"
 fi
 
@@ -157,6 +169,24 @@ if [[ -f "${keyboard_c}" ]] && grep -q "debug_print (Vtop_level)" "${keyboard_c}
   ' "${keyboard_c}"
 fi
 
+if [[ -f "${keyboard_c}" ]] && ! grep -q "iosmacs: direct tty waitpoint declarations" "${keyboard_c}"; then
+  perl -0pi -e '
+    s/(\/\* Read a character from the keyboard; call the redisplay if needed\.  \*\/)/extern int iosmacs_host_wait_for_input (void);\nextern int iosmacs_host_is_tty_fd (int fd);\n\/* iosmacs: direct tty waitpoint declarations. *\/\n\n$1/s
+  ' "${keyboard_c}"
+fi
+
+if [[ -f "${keyboard_c}" ]] && ! grep -q "iosmacs: direct tty waitpoint before decoded event read" "${keyboard_c}"; then
+  perl -0pi -e '
+    s/(  if \(NILP \(c\)\)\n    \{\n)(      c = read_decoded_event_from_main_queue)/$1      if (!noninteractive && !end_time && iosmacs_host_is_tty_fd (0))\n        iosmacs_host_wait_for_input ();\n      \/* iosmacs: direct tty waitpoint before decoded event read. *\/\n\n$2/s
+  ' "${keyboard_c}"
+fi
+
+if [[ -f "${keyboard_c}" ]] && ! grep -q "iosmacs: direct tty waitpoint before process wait" "${keyboard_c}"; then
+  perl -0pi -e '
+    s/(\t  wait_reading_process_output \(0, 0, -1, do_display, Qnil, NULL, 0\);)/\t  if (iosmacs_host_is_tty_fd (0))\n\t    iosmacs_host_wait_for_input ();\n\t  else\n$1\n\t  \/* iosmacs: direct tty waitpoint before process wait. *\//s
+  ' "${keyboard_c}"
+fi
+
 fns_c="${configure_root}/src/fns.c"
 if [[ -f "${fns_c}" ]] && ! grep -q "IOSMACS_PDMP_ALLOW_REQUIRE_DURING_DUMP" "${fns_c}"; then
   perl -0pi -e '
@@ -178,6 +208,18 @@ if [[ -f "${bidi_c}" ]] && ! grep -q "iosmacs: fallback bidi tables for charprop
     s/  bidi_mirror_table = uniprop_table \(intern \("mirroring"\)\);\n  if \(NILP \(bidi_mirror_table\)\)\n    emacs_abort \(\);/  bidi_mirror_table = uniprop_table (intern ("mirroring"));\n  if (NILP (bidi_mirror_table) && getenv ("IOSMACS_PDMP_FALLBACK_CHARPROP"))\n    bidi_mirror_table = Fmake_char_table (Qnil, Qnil);\n  if (NILP (bidi_mirror_table))\n    emacs_abort ();/s;
     s/  bidi_brackets_table = uniprop_table \(intern \("bracket-type"\)\);\n  if \(NILP \(bidi_brackets_table\)\)\n    emacs_abort \(\);/  bidi_brackets_table = uniprop_table (intern ("bracket-type"));\n  if (NILP (bidi_brackets_table) && getenv ("IOSMACS_PDMP_FALLBACK_CHARPROP"))\n    bidi_brackets_table = Fmake_char_table (Qnil, Qnil);\n  if (NILP (bidi_brackets_table))\n    emacs_abort ();/s
   ' "${bidi_c}"
+fi
+
+character_c="${configure_root}/src/character.c"
+if [[ -f "${character_c}" ]] && ! grep -q "iosmacs: tolerate missing unicode category table in iOS pdmp smoke" "${character_c}"; then
+  perl -0pi -e '
+    s/bool\nalphabeticp \(int c\)\n\{\n  Lisp_Object category = CHAR_TABLE_REF \(Vunicode_category_table, c\);/bool\nalphabeticp (int c)\n{\n  if (! CHAR_TABLE_P (Vunicode_category_table))\n    return false;\n  \/* iosmacs: tolerate missing unicode category table in iOS pdmp smoke. *\/\n  Lisp_Object category = CHAR_TABLE_REF (Vunicode_category_table, c);/s;
+    s/bool\nalphanumericp \(int c\)\n\{\n  Lisp_Object category = CHAR_TABLE_REF \(Vunicode_category_table, c\);/bool\nalphanumericp (int c)\n{\n  if (! CHAR_TABLE_P (Vunicode_category_table))\n    return false;\n  \/* iosmacs: tolerate missing unicode category table in iOS pdmp smoke. *\/\n  Lisp_Object category = CHAR_TABLE_REF (Vunicode_category_table, c);/s;
+    s/bool\ngraphicp \(int c\)\n\{\n  Lisp_Object category = CHAR_TABLE_REF \(Vunicode_category_table, c\);/bool\ngraphicp (int c)\n{\n  if (! CHAR_TABLE_P (Vunicode_category_table))\n    return ! ASCII_CHAR_P (c);\n  \/* iosmacs: tolerate missing unicode category table in iOS pdmp smoke. *\/\n  Lisp_Object category = CHAR_TABLE_REF (Vunicode_category_table, c);/s;
+    s/bool\nprintablep \(int c\)\n\{\n  Lisp_Object category = CHAR_TABLE_REF \(Vunicode_category_table, c\);/bool\nprintablep (int c)\n{\n  if (! CHAR_TABLE_P (Vunicode_category_table))\n    return ! ASCII_CHAR_P (c);\n  \/* iosmacs: tolerate missing unicode category table in iOS pdmp smoke. *\/\n  Lisp_Object category = CHAR_TABLE_REF (Vunicode_category_table, c);/s;
+    s/bool\ngraphic_base_p \(int c\)\n\{\n  Lisp_Object category = CHAR_TABLE_REF \(Vunicode_category_table, c\);/bool\ngraphic_base_p (int c)\n{\n  if (! CHAR_TABLE_P (Vunicode_category_table))\n    return ! ASCII_CHAR_P (c);\n  \/* iosmacs: tolerate missing unicode category table in iOS pdmp smoke. *\/\n  Lisp_Object category = CHAR_TABLE_REF (Vunicode_category_table, c);/s;
+    s/bool\nblankp \(int c\)\n\{\n  Lisp_Object category = CHAR_TABLE_REF \(Vunicode_category_table, c\);/bool\nblankp (int c)\n{\n  if (! CHAR_TABLE_P (Vunicode_category_table))\n    return false;\n  \/* iosmacs: tolerate missing unicode category table in iOS pdmp smoke. *\/\n  Lisp_Object category = CHAR_TABLE_REF (Vunicode_category_table, c);/s
+  ' "${character_c}"
 fi
 
 dispnew_c="${configure_root}/src/dispnew.c"
@@ -271,7 +313,6 @@ if [[ -f "${term_c}" ]] && ! grep -q "iosmacs-init-tty-before-open" "${term_c}";
     s/  init_sys_modes \(tty\);/  if (getenv ("IOSMACS_NW_DEBUG_ERROR"))\n    fprintf (stderr, "iosmacs-init-tty-before-init-sys-modes\\n");\n  init_sys_modes (tty);\n  if (getenv ("IOSMACS_NW_DEBUG_ERROR"))\n    fprintf (stderr, "iosmacs-init-tty-after-init-sys-modes\\n");/s
   ' "${term_c}"
 fi
-
 xdisp_c="${configure_root}/src/xdisp.c"
 if [[ -f "${xdisp_c}" ]] && ! grep -q "iosmacs: derive initial display windows from selected frame" "${xdisp_c}"; then
   perl -0pi -e '
