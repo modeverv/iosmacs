@@ -81,40 +81,6 @@ struct ContentView: View {
                 .accessibilityLabel("Larger")
 
                 Button {
-                    showingImporter = true
-                } label: {
-                    Label("Import", systemImage: "square.and.arrow.down")
-                }
-                .labelStyle(.iconOnly)
-                .frame(width: 44)
-                .buttonStyle(.bordered)
-                .keyboardShortcut("i", modifiers: [.command, .shift])
-                .accessibilityLabel("Import")
-
-                Button {
-                    exportURLs = session.workspaceExportURLs()
-                    showingExporter = !exportURLs.isEmpty
-                } label: {
-                    Label("Export", systemImage: "square.and.arrow.up")
-                }
-                .labelStyle(.iconOnly)
-                .frame(width: 44)
-                .buttonStyle(.bordered)
-                .keyboardShortcut("e", modifiers: [.command, .shift])
-                .accessibilityLabel("Export")
-
-                Button(role: .destructive) {
-                    showingResetConfirmation = true
-                } label: {
-                    Label("Reset", systemImage: "trash")
-                }
-                .labelStyle(.iconOnly)
-                .frame(width: 44)
-                .buttonStyle(.bordered)
-                .keyboardShortcut("r", modifiers: [.command, .shift])
-                .accessibilityLabel("Reset Workspace")
-
-                Button {
                     session.resetDiagnosticSession()
                 } label: {
                     Label("Redraw", systemImage: "arrow.clockwise")
