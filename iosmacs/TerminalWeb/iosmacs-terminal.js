@@ -32,6 +32,14 @@
     post({ type: "log", level: "debug", message: `ime ${message}` });
   }
 
+  function traceIo(message) {
+    post({ type: "log", level: "trace", message: `js ${message}` });
+  }
+
+  function bytesToHex(bytes) {
+    return bytes.slice(0, 32).map((byte) => byte.toString(16).padStart(2, "0")).join(" ");
+  }
+
   function normalizeDimensions(cols, rows) {
     return {
       cols: Math.max(MIN_COLS, Number.isInteger(cols) ? cols : DEFAULT_DIMENSIONS.cols),
@@ -56,6 +64,7 @@
     const text = options.stripPasteMarkers ? stripBracketedPasteMarkers(data) : data;
     const bytes = Array.from(encoder.encode(text));
     if (bytes.length > 0) {
+      traceIo(`post-input text=${JSON.stringify(text)} count=${bytes.length} bytes=${bytesToHex(bytes)}`);
       post({ type: "input", bytes });
     }
   }
@@ -87,6 +96,7 @@
     if (isComposing || performance.now() < suppressXtermDataUntil) {
       return;
     }
+    traceIo(`xterm-onData text=${JSON.stringify(data)}`);
     postInput(data);
   }
 
@@ -102,6 +112,14 @@
     event.preventDefault?.();
     event.stopImmediatePropagation?.();
     clearTextareaValue(textarea);
+  }
+
+  function stopHandledTerminalEvent(event) {
+    event.preventDefault?.();
+    event.stopImmediatePropagation?.();
+    if (event.target && typeof event.target.value === "string") {
+      clearTextareaValue(event.target);
+    }
   }
 
   function handledInputType(inputType) {
@@ -214,8 +232,20 @@
     return "";
   }
 
+  function printableAsciiFromKey(event) {
+    if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing || event.keyCode === 229) {
+      return "";
+    }
+    if (typeof event.key !== "string" || event.key.length !== 1) {
+      return "";
+    }
+
+    const code = event.key.charCodeAt(0);
+    return code >= 0x20 && code <= 0x7e ? event.key : "";
+  }
+
   function captureEmacsKey(event) {
-    const sequence = terminalKeySequence(event);
+    const sequence = terminalKeySequence(event) || printableAsciiFromKey(event);
     if (!sequence) {
       return true;
     }
@@ -223,6 +253,57 @@
     event.stopPropagation?.();
     postInput(sequence);
     return false;
+  }
+
+  function attachAsciiInputFallback(container) {
+    const forwardEventText = (event, text, dedupe = false) => {
+      if (!text || isComposing || event.isComposing || event.keyCode === 229) {
+        return false;
+      }
+      if (forwardText(text, dedupe)) {
+        stopHandledTerminalEvent(event);
+        focusInput();
+        return true;
+      }
+      return false;
+    };
+
+    document.addEventListener("keydown", (event) => {
+      const sequence = terminalKeySequence(event) || printableAsciiFromKey(event);
+      if (sequence) {
+        forwardEventText(event, sequence, true);
+      }
+    }, true);
+
+    document.addEventListener("beforeinput", (event) => {
+      if (isComposing) {
+        return;
+      }
+      if (handledInputType(event.inputType)) {
+        forwardEventText(event, event.data || "", true);
+        return;
+      }
+      if (event.inputType === "insertLineBreak" || event.inputType === "insertParagraph") {
+        forwardEventText(event, "\r", true);
+      }
+    }, true);
+
+    document.addEventListener("input", (event) => {
+      if (isComposing || !event.target || typeof event.target.value !== "string") {
+        return;
+      }
+      forwardEventText(event, event.target.value, true);
+    }, true);
+
+    document.addEventListener("paste", (event) => {
+      const text = event.clipboardData?.getData("text/plain") || "";
+      forwardEventText(event, text, false);
+    }, true);
+
+    container.addEventListener("click", () => {
+      focusInput();
+      terminal?.focus?.();
+    }, true);
   }
 
   function focusInput() {
@@ -449,6 +530,7 @@
     terminal.open(container);
     terminal.onData(handleTerminalData);
     terminal.onResize(({ cols, rows }) => postResize(cols, rows));
+    attachAsciiInputFallback(container);
     attachImeProxy(document.getElementById("ime-proxy"), container);
     imeProxy?.addEventListener("focus", () => post({ type: "focus", focused: true }));
     imeProxy?.addEventListener("blur", () => post({ type: "focus", focused: false }));
@@ -460,7 +542,9 @@
       fit,
       setFontSize,
       injectData(data) {
-        postInput(String(data ?? ""));
+        const text = String(data ?? "");
+        traceIo(`injectData text=${JSON.stringify(text)}`);
+        postInput(text);
       },
       writeBase64(base64) {
         terminal.write(bytesFromBase64(base64));

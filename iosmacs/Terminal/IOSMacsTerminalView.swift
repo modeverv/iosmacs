@@ -81,6 +81,7 @@ struct IOSMacsTerminalView: UIViewRepresentable {
         func drainOutput() {
             let chunks = session.drainTerminalOutput()
             for chunk in chunks where !chunk.isEmpty {
+                session.noteTerminalBridge("swift drain-output count=\(chunk.count) bytes=\(hexPreview(chunk))")
                 observeOutput(chunk)
                 pendingOutputChunks.append(chunk)
             }
@@ -127,10 +128,7 @@ struct IOSMacsTerminalView: UIViewRepresentable {
             case "input":
                 let bytes = terminalBytes(from: message["bytes"])
                 if !bytes.isEmpty {
-                    if ProcessInfo.processInfo.environment["IOSMACS_IME_DEBUG"] == "1" {
-                        let hex = bytes.map { String(format: "%02x", $0) }.joined(separator: " ")
-                        session.noteTerminalBridge("input bytes: \(hex)")
-                    }
+                    session.noteTerminalBridge("swift recv-input count=\(bytes.count) bytes=\(hexPreview(bytes))")
                     session.sendInput(bytes)
                     drainOutput()
                 }
@@ -169,6 +167,7 @@ struct IOSMacsTerminalView: UIViewRepresentable {
         private func writeBytesToTerminal(_ bytes: [UInt8]) {
             let base64 = Data(bytes).base64EncodedString()
             let literal = javaScriptStringLiteral(base64)
+            session.noteTerminalBridge("swift write-to-xterm count=\(bytes.count) bytes=\(hexPreview(bytes))")
             evaluate("window.iosmacsTerminal?.writeBase64(\(literal));")
         }
 
@@ -277,6 +276,11 @@ struct IOSMacsTerminalView: UIViewRepresentable {
                 }
                 return nil
             }
+        }
+
+        private func hexPreview(_ bytes: [UInt8]) -> String {
+            let preview = bytes.prefix(32).map { String(format: "%02x", $0) }.joined(separator: " ")
+            return bytes.count > 32 ? "\(preview) ..." : preview
         }
 
         private func javaScriptStringLiteral(_ value: String) -> String {

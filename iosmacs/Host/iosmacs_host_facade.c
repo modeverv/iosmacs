@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,7 +32,7 @@ static int32_t terminal_cols = 80;
 static int32_t terminal_rows = 24;
 static uint64_t input_generation;
 static uint64_t resize_generation;
-static int direct_tty_mode = 1;
+static int direct_tty_mode;
 static int stdio_redirected_to_terminal;
 static int noted_tty_fds[16];
 static size_t noted_tty_fd_count;
@@ -74,6 +75,33 @@ static void terminal_debug_log_bytes(const char *label, const uint8_t *bytes, si
         syscall(SYS_write, fd, line, (size_t)offset < sizeof(line) ? (size_t)offset : sizeof(line));
     }
     syscall(SYS_close, fd);
+}
+
+static void terminal_debug_log_message(const char *prefix, const char *message) {
+    const char *path = getenv("IOSMACS_WEB_TERMINAL_DEBUG_MARKER");
+    if (path == NULL || path[0] == '\0' || prefix == NULL || message == NULL) {
+        return;
+    }
+
+    int fd = (int)syscall(SYS_open, path, O_WRONLY | O_CREAT | O_APPEND, 0600);
+    if (fd < 0) {
+        return;
+    }
+    char line[512];
+    int length = snprintf(line, sizeof(line), "%s %s\n", prefix, message);
+    if (length > 0) {
+        syscall(SYS_write, fd, line, (size_t)length < sizeof(line) ? (size_t)length : sizeof(line));
+    }
+    syscall(SYS_close, fd);
+}
+
+static void terminal_debug_log_format(const char *prefix, const char *format, ...) {
+    char message[384];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(message, sizeof(message), format, args);
+    va_end(args);
+    terminal_debug_log_message(prefix, message);
 }
 
 static void ring_reset(iosmacs_ring_buffer *ring) {
@@ -337,6 +365,9 @@ ssize_t iosmacs_os_terminal_write(const uint8_t *bytes, size_t count) {
     terminal_observe_output_locked(bytes, count);
     ssize_t written = (ssize_t)ring_write(&output_ring, bytes, count);
     pthread_mutex_unlock(&terminal_mutex);
+    if (written > 0) {
+        terminal_debug_log_bytes("write-output", bytes, (size_t)written);
+    }
     return written;
 }
 
@@ -353,7 +384,25 @@ ssize_t iosmacs_os_terminal_push_input(const uint8_t *bytes, size_t count) {
     }
     pthread_mutex_unlock(&terminal_mutex);
     terminal_debug_log_bytes("push-input", bytes, count);
+#ifdef SIGIO
+    if (written > 0) {
+        raise(SIGIO);
+    }
+#endif
     return written;
+}
+
+void iosmacs_os_terminal_note_input_signal(size_t count) {
+    pthread_mutex_lock(&terminal_mutex);
+    input_generation++;
+    pthread_cond_broadcast(&terminal_cond);
+    pthread_mutex_unlock(&terminal_mutex);
+    terminal_debug_log_format("terminal", "input-signal count=%zu", count);
+#ifdef SIGIO
+    if (count > 0) {
+        raise(SIGIO);
+    }
+#endif
 }
 
 ssize_t iosmacs_os_terminal_drain_output(uint8_t *buffer, size_t capacity) {
@@ -364,15 +413,27 @@ ssize_t iosmacs_os_terminal_drain_output(uint8_t *buffer, size_t capacity) {
     pthread_mutex_lock(&terminal_mutex);
     ssize_t count = (ssize_t)ring_read(&output_ring, buffer, capacity);
     pthread_mutex_unlock(&terminal_mutex);
+    if (count > 0) {
+        terminal_debug_log_bytes("drain-output", buffer, (size_t)count);
+    }
     return count;
 }
 
 int iosmacs_os_terminal_wait_for_input(int timeout_ms) {
-    int result = 0;
+    int result = IOSMACS_HOST_WAIT_TIMEOUT;
     pthread_mutex_lock(&terminal_mutex);
     terminal_enable_direct_mode_locked();
     uint64_t seen_input = input_generation;
     uint64_t seen_resize = resize_generation;
+    size_t initial_input_count = input_ring.count;
+    terminal_debug_log_format(
+        "terminal",
+        "wait-enter timeout=%d ring=%zu input_gen=%llu resize_gen=%llu",
+        timeout_ms,
+        initial_input_count,
+        (unsigned long long)input_generation,
+        (unsigned long long)resize_generation
+    );
     while (input_ring.count == 0
            && seen_input == input_generation
            && seen_resize == resize_generation) {
@@ -388,10 +449,18 @@ int iosmacs_os_terminal_wait_for_input(int timeout_ms) {
         }
     }
     if (input_ring.count > 0 || seen_input != input_generation) {
-        result = 1;
+        result = IOSMACS_HOST_WAIT_INPUT;
     } else if (seen_resize != resize_generation) {
-        result = 2;
+        result = IOSMACS_HOST_WAIT_RESIZE;
     }
+    terminal_debug_log_format(
+        "terminal",
+        "wait-exit result=%d ring=%zu input_gen=%llu resize_gen=%llu",
+        result,
+        input_ring.count,
+        (unsigned long long)input_generation,
+        (unsigned long long)resize_generation
+    );
     pthread_mutex_unlock(&terminal_mutex);
     return result;
 }
@@ -401,14 +470,22 @@ int iosmacs_os_terminal_read_byte(void) {
     pthread_mutex_lock(&terminal_mutex);
     terminal_enable_direct_mode_locked();
     size_t count = ring_read(&input_ring, &byte, 1);
+    size_t remaining = input_ring.count;
     pthread_mutex_unlock(&terminal_mutex);
+    if (count == 1) {
+        terminal_debug_log_format("terminal", "read-byte byte=%02x remaining=%zu", byte, remaining);
+    } else {
+        terminal_debug_log_message("terminal", "read-byte empty");
+    }
     return count == 1 ? (int)byte : -1;
 }
 
 int iosmacs_os_terminal_input_available(void) {
     pthread_mutex_lock(&terminal_mutex);
     int available = input_ring.count > 0 ? 1 : 0;
+    size_t count = input_ring.count;
     pthread_mutex_unlock(&terminal_mutex);
+    terminal_debug_log_format("terminal", "input-available result=%d ring=%zu", available, count);
     return available;
 }
 
@@ -434,12 +511,14 @@ void iosmacs_os_terminal_note_stdio_redirected(void) {
 int iosmacs_os_terminal_is_tty_fd(int fd) {
     pthread_mutex_lock(&terminal_mutex);
     int is_tty = 0;
-    if (stdio_redirected_to_terminal && fd >= STDIN_FILENO && fd <= STDERR_FILENO) {
-        is_tty = 1;
-    }
-    for (size_t i = 0; !is_tty && i < noted_tty_fd_count; i++) {
-        if (noted_tty_fds[i] == fd) {
+    if (direct_tty_mode) {
+        if (stdio_redirected_to_terminal && fd >= STDIN_FILENO && fd <= STDERR_FILENO) {
             is_tty = 1;
+        }
+        for (size_t i = 0; !is_tty && i < noted_tty_fd_count; i++) {
+            if (noted_tty_fds[i] == fd) {
+                is_tty = 1;
+            }
         }
     }
     pthread_mutex_unlock(&terminal_mutex);
@@ -453,9 +532,12 @@ int iosmacs_os_terminal_direct_mode_enabled(void) {
     return enabled;
 }
 
-int iosmacs_host_wait_for_input(void) {
+int iosmacs_host_wait_for_input(int timeout_ms) {
+    terminal_debug_log_format("host", "wait-enter timeout=%d", timeout_ms);
     iosmacs_os_terminal_flush_output();
-    return iosmacs_os_terminal_wait_for_input(50);
+    int result = iosmacs_os_terminal_wait_for_input(timeout_ms);
+    terminal_debug_log_format("host", "wait-exit result=%d", result);
+    return result;
 }
 
 int iosmacs_host_terminal_read_byte(void) {
@@ -472,6 +554,10 @@ int iosmacs_host_flush_terminal_output(void) {
 
 int iosmacs_host_is_tty_fd(int fd) {
     return iosmacs_os_terminal_is_tty_fd(fd);
+}
+
+void iosmacs_host_trace_event(const char *message) {
+    terminal_debug_log_message("emacs", message);
 }
 
 int iosmacs_os_open(const char *path, int flags, int mode) {

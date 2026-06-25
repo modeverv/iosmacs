@@ -10,6 +10,11 @@
 extern "C" {
 #endif
 
+#define IOSMACS_HOST_WAIT_TIMEOUT 0
+#define IOSMACS_HOST_WAIT_INPUT 1
+#define IOSMACS_HOST_WAIT_RESIZE 2
+#define IOSMACS_HOST_WAIT_UNAVAILABLE -1
+
 const char *iosmacs_os_lifecycle_state(void);
 void iosmacs_os_set_lifecycle_state(const char *state);
 
@@ -20,6 +25,7 @@ int32_t iosmacs_os_terminal_rows(void);
 ssize_t iosmacs_os_terminal_read(uint8_t *buffer, size_t capacity);
 ssize_t iosmacs_os_terminal_write(const uint8_t *bytes, size_t count);
 ssize_t iosmacs_os_terminal_push_input(const uint8_t *bytes, size_t count);
+void iosmacs_os_terminal_note_input_signal(size_t count);
 ssize_t iosmacs_os_terminal_drain_output(uint8_t *buffer, size_t capacity);
 int iosmacs_os_terminal_wait_for_input(int timeout_ms);
 int iosmacs_os_terminal_read_byte(void);
@@ -30,11 +36,12 @@ void iosmacs_os_terminal_note_stdio_redirected(void);
 int iosmacs_os_terminal_is_tty_fd(int fd);
 int iosmacs_os_terminal_direct_mode_enabled(void);
 
-int iosmacs_host_wait_for_input(void);
+int iosmacs_host_wait_for_input(int timeout_ms);
 int iosmacs_host_terminal_read_byte(void);
 int iosmacs_host_terminal_input_available(void);
 int iosmacs_host_flush_terminal_output(void);
 int iosmacs_host_is_tty_fd(int fd);
+void iosmacs_host_trace_event(const char *message);
 
 int iosmacs_os_open(const char *path, int flags, int mode);
 ssize_t iosmacs_os_read(int fd, void *buffer, size_t count);

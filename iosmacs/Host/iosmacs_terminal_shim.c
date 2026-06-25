@@ -132,12 +132,7 @@ static void *output_pump_main(void *arg) {
         if (count <= 0) {
             break;
         }
-        for (ssize_t i = 0; i < count; i++) {
-            if (buffer[i] >= 0x80) {
-                shim_debug_log_bytes("output-pump-read", buffer, (size_t)count);
-                break;
-            }
-        }
+        shim_debug_log_bytes("output-pump-read", buffer, (size_t)count);
         iosmacs_os_terminal_write(buffer, (size_t)count);
         if (mirror_fd >= 0) {
             syscall(SYS_write, mirror_fd, buffer, (size_t)count);
@@ -185,6 +180,34 @@ void iosmacs_terminal_shim_set_mirror_fd(int fd) {
 
 bool iosmacs_terminal_shim_is_open(void) {
     return fake_tty_fd >= 0;
+}
+
+ssize_t iosmacs_terminal_shim_push_input(const uint8_t *bytes, size_t count) {
+    if (bytes == NULL && count > 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (fake_peer_fd < 0) {
+        errno = ENXIO;
+        return -1;
+    }
+
+    size_t written_total = 0;
+    while (written_total < count) {
+        ssize_t written = (ssize_t)syscall(SYS_write, fake_peer_fd, bytes + written_total, count - written_total);
+        if (written < 0 && errno == EINTR) {
+            continue;
+        }
+        if (written <= 0) {
+            break;
+        }
+        written_total += (size_t)written;
+    }
+    if (written_total > 0) {
+        shim_debug_log_bytes("direct-input-write", bytes, written_total);
+        iosmacs_os_terminal_note_input_signal(written_total);
+    }
+    return (ssize_t)written_total;
 }
 
 int iosmacs_terminal_shim_attach_stdio(void) {

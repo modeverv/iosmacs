@@ -4,5 +4,6 @@
 #include "iosmacs_emacs_core.h"
 #include "iosmacs_emacs_diagnostic.h"
 #include "iosmacs_host_facade.h"
+#include "iosmacs_terminal_shim.h"
 
 #endif

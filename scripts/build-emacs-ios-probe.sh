@@ -100,13 +100,7 @@ fi
 
 if [[ -f "${sysdep_c}" ]] && ! grep -q "iosmacs: direct tty facade fallback definitions" "${sysdep_c}"; then
   perl -0pi -e '
-    s/(\/\* Read from FD to a buffer BUF with size NBYTE\.)/__attribute__ ((weak)) int\niosmacs_host_wait_for_input (void)\n{\n  return 0;\n}\n\n__attribute__ ((weak)) int\niosmacs_host_terminal_read_byte (void)\n{\n  return -1;\n}\n\n__attribute__ ((weak)) int\niosmacs_host_is_tty_fd (int fd)\n{\n  (void) fd;\n  return 0;\n}\n\n\/* iosmacs: direct tty facade fallback definitions. *\/\n\n$1/s
-  ' "${sysdep_c}"
-fi
-
-if [[ -f "${sysdep_c}" ]] && ! grep -q "iosmacs: direct tty read path" "${sysdep_c}"; then
-  perl -0pi -e '
-    s/(  ssize_t result;\n)/$1\n  if (nbyte > 0 && iosmacs_host_is_tty_fd (fd))\n    {\n      unsigned char *tty_buf = buf;\n      ptrdiff_t bytes_read = 0;\n\n      while (bytes_read == 0)\n        {\n          while (bytes_read < nbyte)\n            {\n              int byte = iosmacs_host_terminal_read_byte ();\n              if (byte < 0)\n                break;\n              tty_buf[bytes_read++] = (unsigned char) byte;\n            }\n\n          if (bytes_read > 0)\n            return bytes_read;\n\n          if (interruptible)\n            maybe_quit ();\n          iosmacs_host_wait_for_input ();\n        }\n    }\n  \/* iosmacs: direct tty read path. *\/\n/s
+    s/(\/\* Read from FD to a buffer BUF with size NBYTE\.)/__attribute__ ((weak)) int\niosmacs_host_wait_for_input (int timeout_ms)\n{\n  (void) timeout_ms;\n  return 0;\n}\n\n__attribute__ ((weak)) int\niosmacs_host_terminal_input_available (void)\n{\n  return 0;\n}\n\n__attribute__ ((weak)) int\niosmacs_host_is_tty_fd (int fd)\n{\n  (void) fd;\n  return 0;\n}\n\n__attribute__ ((weak)) void\niosmacs_host_trace_event (const char *message)\n{\n  (void) message;\n}\n\n\/* iosmacs: direct tty facade fallback definitions. *\/\n\n$1/s
   ' "${sysdep_c}"
 fi
 
@@ -171,19 +165,13 @@ fi
 
 if [[ -f "${keyboard_c}" ]] && ! grep -q "iosmacs: direct tty waitpoint declarations" "${keyboard_c}"; then
   perl -0pi -e '
-    s/(\/\* Read a character from the keyboard; call the redisplay if needed\.  \*\/)/extern int iosmacs_host_wait_for_input (void);\nextern int iosmacs_host_is_tty_fd (int fd);\n\/* iosmacs: direct tty waitpoint declarations. *\/\n\n$1/s
+    s/(\/\* Read a character from the keyboard; call the redisplay if needed\.  \*\/)/extern int iosmacs_host_wait_for_input (int timeout_ms);\nextern int iosmacs_host_terminal_input_available (void);\nextern int iosmacs_host_is_tty_fd (int fd);\nextern void iosmacs_host_trace_event (const char *message);\nextern int gobble_input (void);\n\nstatic int\niosmacs_host_timeout_ms_until (struct timespec *end_time)\n{\n  struct timespec now;\n  struct timespec duration;\n  long nsec_ms;\n  long total_ms;\n\n  if (!end_time)\n    return 50;\n\n  now = current_timespec ();\n  if (timespec_cmp (*end_time, now) <= 0)\n    return 0;\n\n  duration = timespec_sub (*end_time, now);\n  if (duration.tv_sec > 60)\n    return 60000;\n\n  nsec_ms = (duration.tv_nsec + 999999L) \/ 1000000L;\n  total_ms = duration.tv_sec * 1000L + nsec_ms;\n  return total_ms > 0 ? (int) total_ms : 0;\n}\n\/* iosmacs: direct tty waitpoint declarations. *\/\n\n$1/s
   ' "${keyboard_c}"
 fi
 
 if [[ -f "${keyboard_c}" ]] && ! grep -q "iosmacs: direct tty waitpoint before decoded event read" "${keyboard_c}"; then
   perl -0pi -e '
-    s/(  if \(NILP \(c\)\)\n    \{\n)(      c = read_decoded_event_from_main_queue)/$1      if (!noninteractive && !end_time && iosmacs_host_is_tty_fd (0))\n        iosmacs_host_wait_for_input ();\n      \/* iosmacs: direct tty waitpoint before decoded event read. *\/\n\n$2/s
-  ' "${keyboard_c}"
-fi
-
-if [[ -f "${keyboard_c}" ]] && ! grep -q "iosmacs: direct tty waitpoint before process wait" "${keyboard_c}"; then
-  perl -0pi -e '
-    s/(\t  wait_reading_process_output \(0, 0, -1, do_display, Qnil, NULL, 0\);)/\t  if (iosmacs_host_is_tty_fd (0))\n\t    iosmacs_host_wait_for_input ();\n\t  else\n$1\n\t  \/* iosmacs: direct tty waitpoint before process wait. *\//s
+    s/(  if \(NILP \(c\)\)\n    \{\n)(      c = read_decoded_event_from_main_queue)/$1      if (!noninteractive && iosmacs_host_is_tty_fd (0))\n        {\n          int iosmacs_timeout_ms = iosmacs_host_timeout_ms_until (end_time);\n          if (!end_time || iosmacs_timeout_ms > 0)\n            {\n              char iosmacs_trace[128];\n              int iosmacs_wait_result = iosmacs_host_wait_for_input (iosmacs_timeout_ms);\n              int iosmacs_available = iosmacs_host_terminal_input_available ();\n              int iosmacs_nread;\n              snprintf (iosmacs_trace, sizeof iosmacs_trace,\n                        "keyboard wait-before-gobble wait=%d timeout=%d available=%d",\n                        iosmacs_wait_result, iosmacs_timeout_ms,\n                        iosmacs_available);\n              iosmacs_host_trace_event (iosmacs_trace);\n              iosmacs_nread = gobble_input ();\n              snprintf (iosmacs_trace, sizeof iosmacs_trace,\n                        "keyboard gobble-input nread=%d wait=%d",\n                        iosmacs_nread, iosmacs_wait_result);\n              iosmacs_host_trace_event (iosmacs_trace);\n              if (getenv ("IOSMACS_NW_DEBUG_ERROR"))\n                fprintf (stderr, "iosmacs-keyboard-drain nread=%d wait=%d\\n",\n                         iosmacs_nread, iosmacs_wait_result);\n            }\n        }\n      \/* iosmacs: direct tty waitpoint before decoded event read. *\/\n\n$2/s
   ' "${keyboard_c}"
 fi
 

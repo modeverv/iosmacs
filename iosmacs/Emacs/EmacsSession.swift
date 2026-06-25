@@ -57,9 +57,12 @@ final class EmacsSession: ObservableObject {
     }
 
     func sendInput(_ bytes: [UInt8]) {
-        bytes.withUnsafeBufferPointer { buffer in
-            _ = iosmacs_os_terminal_push_input(buffer.baseAddress, buffer.count)
+        let shimWritten = bytes.withUnsafeBufferPointer { buffer in
+            iosmacs_terminal_shim_push_input(buffer.baseAddress, buffer.count)
         }
+        noteTerminalBridge(
+            "swift send-input count=\(bytes.count) shim=\(shimWritten) ring=fd-readable bytes=\(hexPreview(bytes))"
+        )
         if diagnosticMode {
             iosmacs_emacs_diagnostic_pump()
         }
@@ -103,13 +106,20 @@ final class EmacsSession: ObservableObject {
             if count <= 0 {
                 break
             }
-            chunks.append(Array(buffer.prefix(count)))
+            let chunk = Array(buffer.prefix(count))
+            noteTerminalBridge("swift session-drain-output count=\(chunk.count) bytes=\(hexPreview(chunk))")
+            chunks.append(chunk)
         }
         if !chunks.isEmpty && !didRecordFirstOutput {
             didRecordFirstOutput = true
             updateMetrics(prefix: "first output")
         }
         return chunks
+    }
+
+    private func hexPreview(_ bytes: [UInt8]) -> String {
+        let preview = bytes.prefix(32).map { String(format: "%02x", $0) }.joined(separator: " ")
+        return bytes.count > 32 ? "\(preview) ..." : preview
     }
 
     func increaseFontSize() {
