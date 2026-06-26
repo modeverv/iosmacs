@@ -113,6 +113,17 @@ grep -q 'pasteSystemClipboard' \
   "$app_dir/lib/src/backend/native_emacs_backend.dart"
 grep -q 'pasteSystemClipboard' \
   "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+if sed -n '/func handle(_ call: FlutterMethodCall/,/switch call.method/p' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift" \
+  | grep -q 'focusTerminalInput()'; then
+  printf 'error: Flutter iOS native bridge must not focus hidden UITextView for every MethodChannel call\n' >&2
+  exit 1
+fi
+if sed -n '/applicationDidBecomeActive/,/^  }/p' "$app_dir/ios/Runner/AppDelegate.swift" \
+  | grep -q 'focusTerminalInput()'; then
+  printf 'error: Flutter iOS app activation must keep focus on TerminalView for inline IME\n' >&2
+  exit 1
+fi
 grep -q 'FlutterTerminalInputView' \
   "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
 grep -q 'isPasteShortcut' \
@@ -392,6 +403,8 @@ grep -q 'toolbar Stop button shuts down the backend' \
 grep -q 'input row Send button forwards committed terminal text' \
   "$app_dir/test/terminal_screen_test.dart"
 grep -q 'input row Send button forwards Japanese text once' \
+  "$app_dir/test/terminal_screen_test.dart"
+grep -q 'terminal body keeps Japanese IME composing text inline until commit' \
   "$app_dir/test/terminal_screen_test.dart"
 grep -q 'toolbar avoids overflow on narrow mobile width' \
   "$app_dir/test/terminal_screen_test.dart"

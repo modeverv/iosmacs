@@ -389,6 +389,18 @@ Current TODO:
   so Emacs `url.el` requests work from the Flutter app.
 - [x] Verify Flutter iOS `/home/user` folder selection and network bridge work
   with tests, structure check, native smoke, and an Emacs HTTPS marker.
+- [x] Commit the completed Flutter iOS tty/paste performance work before
+  starting the next input fixes.
+- [x] Fix Flutter iOS `C-SPC` so Emacs receives NUL for `set-mark-command`
+  instead of a plain space.
+- [x] Route ordinary iOS hardware text keys through `UITextView` text input so
+  Japanese IME composition is not preempted by the native terminal key shim.
+- [x] Verify the Japanese IME and `C-SPC` fixes with Flutter tests, structure
+  check, and an iOS Simulator build.
+- [x] Restore inline Japanese IME composition by keeping normal terminal text
+  input on Flutter `TerminalView` instead of the hidden native `UITextView`.
+- [x] Verify inline Japanese IME composition with a Flutter terminal-body
+  composing/commit widget test, structure check, and iOS Simulator build.
 - [ ] Make Flutter iOS build, install, and run on a physical iPad/iPhone with
   documented signing and device smoke evidence.
 

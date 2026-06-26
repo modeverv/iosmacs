@@ -457,6 +457,28 @@ void main() {
     expect(find.text('stopped'), findsOneWidget);
   });
 
+  testWidgets('Ctrl+Space forwards NUL for Emacs set-mark-command', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    await _sendControlShortcut(tester, LogicalKeyboardKey.space);
+
+    expect(backend.diagnostics.value.inputBytes, 1);
+    expect(
+      backend.diagnostics.value.message,
+      'received 1 input byte(s)',
+    );
+  });
+
   testWidgets('input row Send button forwards committed terminal text', (
     WidgetTester tester,
   ) async {
@@ -501,6 +523,46 @@ void main() {
       backend.diagnostics.value.message,
       'received $expectedByteCount input byte(s)',
     );
+  });
+
+  testWidgets(
+      'terminal body keeps Japanese IME composing text inline until commit', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(TerminalView));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: 'にほ',
+        selection: TextSelection.collapsed(offset: 2),
+        composing: TextRange(start: 0, end: 2),
+      ),
+    );
+    await tester.pump();
+
+    expect(backend.diagnostics.value.inputBytes, 0);
+
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: '日本語',
+        selection: TextSelection.collapsed(offset: 3),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final expectedByteCount = utf8.encode('日本語').length;
+    expect(backend.diagnostics.value.inputBytes, expectedByteCount);
   });
 
   testWidgets('input row Paste button forwards normalized paste bytes', (

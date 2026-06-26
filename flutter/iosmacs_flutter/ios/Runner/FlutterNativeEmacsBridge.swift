@@ -25,7 +25,6 @@ final class FlutterNativeEmacsBridge {
   private var terminalTraceOffset: UInt64 = 0
 
   func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    focusTerminalInput()
     switch call.method {
     case "start":
       start(result: result)
@@ -830,9 +829,37 @@ private final class FlutterTerminalInputView: UITextView, UITextViewDelegate {
 
   @available(iOS 13.4, *)
   private func terminalText(for key: UIKey) -> String? {
+    guard !key.modifierFlags.contains(.command) else {
+      return nil
+    }
+
+    let text = key.charactersIgnoringModifiers
+    if key.modifierFlags.contains(.control) {
+      if key.keyCode == .keyboardSpacebar {
+        return "\u{0}"
+      }
+      if text.count == 1, let scalar = text.unicodeScalars.first {
+        let value = scalar.value
+        if (65...90).contains(value) {
+          return String(UnicodeScalar(value - 64)!)
+        }
+        if (97...122).contains(value) {
+          return String(UnicodeScalar(value - 96)!)
+        }
+      }
+      return nil
+    }
+
+    if key.modifierFlags.contains(.alternate) {
+      guard !text.isEmpty else {
+        return nil
+      }
+      return "\u{1b}" + text
+    }
+
     switch key.keyCode {
     case .keyboardSpacebar:
-      return " "
+      return nil
     case .keyboardReturnOrEnter:
       return "\r"
     case .keyboardTab:
@@ -855,30 +882,7 @@ private final class FlutterTerminalInputView: UITextView, UITextViewDelegate {
       break
     }
 
-    guard !key.modifierFlags.contains(.command) else {
-      return nil
-    }
-    let text = key.charactersIgnoringModifiers
-    guard !text.isEmpty else {
-      return nil
-    }
-
-    if key.modifierFlags.contains(.control),
-       text.count == 1,
-       let scalar = text.unicodeScalars.first {
-      let value = scalar.value
-      if (65...90).contains(value) {
-        return String(UnicodeScalar(value - 64)!)
-      }
-      if (97...122).contains(value) {
-        return String(UnicodeScalar(value - 96)!)
-      }
-    }
-
-    if key.modifierFlags.contains(.alternate) {
-      return "\u{1b}" + text
-    }
-    return key.characters.isEmpty ? text : key.characters
+    return nil
   }
 
   private func flushCommittedTextIfPossible(reason: String) {

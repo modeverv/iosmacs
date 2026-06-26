@@ -214,6 +214,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
           control: true, shift: true): _openDiagnostics,
       const SingleActivator(LogicalKeyboardKey.keyD, meta: true, shift: true):
           _openDiagnostics,
+      const SingleActivator(LogicalKeyboardKey.space, control: true): () =>
+          unawaited(widget.backend.sendBytes(const <int>[0x00])),
       const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () =>
           unawaited(_pasteClipboardText()),
       const SingleActivator(LogicalKeyboardKey.equal,

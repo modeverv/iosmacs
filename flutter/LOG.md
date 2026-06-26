@@ -2283,3 +2283,46 @@ Flutter iOS paste waitpoint fix:
 - The post-read-to-output delay dropped from about 19.8 seconds to 25ms. The
   trace contained one later `keyboard wait-before-gobble` instead of hundreds
   of 50ms waits during the pasted input.
+
+Flutter iOS IME and C-SPC follow-up:
+
+- Committed the completed tty/paste performance work first as
+  `7247711 Improve Flutter iOS tty paste performance`.
+- Starting fixes for the follow-up regressions: Japanese input no longer
+  composing reliably, and `C-SPC` entering Emacs as a plain space.
+- Added a Flutter shortcut binding for `Control+Space` that sends NUL
+  (`0x00`), which is the terminal byte Emacs uses for `set-mark-command`.
+- Updated the iOS native hidden `UITextView` key shim so `Control+Space` also
+  sends NUL, while ordinary printable hardware keys are no longer intercepted
+  in `pressesBegan`. Normal text and Japanese IME composition now stay on the
+  UIKit text-input path and flush only after committed text is available.
+- Added widget coverage that proves `Ctrl+Space` increases backend input by
+  exactly one byte.
+- Verified with `flutter test test/terminal_screen_test.dart
+  test/terminal_input_bridge_test.dart`, `make flutter-structure-check`,
+  `git diff --check`, and `flutter build ios --simulator --debug`.
+- Installed and launched the built app on the booted iPad Simulator with
+  `xcrun simctl install booted build/ios/iphonesimulator/Runner.app` and
+  `xcrun simctl launch booted com.example.iosmacsFlutter`.
+
+Flutter iOS inline Japanese IME:
+
+- Investigating inline composition display after the user reported that
+  Japanese input no longer shows inline while composing.
+- Confirmed `xterm.dart`'s `TerminalView` already has a composing-text render
+  path that paints the IME text at the terminal cursor. The Flutter app was
+  preventing that path by focusing the hidden native `UITextView` during app
+  startup, foreground activation, and every native MethodChannel call.
+- Removed automatic native text-input focus from app startup, app activation,
+  and generic native bridge handling. The hidden native input remains available
+  only for the explicit `pasteSystemClipboard` fallback.
+- Added a terminal-body widget test that sends a Japanese composing
+  `TextEditingValue`, verifies no backend bytes are sent during composition,
+  then commits `日本語` and verifies only the committed UTF-8 bytes are sent.
+- Added structure-check guards so generic MethodChannel calls and app
+  activation do not re-focus the hidden native input view.
+- Verified with `flutter test test/terminal_screen_test.dart
+  test/terminal_input_bridge_test.dart`, `make flutter-structure-check`,
+  `git diff --check`, and `flutter build ios --simulator --debug`.
+- Installed and launched the rebuilt app on the booted iPad Simulator with
+  process id `35199`.
