@@ -1,0 +1,5 @@
+#import "GeneratedPluginRegistrant.h"
+#include "../../../../iosmacs/Emacs/iosmacs_emacs_core.h"
+#include "../../../../iosmacs/Emacs/iosmacs_emacs_diagnostic.h"
+#include "../../../../iosmacs/Host/iosmacs_host_facade.h"
+#include "../../../../iosmacs/Host/iosmacs_terminal_shim.h"

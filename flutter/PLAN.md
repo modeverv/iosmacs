@@ -36,6 +36,958 @@ Build a Flutter shell beside the existing Xcode app.
 
 Goal: create a Flutter application that can run without the native Emacs core.
 
+Current TODO:
+
+- [x] Record this Flutter workstream in `flutter/LOG.md`.
+- [x] Scaffold `flutter/iosmacs_flutter` without changing the existing native
+  Xcode app.
+- [x] Add a first-screen terminal UI, not a landing page.
+- [x] Add lifecycle and diagnostics display.
+- [x] Add controls for start, reset/redraw, font-size, and workspace actions.
+- [x] Define the Dart `EmacsBackend` interface.
+- [x] Implement a fake backend with deterministic output, input echo, resize
+  reporting, lifecycle state, and workspace placeholders.
+- [x] Add widget/unit tests that exercise fake backend startup, input bytes,
+  resize, output, and workspace placeholder behavior.
+- [x] Add `make flutter-fake-smoke` at the repository root.
+- [x] Add an app-level backend selection boundary so the UI can depend on
+  `EmacsBackend` without constructing concrete backend classes.
+- [x] Add structured fake-backend diagnostics for lifecycle, terminal geometry,
+  byte counts, and workspace placeholder actions.
+- [x] Add tests for backend selection and structured diagnostics.
+- [x] Add an SDK-independent Flutter structure check for the current shell.
+- [x] Add a reproducible Flutter SDK bootstrap target for generated platform
+  runners.
+- [x] Install Flutter SDK under `~/work/flutter` and expose it through
+  `~/.zshrc`.
+- [x] Verify with `flutter test` and `make flutter-fake-smoke`.
+- [x] Generate iOS, Android, macOS, Linux, Windows, and Web runner files with
+  `make flutter-bootstrap`.
+- [x] Verify `flutter analyze`.
+- [x] Verify macOS debug build.
+- [x] Verify Web debug build.
+- [x] Verify iOS simulator debug build.
+- [x] Launch the Flutter app briefly on macOS and iPad simulator.
+- [x] Add a backend worker command/event boundary behind `EmacsBackend`.
+- [x] Move fake backend terminal/lifecycle/workspace behavior behind that
+  worker boundary.
+- [x] Add tests that prove the fake worker command/event contract.
+- [x] Add `xterm.dart` or equivalent real Flutter terminal frontend.
+- [x] Route backend output bytes into the terminal widget.
+- [x] Route committed terminal input bytes back through `EmacsBackend.sendBytes`.
+- [x] Keep a smoke-testable fake backend ASCII path.
+- [x] Install Ruby through `mise` for Flutter iOS/macOS tooling.
+- [x] Install CocoaPods through the `mise` Ruby gem environment.
+- [x] Re-run `flutter doctor` and clear the CocoaPods warning.
+- [x] Install Android command line tools and platform tools.
+- [x] Configure Flutter's Android SDK path.
+- [x] Accept Android SDK licenses.
+- [x] Install Android SDK packages needed for Flutter Android debug builds.
+- [x] Re-run `flutter doctor` and clear the Android SDK warning.
+- [x] Add backend capability reporting to `EmacsBackend`.
+- [x] Show backend capabilities and explicit unsupported surfaces in the
+  Flutter UI.
+- [x] Test fake backend capability reporting.
+- [x] Add an iOS native backend selection path behind the Dart backend factory.
+- [x] Add a Flutter MethodChannel boundary for the future native Emacs bridge.
+- [x] Make the native backend fail explicitly until the Emacs core bridge is
+  connected.
+- [x] Test native backend selection and unsupported diagnostics.
+- [x] Add a native channel diagnostic bridge that returns successful lifecycle,
+  output, input, and resize responses.
+- [x] Drain native channel output into the Flutter terminal stream.
+- [x] Test successful native channel output flow.
+- [x] Compile the shared C host facade into the Flutter iOS Runner.
+- [x] Route Flutter native bridge output/input/resize through the shared host
+  terminal facade.
+- [x] Verify iOS Runner still builds with the shared facade linked.
+- [x] Compile the shared Emacs diagnostic/core availability sources into the
+  Flutter iOS Runner.
+- [x] Start the shared diagnostic terminal from the Flutter native bridge.
+- [x] Keep real GNU Emacs core startup explicitly pending until the simulator
+  archive/link step is ported.
+- [x] Link the simulator Emacs static archive entry into the Flutter iOS Runner.
+- [x] Remove the Flutter Runner optional-entry fallback once the archive entry
+  resolves.
+- [x] Verify Flutter iOS simulator build with `iosmacs_emacs_main` linked.
+- [x] Bundle Emacs runtime resources into the Flutter iOS Runner.
+- [x] Start linked GNU Emacs from the Flutter native channel when resources are
+  present.
+- [x] Keep diagnostic fallback explicit when Flutter native resources/startup
+  are unavailable.
+- [x] Verify Flutter iOS simulator build after native resource/startup wiring.
+- [x] Replace Flutter native workspace placeholders with app-container file
+  operations.
+- [x] Parse native workspace entries and export URLs in the Dart backend.
+- [x] Verify native workspace MethodChannel behavior with Flutter tests.
+- [x] Replace the Flutter workspace count snackbar with a visible workspace
+  contents dialog.
+- [x] Add a UI path that calls `exportWorkspaceSelection()` and reports export
+  candidates.
+- [x] Verify workspace UI behavior with widget tests.
+- [x] Add a repeatable `make flutter-ios-smoke` target for Flutter iOS Runner
+  build evidence.
+- [x] Verify the Flutter iOS Runner app bundle contains Emacs resources.
+- [x] Verify the Flutter iOS Runner debug dylib resolves
+  `_iosmacs_emacs_main`.
+- [x] Add a repeatable `make flutter-ios-launch-smoke` target.
+- [x] Verify the Flutter iOS Runner installs and launches on a booted
+  simulator.
+- [x] Verify the Flutter iOS Runner remains alive long enough to terminate
+  cleanly.
+- [x] Add a repeatable `make flutter-macos-smoke` target.
+- [x] Verify the Flutter macOS app builds and launches as a desktop app.
+- [x] Verify the Flutter macOS app remains alive long enough to terminate
+  cleanly.
+- [x] Add a repeatable `make flutter-verify` target for the Flutter workstream.
+- [x] Run Flutter structure, doctor, fake backend, iOS launch, and macOS smoke
+  checks through `make flutter-verify`.
+- [x] Add repeatable `make flutter-web-smoke` and `make flutter-android-smoke`
+  targets.
+- [x] Include Web debug and Android APK debug builds in `make flutter-verify`.
+- [x] Add a macOS native MethodChannel backend selection path behind the Dart
+  backend factory.
+- [x] Add a macOS Runner native channel bridge with explicit process-backend
+  pending diagnostics.
+- [x] Verify macOS native channel selection and diagnostics with Flutter tests
+  and macOS smoke.
+- [x] Add a macOS native Emacs process probe behind the Flutter MethodChannel.
+- [x] Surface native channel status details in Dart diagnostics.
+- [x] Verify macOS process-probe wiring without regressing Flutter
+  verification.
+- [x] Add a repeatable macOS native process-probe runtime smoke.
+- [x] Add Flutter smoke controls for autostarting native backend and mirroring
+  terminal output to process logs.
+- [x] Include the macOS native process-probe smoke in Flutter verification.
+- [x] Replace macOS native workspace pending errors with sandbox workspace file
+  operations.
+- [x] Expose macOS workspace list/import/export as supported backend behavior.
+- [x] Verify macOS workspace bridge wiring without regressing Flutter
+  verification.
+- [x] Add a macOS workspace runtime smoke that exercises MethodChannel
+  list/export calls.
+- [x] Mirror workspace smoke results into the app process log.
+- [x] Include macOS workspace runtime evidence in Flutter verification.
+- [x] Extend the macOS workspace runtime smoke to exercise MethodChannel
+  import/list/export together.
+- [x] Keep workspace import smoke file creation out of Web builds.
+- [x] Verify workspace import runtime evidence through `make flutter-verify`.
+- [x] Add an explicit Flutter Web WASM-route placeholder backend.
+- [x] Select the Web placeholder backend by default on Flutter Web.
+- [x] Verify Web placeholder capabilities and Web debug build.
+- [x] Add an explicit Flutter Android backend placeholder.
+- [x] Select the Android placeholder backend by default on Android.
+- [x] Verify Android placeholder capabilities and Android debug APK build.
+- [x] Add explicit Flutter Linux and Windows desktop backend placeholders.
+- [x] Select Linux and Windows placeholders by default on those platforms.
+- [x] Verify desktop placeholder capabilities without regressing
+  `make flutter-verify`.
+- [x] Show backend ids and capability counts in the Flutter capabilities UI.
+- [x] Add widget coverage for non-fake backend capabilities dialogs.
+- [x] Verify capabilities UI changes without regressing `make flutter-verify`.
+- [x] Add a Flutter runtime capabilities smoke flag.
+- [x] Mirror selected backend capability identity/counts into macOS native smoke
+  logs.
+- [x] Verify runtime capabilities smoke through `make flutter-verify`.
+- [x] Add a dart-define backend override for Flutter runtime smoke/debug runs.
+- [x] Test explicit backend override parsing and app construction.
+- [x] Verify backend override support without regressing `make flutter-verify`.
+- [x] Add a repeatable Flutter backend override runtime smoke target.
+- [x] Launch forced fake, Android, Linux, Windows, and Web placeholder backends
+  through the macOS Runner.
+- [x] Include backend override runtime smoke in `make flutter-verify`.
+- [x] Sync `flutter/ARCHITECTURE.md` with the implemented Flutter backend
+  boundary.
+- [x] Document current Flutter smoke and backend override verification commands.
+- [x] Verify architecture documentation sync with structure and diff checks.
+- [x] Add a Flutter terminal input bridge for backend byte forwarding.
+- [x] Prove xterm hardware/control-key output and IME-committed text are sent
+  as UTF-8 bytes.
+- [x] Verify the input bridge work with format, tests, structure check, and
+  diff check.
+- [x] Add Flutter app-level hardware keyboard shortcuts for terminal controls.
+- [x] Test Start, Reset, Workspace, Capabilities, and font-size shortcuts.
+- [x] Verify keyboard shortcut work with format, analyze, tests, structure
+  check, and diff check.
+- [x] Add a Flutter runtime input smoke flag for committed text forwarding.
+- [x] Include input smoke evidence in macOS native and backend override smokes.
+- [x] Verify runtime input smoke with tests, structure check, targeted smokes,
+  and diff check.
+- [x] Add a Flutter runtime resize smoke flag for terminal geometry forwarding.
+- [x] Include resize smoke evidence in macOS native and backend override smokes.
+- [x] Verify runtime resize smoke with tests, structure check, targeted smokes,
+  and diff check.
+- [x] Add a Flutter runtime redraw smoke flag for reset/redraw forwarding.
+- [x] Include redraw smoke evidence in macOS native and backend override smokes.
+- [x] Verify runtime redraw smoke with tests, structure check, targeted smokes,
+  and diff check.
+- [x] Add a Flutter runtime stop smoke flag for lifecycle stop forwarding.
+- [x] Include stop smoke evidence in macOS native and backend override smokes.
+- [x] Verify runtime stop smoke with tests, structure check, targeted smokes,
+  and diff check.
+- [x] Sync Flutter architecture docs with the current runtime smoke flag set.
+- [x] Document input, resize, redraw, stop, capabilities, workspace, and backend
+  override smoke evidence.
+- [x] Verify smoke documentation sync with structure and diff checks.
+- [x] Add structure-check guards for Flutter architecture smoke documentation.
+- [x] Guard all current runtime smoke flags and focused smoke target
+  descriptions in `flutter/ARCHITECTURE.md`.
+- [x] Verify architecture smoke documentation guards with structure and diff
+  checks.
+- [x] Add a visible Flutter terminal geometry status indicator.
+- [x] Test that backend resize diagnostics update the visible TTY geometry.
+- [x] Verify terminal geometry status work with format, tests, structure check,
+  and diff check.
+- [x] Add a visible Flutter Stop control for backend lifecycle shutdown.
+- [x] Add and test a hardware keyboard shortcut for Stop.
+- [x] Verify Stop control work with format, analyze, tests, structure check,
+  and diff check.
+- [x] Add a visible Send control for Flutter terminal text input.
+- [x] Test that the Send control forwards committed text through the backend.
+- [x] Verify Send control work with format, analyze, tests, structure check,
+  and diff check.
+- [x] Make the Flutter toolbar usable on narrow mobile widths.
+- [x] Add a widget test that guards the toolbar against narrow-width overflow.
+- [x] Verify responsive toolbar work with format, analyze, tests, structure
+  check, and diff check.
+- [x] Add an app-level narrow-width Flutter smoke test.
+- [x] Verify `IOSMacsFlutterApp` keeps terminal, input, and toolbar controls
+  available on phone-width viewports.
+- [x] Verify app-level narrow smoke work with format, analyze, tests,
+  structure check, and diff check.
+- [x] Add explicit Flutter toolbar scroll reachability coverage.
+- [x] Verify narrow-width users can scroll to the toolbar font-size control.
+- [x] Verify toolbar scroll reachability work with format, analyze, tests,
+  structure check, and diff check.
+- [x] Add a visible backend id indicator to the Flutter status strip.
+- [x] Test that fake and placeholder backends expose their ids without opening
+  the capabilities dialog.
+- [x] Verify backend status indicator work with format, analyze, tests,
+  structure check, and diff check.
+- [x] Add a Flutter runtime status smoke flag for backend id/lifecycle
+  visibility.
+- [x] Include status smoke evidence in macOS native and backend override
+  smokes.
+- [x] Verify status smoke work with tests, targeted smokes, structure check,
+  and diff check.
+- [x] Add a visible Flutter diagnostics details action from the status strip.
+- [x] Show backend id, lifecycle, geometry, byte counts, workspace actions, and
+  diagnostic message in the details UI.
+- [x] Verify diagnostics details work with tests, structure check, and diff
+  check.
+- [x] Add a Flutter workspace Import action backed by a file-picker boundary.
+- [x] Route selected file URIs through `EmacsBackend.importToWorkspace()` and
+  refresh the visible workspace dialog.
+- [x] Verify workspace import UI work with tests, structure check, and diff
+  check.
+- [x] Replace the Workspace export count-only Snackbar with a visible export
+  candidate dialog.
+- [x] Show exported URI candidates from `EmacsBackend.exportWorkspaceSelection()`
+  without hiding the backend paths.
+- [x] Verify workspace export results UI with tests, structure check, and diff
+  check.
+- [x] Add widget coverage for canceled Flutter workspace imports.
+- [x] Keep the Workspace dialog open and entries unchanged when the import
+  picker returns no files.
+- [x] Verify import-cancel coverage with tests, structure check, and diff
+  check.
+- [x] Add a Flutter diagnostics keyboard shortcut alongside the visible
+  Diagnostics status-strip action.
+- [x] Open backend diagnostics with Ctrl/Cmd+Shift+D without changing backend
+  lifecycle state.
+- [x] Verify diagnostics shortcut work with tests, structure check, and diff
+  check.
+- [x] Include imported fake workspace entries in export candidates.
+- [x] Prove imported files can be listed and exported through the Flutter
+  Workspace dialog.
+- [x] Verify imported export candidates with backend tests, widget tests,
+  structure check, and diff check.
+- [x] Enable workspace smoke evidence in Flutter backend override runtime
+  smokes.
+- [x] Check forced fake, Android, Linux, Windows, and Web-WASM backends for
+  workspace list/import/export smoke logs.
+- [x] Verify backend override workspace smoke with structure check, targeted
+  runtime smoke, and diff check.
+- [x] Add a repeatable `make flutter-analyze` target for Dart static analysis.
+- [x] Include Flutter analyze in `make flutter-verify` before runtime smoke
+  targets.
+- [x] Verify analyze target wiring with structure check, targeted make
+  commands, and diff check.
+- [x] Add a repeatable `make flutter-format-check` target for Dart formatting
+  drift.
+- [x] Include Flutter format check in `make flutter-verify` before analyze and
+  runtime smoke targets.
+- [x] Verify format target wiring with structure check, targeted make
+  commands, and diff check.
+- [x] Add a Workspace Refresh action to the Flutter Workspace dialog.
+- [x] Reload visible workspace entries from `EmacsBackend.listWorkspace()`
+  without closing the dialog.
+- [x] Verify workspace refresh with widget tests, structure check, and diff
+  check.
+- [x] Add a Workspace Open action for visible Flutter workspace entries.
+- [x] Send the selected workspace path through the terminal input bridge as
+  `C-x C-f <path> RET`.
+- [x] Verify workspace open with widget tests, structure check, and diff check.
+- [x] Add Workspace Open evidence to Flutter startup workspace smokes.
+- [x] Require workspace open smoke logs in macOS native and backend override
+  smoke scripts.
+- [x] Verify workspace open smoke with widget tests, structure check, targeted
+  runtime smoke, and diff check.
+- [x] Add a Flutter terminal Paste action backed by the system clipboard.
+- [x] Route pasted text as raw UTF-8 terminal bytes without appending `RET`.
+- [x] Verify paste behavior with bridge tests, widget tests, structure check,
+  and diff check.
+- [x] Add Ctrl/Cmd+V hardware keyboard shortcuts for Flutter terminal paste.
+- [x] Route paste shortcuts through the same clipboard provider and raw-byte
+  input path as the visible Paste action.
+- [x] Verify paste shortcuts with widget tests, structure check, and diff check.
+- [x] Add widget coverage for empty Flutter terminal clipboard paste.
+- [x] Verify empty paste shows feedback without sending backend input bytes.
+- [x] Guard empty paste behavior with structure check and diff check.
+- [x] Add widget coverage for empty Flutter terminal paste shortcuts.
+- [x] Verify Ctrl+V empty paste shows feedback without sending backend input
+  bytes.
+- [x] Guard empty paste shortcut behavior with structure check and diff check.
+
+SDK verification steps:
+
+```sh
+cd flutter/iosmacs_flutter
+flutter pub get
+flutter test
+flutter run -d macos
+flutter run -d "iPhone 16 Pro"
+cd ../..
+make flutter-bootstrap
+make flutter-fake-smoke
+make flutter-structure-check
+```
+
+Current verification status:
+
+- Flutter SDK is installed at `~/work/flutter`.
+- A new interactive zsh resolves `flutter` from `/Users/seijiro/work/flutter/bin/flutter`.
+- `flutter --version`: Flutter 3.44.4 stable, Dart 3.12.2.
+- `make flutter-structure-check` passes without requiring the Flutter SDK.
+- `make flutter-bootstrap` generated platform runner files.
+- `make flutter-fake-smoke` passes.
+- `flutter analyze` passes.
+- `flutter build macos --debug` passes.
+- `flutter build web --debug` passes.
+- `flutter build ios --simulator --debug` passes.
+- `make flutter-ios-smoke` passes and checks the Flutter iOS Runner bundle
+  resources plus linked Emacs core symbols.
+- `make flutter-ios-launch-smoke` passes and proves the Flutter iOS Runner can
+  install, launch, stay alive briefly, and terminate on a booted simulator.
+- `make flutter-macos-smoke` passes and proves the Flutter macOS app can build,
+  launch briefly, stay alive, and terminate cleanly.
+- macOS non-web now selects the native MethodChannel backend by default, while
+  the macOS Runner reports explicit PTY/process-backend pending diagnostics.
+- `make flutter-web-smoke` passes and builds Flutter Web debug output.
+- `make flutter-android-smoke` passes and builds the Flutter Android debug APK.
+- `make flutter-verify` passes and runs the Flutter structure, doctor, fake
+  backend, iOS launch, macOS smoke, macOS native workspace smoke, Web debug,
+  and Android debug APK checks sequentially.
+- Android non-web now selects an explicit Android backend placeholder by
+  default, with unsupported native/NDK Emacs surfaces reported through backend
+  capabilities and diagnostics.
+- Linux and Windows non-web now select explicit desktop backend placeholders by
+  default, with unsupported process/PTY, file picker, byte-stream, and packaged
+  runtime surfaces reported through backend capabilities and diagnostics.
+- The capabilities dialog now shows the backend id and supported/unsupported
+  item counts, with widget coverage proving Android, Linux, and Windows
+  placeholder capabilities are visible through the same UI path.
+- `IOSMACS_FLUTTER_CAPABILITIES_SMOKE` now mirrors selected backend capability
+  identity/counts into runtime smoke logs, and macOS native smoke verifies the
+  selected `platform-native-channel` backend.
+- `IOSMACS_FLUTTER_BACKEND` can force a backend for smoke/debug builds, with
+  tests covering explicit fake, native, Web, Linux, and Windows selection plus
+  unknown-name fallback to the platform default.
+- `make flutter-backend-override-smoke` now launches forced fake, Android,
+  Linux, Windows, and Web placeholder backends through the macOS Runner and
+  checks runtime capability ids/counts.
+- `flutter run -d macos --debug` launched to a Dart VM Service and was stopped.
+- `flutter run -d D0F9B2BE-1CD0-49D6-BC25-6FF7650031D6 --debug` launched on
+  the iPad simulator to a Dart VM Service and was stopped.
+- `make flutter-doctor` now reports no issues.
+- System Ruby is `/usr/bin/ruby` 2.6.10; project-local Ruby should be provided
+  through `mise` before installing CocoaPods.
+- `mise.toml` pins Ruby 3.4.9 for this repo.
+- CocoaPods 1.16.2 is installed in the Ruby 3.4.9 gem environment.
+- `make flutter-doctor` reports Flutter, Android, Xcode/CocoaPods, Chrome,
+  connected devices, and network resources as passing.
+
+Android environment TODO:
+
+- Install Android SDK command line tools.
+- Install Android platform tools.
+- Configure Flutter with the Android SDK root.
+- Accept Android licenses.
+- Install the minimum SDK packages needed for a Flutter Android debug build.
+- Verify `flutter doctor` and `flutter build apk --debug`.
+
+Android environment status:
+
+- Installed Homebrew `android-commandlinetools` and `android-platform-tools`.
+- Flutter Android SDK path is `/opt/homebrew/share/android-commandlinetools`.
+- Installed `platform-tools`, `platforms;android-36`, and `build-tools;36.0.0`.
+- Accepted Android SDK licenses.
+- Android debug build installed NDK 28.2.13676358 and CMake 3.22.1 on demand.
+- `flutter build apk --debug` passes.
+- `make flutter-doctor` reports no issues.
+
+Backend capability TODO:
+
+- [x] Add a Dart capability model for backend identity, supported features, and
+  unsupported features.
+- [x] Expose capabilities from `EmacsBackend`.
+- [x] Give the fake backend explicit capabilities instead of relying on implicit
+  behavior.
+- [x] Surface capabilities from the terminal UI without adding editor semantics to
+  Dart.
+- [x] Test fake backend capability values.
+
+Backend capability status:
+
+- `BackendCapabilities` exposes backend identity, supported features, and
+  unsupported features.
+- `FakeEmacsBackend` reports deterministic fake-supported behavior and explicit
+  unsupported native/runtime surfaces.
+- The terminal toolbar exposes a Capabilities dialog.
+- Tests cover fake capability values and UI display of unsupported surfaces.
+
+iOS native backend channel TODO:
+
+- [x] Add a Dart `NativeEmacsBackend` that implements `EmacsBackend` through a
+  Flutter MethodChannel.
+- [x] Add backend factory selection for the iOS native backend while preserving
+  fake backend defaults on non-iOS test/development platforms.
+- [x] Add an iOS Runner MethodChannel handler that returns explicit
+  not-connected diagnostics until the existing native Emacs bridge is wired in.
+- [x] Test native backend capabilities, selection, and unsupported start
+  diagnostics.
+
+iOS native backend channel status:
+
+- `NativeEmacsBackend` implements the shared Dart `EmacsBackend` API over the
+  `iosmacs/native_emacs` MethodChannel.
+- `createDefaultEmacsBackend` selects the native channel backend only for iOS
+  non-web targets; fake remains the default elsewhere.
+- The iOS Runner channel currently returns `native_emacs_not_connected` for
+  supported method names, so native bridge gaps are visible in lifecycle,
+  diagnostics, and terminal output instead of failing silently.
+- Tests cover native backend capabilities, factory selection, and unsupported
+  start diagnostics.
+
+iOS native channel diagnostic bridge TODO:
+
+- [x] Add a Runner-side native channel bridge that handles start, stop, redraw,
+  sendBytes, resize, and drainOutput without requiring the Emacs core yet.
+- [x] Update `NativeEmacsBackend` to drain successful native output into
+  `outputStream`.
+- [x] Keep unsupported diagnostics for missing channel handlers and native
+  platform errors.
+- [x] Test successful native output flow from MethodChannel to Dart stream.
+
+iOS native channel diagnostic bridge status:
+
+- `FlutterNativeEmacsBridge` is compiled into the iOS Runner target.
+- The bridge handles start, stop, redraw, sendBytes, resize, workspace
+  placeholders, and drainOutput.
+- `NativeEmacsBackend` drains native output after successful operations and
+  polls while running.
+- Flutter tests cover successful native output flow and missing/native-error
+  unsupported diagnostics.
+
+Shared host facade TODO:
+
+- [x] Add `iosmacs/Host/iosmacs_host_facade.c` to the Flutter iOS Runner target.
+- [x] Expose `iosmacs_host_facade.h` through the Runner bridging header.
+- [x] Replace the Runner-local Swift output buffer with
+  `iosmacs_os_terminal_write` / `iosmacs_os_terminal_drain_output`.
+- [x] Route Flutter input and resize calls through
+  `iosmacs_os_terminal_push_input` and `iosmacs_os_terminal_resize`.
+- [x] Build the Flutter iOS simulator target with the shared facade linked.
+
+Shared host facade status:
+
+- The Flutter iOS Runner target compiles `iosmacs_host_facade.c`.
+- `Runner-Bridging-Header.h` exposes the shared C facade to Swift.
+- `FlutterNativeEmacsBridge` now writes output, drains output, pushes input, and
+  applies resize through the shared facade.
+- The Flutter iOS simulator build proves the shared facade is linked into the
+  Runner target.
+
+Shared diagnostic terminal TODO:
+
+- [x] Add `iosmacs_emacs_diagnostic.c` and `iosmacs_emacs_core.c` to the
+  Flutter iOS Runner target.
+- [x] Expose `iosmacs_emacs_diagnostic.h` and `iosmacs_emacs_core.h` through
+  the Runner bridging header.
+- [x] Start `iosmacs_emacs_diagnostic_start()` from `FlutterNativeEmacsBridge`
+  instead of using a duplicate Swift banner.
+- [x] Pump `iosmacs_emacs_diagnostic_pump()` after Flutter input bytes.
+- [x] Preserve explicit pending status for real GNU Emacs startup until the
+  simulator static archive/link step is ported to the Flutter Runner.
+
+Shared diagnostic terminal status:
+
+- The Flutter iOS Runner compiles the shared diagnostic, core availability, host
+  facade, and terminal shim C sources.
+- The Flutter native bridge starts the shared diagnostic terminal and pumps it
+  after input bytes.
+- `iosmacs_emacs_core.c` supports an optional-entry build mode so the Flutter
+  Runner can report real GNU Emacs startup as pending without failing to link.
+- The existing native iOS app still builds with the strong simulator Emacs entry
+  link.
+
+Flutter simulator Emacs archive link TODO:
+
+- [x] Force the Flutter iOS Runner simulator link to resolve
+  `_iosmacs_emacs_main` from `libiosmacs-temacs.a`.
+- [x] Remove `IOSMACS_EMACS_CORE_ENTRY_OPTIONAL=1` from the Flutter Runner
+  target once the archive entry resolves.
+- [x] Keep the existing native iOS app strong-link path working.
+- [x] Verify the Flutter iOS simulator build and existing native app build.
+
+Flutter simulator Emacs archive link status:
+
+- The Flutter iOS Runner simulator build forces `_iosmacs_emacs_main` to be
+  resolved from `libiosmacs-temacs.a`.
+- The Runner target is arm64-only for the simulator, matching the existing
+  arm64 static Emacs archive.
+- `Runner.debug.dylib` exports `_iosmacs_emacs_main` and
+  `_iosmacs_emacs_core_link_available`.
+- The existing native iOS app still builds with the same shared core source.
+
+Flutter native Emacs resource/startup TODO:
+
+- [x] Add `lisp`, `etc`, `lib-src`, and `emacs.pdmp` as Flutter iOS Runner
+  bundle resources.
+- [x] Update `FlutterNativeEmacsBridge.start()` to call
+  `iosmacs_emacs_core_start()` when the linked core and resources are present.
+- [x] Preserve the shared diagnostic terminal as an explicit fallback when real
+  startup is unavailable.
+- [x] Update backend capability text from diagnostic-only to simulator native
+  GNU Emacs startup.
+- [x] Extend `make flutter-structure-check` to guard the resource/startup
+  wiring.
+- [x] Verify Flutter tests, structure check, iOS simulator build, and native app
+  baseline.
+
+Flutter native Emacs resource/startup status:
+
+- The Flutter iOS Runner copies `lisp`, `etc`, `lib-src`, and `emacs.pdmp`
+  into `Runner.app`.
+- `FlutterNativeEmacsBridge.start()` now attempts `iosmacs_emacs_core_start()`
+  with Bundle resource paths and a default Documents/home workspace.
+- If the linked core or required resources are unavailable, the bridge starts
+  the shared diagnostic terminal instead of failing silently.
+- Native backend capabilities now advertise simulator GNU Emacs startup and
+  native terminal byte flow.
+- `make flutter-structure-check` guards resource copies and the real startup
+  call.
+
+Flutter native workspace TODO:
+
+- [x] Implement Runner-side `listWorkspace` against the default Documents/home
+  app-container workspace.
+- [x] Implement Runner-side `importWorkspace` by copying file URLs into the
+  app-container workspace.
+- [x] Implement Runner-side `exportWorkspace` by returning workspace item file
+  URLs.
+- [x] Parse native workspace entry maps and export URL strings in
+  `NativeEmacsBackend`.
+- [x] Update native backend capabilities and tests for real workspace
+  list/import/export behavior.
+- [x] Verify Flutter tests, structure check, iOS simulator build, and native app
+  baseline.
+
+Flutter native workspace status:
+
+- `FlutterNativeEmacsBridge` now lists the default Documents/home workspace and
+  returns entry maps with name, path, directory flag, and size.
+- `importWorkspace` copies file URLs into Documents/home, replacing existing
+  items with the same name.
+- `exportWorkspace` returns file URL strings for workspace items, or the
+  workspace root when empty.
+- `NativeEmacsBackend` parses native workspace entries, import counts, and
+  export URLs into the shared Dart API.
+- Flutter tests cover native workspace list/import/export MethodChannel
+  results.
+
+Flutter workspace UI TODO:
+
+- [x] Replace the toolbar workspace SnackBar with a dialog listing workspace
+  entries.
+- [x] Show file/directory, size, and backend path for each workspace entry
+  without implementing editor semantics in Dart.
+- [x] Add an Export action that calls `exportWorkspaceSelection()` and reports
+  the number of export candidate URLs.
+- [x] Add widget tests that prove workspace entries and export results are
+  visible from the terminal screen.
+- [x] Verify Flutter tests, structure check, iOS simulator build, and native app
+  baseline.
+
+Flutter workspace UI status:
+
+- The terminal toolbar workspace action now opens a dialog listing workspace
+  entries instead of only showing a count SnackBar.
+- Workspace rows show file/directory icon, name, backend path, and size label.
+- The dialog Export action calls `exportWorkspaceSelection()` and reports the
+  number of export candidate URLs.
+- Widget tests cover the visible workspace entry and export result flow.
+
+Flutter iOS smoke target TODO:
+
+- [x] Add a repository script that builds the Flutter iOS simulator app.
+- [x] Check the built `Runner.app` for `lisp`, `etc`, `lib-src`, and
+  `emacs.pdmp`.
+- [x] Check the built `Runner.debug.dylib` for `_iosmacs_emacs_main` and
+  `_iosmacs_emacs_core_link_available`.
+- [x] Add `make flutter-ios-smoke` at the repository root.
+- [x] Include the smoke target in the Flutter structure check.
+- [x] Verify `make flutter-ios-smoke` alongside the existing Flutter and native
+  app checks.
+
+Flutter iOS smoke target status:
+
+- `scripts/check-flutter-ios-runner-smoke.sh` builds the Flutter iOS simulator
+  app, checks `Runner.app` for `lisp`, `etc`, `lib-src`, and `emacs.pdmp`, and
+  checks `Runner.debug.dylib` for `_iosmacs_emacs_main` plus
+  `_iosmacs_emacs_core_link_available`.
+- `make flutter-ios-smoke` runs the repository smoke script.
+- `make flutter-structure-check` now guards the smoke script and Makefile
+  target.
+
+Flutter iOS launch smoke TODO:
+
+- [x] Add a repository script that reuses the Flutter iOS Runner build smoke.
+- [x] Install the built `Runner.app` on a booted simulator.
+- [x] Launch `com.example.iosmacsFlutter` through `xcrun simctl launch`.
+- [x] Hold briefly, then terminate the app cleanly to prove it stayed alive.
+- [x] Add `make flutter-ios-launch-smoke` at the repository root.
+- [x] Include the launch smoke target in the Flutter structure check.
+- [x] Verify the launch smoke alongside existing Flutter and native app checks.
+
+Flutter iOS launch smoke status:
+
+- `scripts/run-flutter-ios-launch-smoke.sh` reuses the Flutter iOS Runner build
+  smoke, installs `Runner.app` on a booted simulator, launches the bundle id
+  from `Info.plist`, waits briefly, and requires clean termination.
+- `make flutter-ios-launch-smoke` runs the launch smoke.
+- `make flutter-structure-check` now guards the launch smoke script and Makefile
+  target.
+
+Flutter macOS smoke TODO:
+
+- [x] Add a repository script that builds the Flutter macOS debug app.
+- [x] Check the built `iosmacs_flutter.app` bundle and executable.
+- [x] Launch the macOS app executable briefly.
+- [x] Require the app process to stay alive long enough for clean termination.
+- [x] Add `make flutter-macos-smoke` at the repository root.
+- [x] Include the macOS smoke target in the Flutter structure check.
+- [x] Verify the macOS smoke alongside existing Flutter and native app checks.
+
+Flutter macOS smoke status:
+
+- `scripts/run-flutter-macos-smoke.sh` builds the Flutter macOS debug app,
+  checks `iosmacs_flutter.app`, reads `CFBundleExecutable`, launches the app
+  executable briefly, and requires clean termination.
+- `make flutter-macos-smoke` runs the repository macOS smoke.
+- `make flutter-structure-check` now guards the macOS smoke script and Makefile
+  target.
+
+Flutter verification target TODO:
+
+- [x] Add `make flutter-verify` at the repository root.
+- [x] Run the Flutter checks sequentially to avoid Flutter startup-lock
+  contention.
+- [x] Include `flutter-structure-check`, `flutter-doctor`,
+  `flutter-fake-smoke`, `flutter-ios-launch-smoke`, and
+  `flutter-macos-smoke`.
+- [x] Include `flutter-web-smoke` and `flutter-android-smoke`.
+- [x] Include the verification target in the Flutter structure check.
+- [x] Verify `make flutter-verify` end to end.
+
+Flutter verification target status:
+
+- `make flutter-verify` runs `flutter-structure-check`, `flutter-doctor`,
+  `flutter-fake-smoke`, `flutter-ios-launch-smoke`, `flutter-macos-smoke`,
+  `flutter-web-smoke`, and `flutter-android-smoke` sequentially.
+- `make flutter-structure-check` guards the verification target.
+
+Flutter Web/Android smoke TODO:
+
+- [x] Add `make flutter-web-smoke` for `flutter build web --debug`.
+- [x] Add `make flutter-android-smoke` for `flutter build apk --debug`.
+- [x] Include both new platform smoke targets in `make flutter-verify`.
+- [x] Include the Web/Android smoke targets in the Flutter structure check.
+- [x] Verify the expanded `make flutter-verify` end to end.
+
+Flutter Web/Android smoke status:
+
+- `make flutter-web-smoke` builds Flutter Web debug output.
+- `make flutter-android-smoke` builds the Flutter Android debug APK.
+- `make flutter-verify` now includes both platform smoke targets after the
+  iOS launch and macOS smoke checks.
+- `make flutter-structure-check` guards the new Makefile targets and their
+  underlying Flutter build commands.
+
+Flutter macOS native channel TODO:
+
+- [x] Rename the Dart native backend capability surface away from iOS-only
+  wording where the MethodChannel is shared.
+- [x] Add a `macosNative` backend factory option.
+- [x] Select the native MethodChannel backend by default on macOS non-web.
+- [x] Register `iosmacs/native_emacs` in the macOS Runner.
+- [x] Return explicit macOS process-backend pending diagnostics for start,
+  stop, redraw, input, resize, drain, and workspace calls.
+- [x] Add tests for macOS default selection and shared native-channel
+  capabilities.
+- [x] Add structure checks for the macOS native bridge.
+- [x] Verify Dart tests, structure check, and macOS smoke.
+
+Flutter macOS native channel status:
+
+- `NativeEmacsBackend` now presents a platform-native MethodChannel capability
+  surface instead of an iOS-only identity.
+- `BackendKind.macosNative` and the default backend factory select the shared
+  native MethodChannel backend on macOS non-web.
+- The macOS Runner registers `iosmacs/native_emacs` and handles lifecycle,
+  redraw, input, resize, drain, and workspace methods through
+  `MacOSNativeEmacsBridge`.
+- The macOS bridge returns explicit `macos_process_backend_pending` diagnostics
+  for workspace surfaces until the PTY/process Emacs backend exists.
+- Tests cover macOS default selection and the shared native-channel capability
+  surface.
+- `make flutter-structure-check`, `flutter analyze`, `flutter test`, `make
+  flutter-macos-smoke`, and expanded `make flutter-verify` pass.
+
+Flutter macOS process probe TODO:
+
+- [x] Add deterministic Emacs executable candidate discovery in the macOS
+  Runner.
+- [x] Run a short `emacs --batch --quick` probe through `Process` on start.
+- [x] Drain process stdout/stderr into the Flutter terminal stream.
+- [x] Report process discovery or sandbox/process failure as native
+  diagnostics.
+- [x] Keep interactive PTY support explicitly pending after the process probe.
+- [x] Apply native status payloads to Dart lifecycle/diagnostic values.
+- [x] Add tests for native status payload handling.
+- [x] Add structure checks for the macOS process probe.
+- [x] Verify Dart tests, structure check, macOS smoke, and expanded
+  `make flutter-verify`.
+
+Flutter macOS process probe status:
+
+- `MacOSNativeEmacsBridge` discovers `IOSMACS_FLUTTER_EMACS`,
+  `/usr/local/bin/emacs`, `/opt/homebrew/bin/emacs`,
+  `/Applications/Emacs.app/Contents/MacOS/Emacs`, and
+  `/Applications/Emacs-takaxp/Emacs.app/Contents/MacOS/Emacs`.
+- On `start`, the macOS bridge runs a short `emacs --batch --quick --eval`
+  probe and writes stdout/stderr or failure details into the native output
+  buffer.
+- The probe reports `iosmacs-macos-process-ok` on successful batch execution
+  and keeps the interactive PTY GNU Emacs session explicitly pending.
+- `NativeEmacsBackend` now applies native `lifecycleState`, `cols`, and `rows`
+  status payloads to diagnostics.
+- Tests cover native status payload handling; structure checks guard the
+  process probe markers.
+- `flutter analyze`, `flutter test`, `make flutter-macos-smoke`, and expanded
+  `make flutter-verify` pass.
+
+Flutter macOS process probe runtime smoke TODO:
+
+- [x] Add a compile-time smoke flag that starts the selected backend when the
+  app launches.
+- [x] Add a compile-time smoke flag that mirrors terminal output chunks to the
+  app process log.
+- [x] Add a macOS script that builds with those flags, launches the app, and
+  checks the process-probe output in the captured log.
+- [x] Add a `make flutter-macos-native-smoke` target.
+- [x] Include the new smoke in the Flutter structure check.
+- [x] Include the new smoke in `make flutter-verify`.
+- [x] Verify Dart tests, structure check, macOS native smoke, and expanded
+  `make flutter-verify`.
+
+Flutter macOS process probe runtime smoke status:
+
+- `IOSMACS_FLUTTER_AUTOSTART_NATIVE` starts the selected backend when the app
+  launches in smoke builds.
+- `IOSMACS_FLUTTER_MIRROR_TERMINAL_OUTPUT` mirrors terminal output chunks into
+  the process log with an `iosmacs-terminal-output:` prefix.
+- `scripts/run-flutter-macos-native-smoke.sh` builds the macOS app with both
+  flags, launches it, and checks the captured log for process-probe start,
+  success or explicit unavailability, and the interactive PTY pending marker.
+- `make flutter-macos-native-smoke` passes.
+- The captured smoke log shows `/usr/local/bin/emacs` exited 1, then
+  `/Applications/Emacs-takaxp/Emacs.app/Contents/MacOS/Emacs` emitted
+  `iosmacs-macos-process-ok`.
+- `make flutter-verify` now includes the macOS native process-probe runtime
+  smoke.
+- `flutter analyze`, `flutter test`, `make flutter-macos-native-smoke`, and
+  expanded `make flutter-verify` pass.
+
+Flutter macOS workspace TODO:
+
+- [x] Create a sandbox workspace root under macOS Application Support.
+- [x] Implement `listWorkspace` in `MacOSNativeEmacsBridge`.
+- [x] Implement `importWorkspace` in `MacOSNativeEmacsBridge`.
+- [x] Implement `exportWorkspace` in `MacOSNativeEmacsBridge`.
+- [x] Return native workspace entries with name, path, directory flag, and size.
+- [x] Update backend capabilities to include macOS sandbox workspace behavior.
+- [x] Add structure checks for the macOS workspace methods.
+- [x] Verify Dart tests, structure check, macOS smoke, macOS native smoke, and
+  expanded `make flutter-verify`.
+
+Flutter macOS workspace status:
+
+- `MacOSNativeEmacsBridge` now creates a sandbox workspace root under
+  Application Support at `iosmacs_flutter/workspace`.
+- `listWorkspace` returns sorted entries with name, path, directory flag, and
+  byte size.
+- `importWorkspace` copies passed file URLs into the sandbox workspace,
+  replacing existing items with the same name.
+- `exportWorkspace` returns workspace item file URLs, or the workspace root when
+  it is empty.
+- Backend capabilities now report `macOS sandbox workspace list/import/export`
+  as supported behavior.
+- Structure checks guard the macOS workspace methods and Application Support
+  workspace root.
+- `flutter analyze`, `flutter test`, `make flutter-macos-smoke`, `make
+  flutter-macos-native-smoke`, and expanded `make flutter-verify` pass.
+
+Flutter macOS workspace runtime smoke TODO:
+
+- [x] Add a compile-time smoke flag that runs workspace list/export at app
+  launch.
+- [x] Mirror workspace list/export counts into the app process log.
+- [x] Extend the macOS native smoke script to enable and check workspace smoke
+  output.
+- [x] Add widget coverage for workspace smoke startup behavior.
+- [x] Verify Dart tests, macOS native smoke, and expanded `make
+  flutter-verify`.
+
+Flutter macOS workspace runtime smoke status:
+
+- `IOSMACS_FLUTTER_WORKSPACE_SMOKE` runs workspace list/export after launch.
+- Workspace smoke output is mirrored as `iosmacs-workspace-smoke:` log lines.
+- `scripts/run-flutter-macos-native-smoke.sh` now enables the workspace smoke
+  flag and checks the captured log for list/export evidence.
+- The latest native smoke log includes `workspace listed 0 item(s)` and
+  `workspace export candidate(s): 1`.
+- `flutter analyze`, `flutter test`, `make flutter-macos-native-smoke`, and
+  expanded `make flutter-verify` pass.
+
+Flutter macOS workspace import smoke TODO:
+
+- [x] Add a conditional IO helper that creates a smoke import file only on
+  platforms with `dart:io`.
+- [x] Import the smoke file during startup workspace smoke when a file URI is
+  available.
+- [x] Mirror import count and post-import list/export counts into process logs.
+- [x] Extend the macOS native smoke script to check import evidence.
+- [x] Keep Web debug build passing.
+- [x] Verify Dart tests, macOS native smoke, Web smoke, and expanded
+  `make flutter-verify`.
+
+Flutter macOS workspace import smoke status:
+
+- `workspace_smoke_file.dart` uses a conditional export so only IO-capable
+  builds create a temporary smoke import file.
+- Workspace startup smoke now runs list, import, list-after-import, and export
+  in sequence.
+- The macOS native smoke script checks for `workspace imported 1 item(s)` and
+  `workspace listed after import`.
+- The latest native smoke log includes `workspace listed 1 item(s)`,
+  `workspace imported 1 item(s)`, `workspace listed after import 1 item(s)`,
+  and `workspace export candidate(s): 1`.
+- `flutter analyze`, `flutter test`, `make flutter-macos-native-smoke`, `make
+  flutter-web-smoke`, and expanded `make flutter-verify` pass.
+
+Flutter Web backend placeholder TODO:
+
+- [x] Add a Dart `WebWasmEmacsBackend` implementing `EmacsBackend`.
+- [x] Report Web as a separate `wasmacs`/WASM backend route, not a native FFI
+  backend.
+- [x] Select the Web backend by default when `kIsWeb` is true.
+- [x] Keep deterministic terminal output and unsupported diagnostics visible.
+- [x] Add tests for explicit and default Web backend selection.
+- [x] Add tests for Web backend capabilities and workspace placeholders.
+- [x] Include the Web backend in the structure check.
+- [x] Verify Dart tests, Web debug build, and expanded `make flutter-verify`.
+
+Flutter Web backend placeholder status:
+
+- `WebWasmEmacsBackend` implements `EmacsBackend` for Flutter Web.
+- Web now defaults to `BackendKind.webWasm` instead of the fake backend.
+- Capabilities identify Web as a separate `wasmacs`/WASM route and explicitly
+  mark native FFI, MethodChannel, and connected WASM runtime as unsupported.
+- Web workspace behavior is browser-safe placeholder list/import/export.
+- Tests cover explicit Web backend construction, default Web selection,
+  capabilities, startup diagnostics, and workspace placeholders.
+- `make flutter-structure-check`, `flutter analyze`, `flutter test`, `make
+  flutter-web-smoke`, and expanded `make flutter-verify` pass.
+
+Phase 2 worker-boundary TODO:
+
+- Add command/event objects for backend worker traffic.
+- Keep `EmacsBackend` as the UI-facing API.
+- Keep fake terminal behavior behind a worker-shaped boundary instead of in the
+  UI-facing backend class.
+- Test command handling for start, stop, redraw, input bytes, resize,
+  workspace list, import, and export.
+
+Phase 2 worker-boundary status:
+
+- `BackendWorkerCommand`, `BackendWorkerEvent`, `BackendWorkerResult`, and
+  `BackendWorker` now define the worker traffic boundary.
+- `FakeBackendWorker` owns the fake lifecycle, terminal output, input echo,
+  resize, diagnostics, and workspace placeholder behavior.
+- `FakeEmacsBackend` now adapts worker events to the UI-facing
+  `EmacsBackend` streams and listenables.
+- Worker tests cover lifecycle, output, resize, input bytes, workspace list,
+  import, and export.
+
+Phase 3 terminal-widget TODO:
+
+- Add a real terminal widget dependency.
+- Replace the temporary text-buffer renderer with the terminal widget.
+- Preserve start/reset/workspace/font controls.
+- Preserve a test-friendly text input path until hardware keyboard and IME
+  behavior are explicitly validated.
+- Verify fake backend output and ASCII input still work through the new screen.
+
+Phase 3 terminal-widget status:
+
+- Added `xterm` 4.0.0.
+- `TerminalScreen` now renders a real `TerminalView` instead of the temporary
+  `SelectableText` buffer.
+- Backend output bytes are decoded and written into `Terminal.write`.
+- `Terminal.onOutput` routes terminal input back through
+  `EmacsBackend.sendBytes`.
+- The smoke-friendly text field remains for deterministic ASCII input testing
+  until hardware keyboard and IME behavior are validated.
+- Widget tests now assert the `TerminalView` is present and fake ASCII input
+  updates backend diagnostics.
+
+CocoaPods environment TODO:
+
+- Use `mise` for Ruby installation.
+- Keep CocoaPods in the `mise` Ruby gem environment rather than installing
+  against system Ruby.
+- Re-check `flutter doctor -v` after `pod` is available.
+
+CocoaPods environment status:
+
+- Ruby 3.4.9 is installed through `mise`.
+- Ruby build required Homebrew `libyaml` so Ruby's `psych` extension could
+  compile.
+- CocoaPods 1.16.2 is installed through the `mise` Ruby gem environment.
+- `make flutter-doctor` runs Flutter doctor with repo mise tools and confirms
+  CocoaPods is available.
+
 Tasks:
 
 - Create a Flutter project under `flutter/`.
@@ -71,6 +1023,7 @@ Candidate interface shape:
 abstract interface class EmacsBackend {
   Stream<List<int>> get outputStream;
   ValueListenable<String> get lifecycleState;
+  ValueListenable<BackendDiagnostics> get diagnostics;
 
   Future<void> start();
   Future<void> stop();

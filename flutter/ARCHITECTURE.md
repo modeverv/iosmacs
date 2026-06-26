@@ -24,19 +24,45 @@ Flutter App
   - Dart EmacsBackend interface
 
 Backends
-  - FakeBackend for UI tests and early development
-  - IosNativeBackend for the current iosmacs Emacs core and fake TTY
-  - MacosProcessBackend for desktop PTY experiments
-  - LinuxProcessBackend for PTY-backed desktop sessions
-  - WindowsConptyBackend for Windows terminal sessions
-  - AndroidNativeBackend for NDK/native experiments
-  - WebWasmBackend for wasmacs/WASM integration
+  - FakeEmacsBackend for UI tests, deterministic smoke runs, and development
+  - NativeEmacsBackend for the current iosmacs iOS/macOS MethodChannel bridge
+  - AndroidEmacsBackend placeholder for Android native-runtime work
+  - DesktopEmacsBackend placeholders for Linux and Windows desktop runtime work
+  - WebWasmEmacsBackend placeholder for wasmacs/WASM integration
 
 GNU Emacs Runtime
   - native static/library artifact on iOS and Android where feasible
   - child process on macOS/Linux/Windows where feasible
   - WebAssembly runtime on Web
 ```
+
+## Current Implementation Status
+
+The Flutter app currently implements the UI/backend contract in
+`flutter/iosmacs_flutter`.
+
+Implemented pieces:
+
+- `IOSMacsFlutterApp` owns the app shell and backend selection.
+- `TerminalScreen` owns the xterm terminal widget, toolbar actions, the status
+  strip, diagnostics details dialog, workspace import/export/refresh/open dialogs,
+  capability dialogs, startup smoke hooks, and optional mirrored terminal output
+  logging.
+- `EmacsBackend` owns lifecycle, terminal byte input/output, resize events,
+  workspace operations, and capability reporting.
+- `FakeEmacsBackend` and `FakeBackendWorker` provide deterministic output and
+  UI-test behavior without native runtime dependencies.
+- `NativeEmacsBackend` routes through the `iosmacs/native_emacs`
+  MethodChannel. It is the default backend on iOS and macOS.
+- `AndroidEmacsBackend`, `DesktopEmacsBackend`, and `WebWasmEmacsBackend`
+  make non-iOS backend boundaries explicit while unsupported runtime features
+  are still being built.
+
+Default backend selection is centralized in `backend_factory.dart`.
+`IOSMACS_FLUTTER_BACKEND` can force a backend for smoke testing. Supported
+override names include `fake`, `ios`, `ios-native`, `macos`, `macos-native`,
+`android`, `linux`, `windows`, `web`, and `web-wasm`. `default` and `platform`
+fall back to the platform default.
 
 ## Ownership Rules
 
@@ -47,7 +73,9 @@ Flutter owns:
 - font-size and display controls,
 - status and diagnostic presentation,
 - user-triggered workspace import/export UI,
-- choosing a backend implementation at runtime or build time.
+- terminal paste buttons and keyboard paste shortcuts,
+- choosing a backend implementation at runtime or build time,
+- clipboard paste handoff into committed terminal bytes.
 - input composition only up to the point where committed bytes are available.
 
 The Dart backend interface owns:
@@ -143,7 +171,7 @@ The terminal widget is a renderer and input surface only.
 Input path:
 
 ```text
-keyboard / IME / terminal widget
+keyboard / IME / terminal widget / clipboard paste
   -> committed bytes
   -> EmacsBackend.sendBytes
   -> backend worker
@@ -182,7 +210,7 @@ as Emacs commands.
 
 ### iOS
 
-The iOS backend should reuse the current iosmacs native implementation:
+The iOS backend reuses the current iosmacs native implementation:
 
 - GNU Emacs native static archive,
 - `iosmacs/Host` facade,
@@ -191,16 +219,19 @@ The iOS backend should reuse the current iosmacs native implementation:
 - app container workspace mapping,
 - existing simulator marker style.
 
-The Flutter iOS app should remove SwiftTerm from the new path and replace it
-with the Flutter terminal widget. The old SwiftTerm app remains available until
-the Flutter path has equivalent startup, input, resize, and file-operation
-proof.
+The Flutter iOS app removes SwiftTerm from the new path and uses the Flutter
+xterm terminal widget. The old SwiftTerm app remains available until the
+Flutter path has equivalent startup, input, resize, and file-operation proof.
 
 ### macOS
 
-The macOS backend should be the first desktop proving ground.
+The macOS backend is the first desktop proving ground.
 
-Start with:
+The current Flutter macOS path uses `NativeEmacsBackend` through the shared
+MethodChannel bridge for native startup and smoke evidence. Longer-term desktop
+process or PTY work should remain behind the same `EmacsBackend` interface.
+
+Expected future direction:
 
 - Flutter desktop UI,
 - a child Emacs process or bundled native Emacs,
@@ -212,21 +243,24 @@ expanded.
 
 ### Linux
 
-The Linux backend should follow the macOS process-plus-PTY shape where
-possible. Linux-specific packaging, font, clipboard, and filesystem behavior
-should stay behind the backend.
+The Linux backend is currently represented by a `DesktopEmacsBackend`
+placeholder. It should follow the macOS process-plus-PTY shape where possible.
+Linux-specific packaging, font, clipboard, and filesystem behavior should stay
+behind the backend.
 
 ### Windows
 
-The Windows backend should use a Windows-native terminal transport such as
-ConPTY. Windows path handling, executable discovery, bundled runtime behavior,
-and workspace mapping must be explicit backend responsibilities.
+The Windows backend is currently represented by a `DesktopEmacsBackend`
+placeholder. It should use a Windows-native terminal transport such as ConPTY.
+Windows path handling, executable discovery, bundled runtime behavior, and
+workspace mapping must be explicit backend responsibilities.
 
 ### Android
 
-The Android backend is a native-runtime project, not just a Flutter UI task.
-The likely hard parts are NDK compilation, sandboxed storage, document access,
-keyboard/IME behavior, and terminal transport.
+The Android backend is represented by `AndroidEmacsBackend`. It is a
+native-runtime project, not just a Flutter UI task. The likely hard parts are
+NDK compilation, sandboxed storage, document access, keyboard/IME behavior, and
+terminal transport.
 
 The Android backend should reuse the same facade ideas as iOS where practical,
 but it should not block the Flutter shell or desktop backend work.
@@ -239,8 +273,69 @@ Flutter Web cannot rely on the same native FFI path. The realistic direction is
 to use the `wasmacs` WebAssembly/browser runtime as a separate backend and
 bridge it to the Flutter Web UI through JavaScript/WASM integration.
 
-Web should therefore be tracked as `WebWasmBackend`, not as a direct port of
-the iOS native backend.
+Web is therefore tracked as `WebWasmEmacsBackend`, not as a direct port of the
+iOS native backend.
+
+## Runtime Smoke Flags
+
+The Flutter entry point accepts these compile-time environment flags through
+`--dart-define`:
+
+- `IOSMACS_FLUTTER_AUTOSTART_NATIVE`: start the selected backend after launch.
+- `IOSMACS_FLUTTER_MIRROR_TERMINAL_OUTPUT`: mirror terminal output to the debug
+  log with an `iosmacs-terminal-output:` prefix.
+- `IOSMACS_FLUTTER_WORKSPACE_SMOKE`: run workspace capability smoke actions
+  after startup and log `iosmacs-workspace-smoke:` list, import, open, and
+  export evidence.
+- `IOSMACS_FLUTTER_CAPABILITIES_SMOKE`: log selected backend capability counts
+  with an `iosmacs-capabilities-smoke:` prefix.
+- `IOSMACS_FLUTTER_INPUT_SMOKE`: submit committed UTF-8 text through the
+  terminal input bridge and log `iosmacs-input-smoke:` byte-count evidence.
+- `IOSMACS_FLUTTER_RESIZE_SMOKE`: send fixed terminal geometry through
+  `EmacsBackend.resize()` and log `iosmacs-resize-smoke:` evidence.
+- `IOSMACS_FLUTTER_REDRAW_SMOKE`: call `EmacsBackend.resetOrRedraw()` and log
+  `iosmacs-redraw-smoke:` diagnostics evidence.
+- `IOSMACS_FLUTTER_STATUS_SMOKE`: log selected backend id, lifecycle, and
+  geometry with an `iosmacs-status-smoke:` prefix.
+- `IOSMACS_FLUTTER_STOP_SMOKE`: call `EmacsBackend.stop()` after the enabled
+  startup smokes and log `iosmacs-stop-smoke:` lifecycle evidence.
+- `IOSMACS_FLUTTER_BACKEND`: force backend selection for smoke runs.
+
+These flags are part of the runtime verification surface. They should stay
+small, stable, and easy to grep in simulator, desktop, and CI logs.
+
+## Verification Contract
+
+The top-level Flutter verification contract is:
+
+```sh
+make flutter-verify
+```
+
+That target runs the structure check, Flutter doctor, Dart format check,
+Flutter analyze, fake backend tests, iOS launch smoke, macOS smoke, macOS
+native smoke, backend override smoke, Web build smoke, and Android APK build
+smoke.
+
+Focused targets are available when iterating:
+
+- `make flutter-structure-check` validates expected Flutter files, scripts,
+  Make targets, and executable smoke scripts.
+- `make flutter-format-check` checks Dart formatting for Flutter sources and
+  tests.
+- `make flutter-analyze` runs Dart static analysis for the Flutter shell.
+- `make flutter-fake-smoke` runs the Flutter test suite.
+- `make flutter-ios-launch-smoke` verifies iOS Runner launch evidence.
+- `make flutter-macos-smoke` verifies macOS Runner launch evidence.
+- `make flutter-macos-native-smoke` verifies native backend autostart,
+  terminal output mirroring, capabilities, input, resize, redraw, status smoke
+  evidence, stop, and workspace list/import/open/export smoke evidence.
+- `make flutter-backend-override-smoke` forces `fake`, `android`, `linux`,
+  `windows`, and `web-wasm` backends through the macOS Runner and checks their
+  capability, input, resize, redraw, status smoke output, workspace smoke
+  list/import/open/export output, and stop smoke output.
+- `make flutter-web-smoke` builds the Web target.
+- `make flutter-android-smoke` builds the Android APK target.
 
 ## Compatibility Principles
 

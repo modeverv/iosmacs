@@ -9,13 +9,17 @@ IOSMACS_IPHONE_DESTINATION ?= platform=iOS Simulator,name=iPhone 17
 IOSMACS_EMACS_SOURCE ?= wasmacs/vendor/emacs
 IOSMACS_SIMULATOR_UDID ?= booted
 IOSMACS_APP_BUNDLE_ID ?= local.iosmacs
+FLUTTER_PATH := $(HOME)/work/flutter/bin:$(PATH)
 JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || printf '4')
 
 .DEFAULT_GOAL := help
 
 .PHONY: help deps bootstrap emacs-source emacs-info emacs-probe emacs-temacs emacs-static \
 	emacs-link-smoke emacs-batch-smoke emacs-nw-smoke emacs-pdmp app app-iphone xcode-build \
-	app-installl smoke verify verify-iphone check clean distclean
+	app-installl smoke verify verify-iphone flutter-doctor flutter-structure-check flutter-bootstrap \
+	flutter-format-check flutter-analyze flutter-fake-smoke flutter-ios-smoke flutter-ios-launch-smoke flutter-macos-smoke \
+	flutter-macos-native-smoke flutter-backend-override-smoke flutter-web-smoke flutter-android-smoke \
+	flutter-verify check clean distclean
 
 help:
 	@printf '%s\n' \
@@ -31,6 +35,20 @@ help:
 	  '  make smoke             Run link and batch smoke checks' \
 	  '  make verify            Fresh-checkout verification: deps, smoke, app build' \
 	  '  make verify-iphone     Fresh-checkout verification for iPhone simulator' \
+	  '  make flutter-doctor    Run Flutter doctor with repo mise tools' \
+	  '  make flutter-structure-check Check Flutter shell files without Flutter SDK' \
+	  '  make flutter-bootstrap Generate Flutter platform runners when SDK is available' \
+	  '  make flutter-format-check Check Dart formatting for Flutter sources and tests' \
+	  '  make flutter-analyze   Run Flutter static analysis' \
+	  '  make flutter-fake-smoke Run Flutter fake-backend tests when Flutter SDK is available' \
+	  '  make flutter-ios-smoke Verify Flutter iOS Runner build resources and Emacs symbols' \
+	  '  make flutter-ios-launch-smoke Install and launch Flutter iOS Runner on a booted simulator' \
+	  '  make flutter-macos-smoke Build and launch Flutter macOS app briefly' \
+	  '  make flutter-macos-native-smoke Autostart and verify Flutter macOS native probe' \
+	  '  make flutter-backend-override-smoke Verify forced Flutter backend selection on macOS' \
+	  '  make flutter-web-smoke   Build Flutter Web debug output' \
+	  '  make flutter-android-smoke Build Flutter Android debug APK' \
+	  '  make flutter-verify      Run the Flutter workstream verification checks' \
 	  '  make emacs-nw-smoke    Run the terminal -nw smoke check' \
 	  '  make clean             Remove repo-local generated build outputs' \
 	  '  make distclean         Also remove this project scheme from Xcode DerivedData'
@@ -81,6 +99,77 @@ smoke: emacs-link-smoke emacs-batch-smoke
 verify: emacs-info smoke app
 
 verify-iphone: emacs-info smoke app-iphone
+
+flutter-doctor:
+	mise exec -- bash -lc 'PATH="$$HOME/work/flutter/bin:$$PATH"; flutter doctor -v'
+
+flutter-structure-check:
+	scripts/check-flutter-structure.sh
+
+flutter-bootstrap:
+	@PATH="$(FLUTTER_PATH)"; command -v flutter >/dev/null 2>&1 || { \
+	  printf 'error: flutter command not found; install Flutter SDK or add it to PATH\n' >&2; \
+	  exit 127; \
+	}
+	cd flutter/iosmacs_flutter && PATH="$(FLUTTER_PATH)" \
+	  flutter create . \
+	    --project-name iosmacs_flutter \
+	    --platforms=ios,android,macos,linux,windows,web
+
+flutter-format-check:
+	@PATH="$(FLUTTER_PATH)"; command -v dart >/dev/null 2>&1 || { \
+	  printf 'error: dart command not found; install Flutter SDK or add it to PATH\n' >&2; \
+	  exit 127; \
+	}
+	cd flutter/iosmacs_flutter && PATH="$(FLUTTER_PATH)" dart format --set-exit-if-changed lib test
+
+flutter-analyze:
+	@PATH="$(FLUTTER_PATH)"; command -v flutter >/dev/null 2>&1 || { \
+	  printf 'error: flutter command not found; install Flutter SDK or add it to PATH\n' >&2; \
+	  exit 127; \
+	}
+	cd flutter/iosmacs_flutter && PATH="$(FLUTTER_PATH)" flutter pub get && PATH="$(FLUTTER_PATH)" flutter analyze
+
+flutter-fake-smoke:
+	@PATH="$(FLUTTER_PATH)"; command -v flutter >/dev/null 2>&1 || { \
+	  printf 'error: flutter command not found; install Flutter SDK or add it to PATH\n' >&2; \
+	  exit 127; \
+	}
+	cd flutter/iosmacs_flutter && PATH="$(FLUTTER_PATH)" flutter pub get && PATH="$(FLUTTER_PATH)" flutter test
+
+flutter-ios-smoke:
+	scripts/check-flutter-ios-runner-smoke.sh
+
+flutter-ios-launch-smoke:
+	scripts/run-flutter-ios-launch-smoke.sh
+
+flutter-macos-smoke:
+	scripts/run-flutter-macos-smoke.sh
+
+flutter-macos-native-smoke:
+	scripts/run-flutter-macos-native-smoke.sh
+
+flutter-backend-override-smoke:
+	scripts/run-flutter-backend-override-smoke.sh
+
+flutter-web-smoke:
+	cd flutter/iosmacs_flutter && PATH="$(FLUTTER_PATH)" flutter build web --debug
+
+flutter-android-smoke:
+	cd flutter/iosmacs_flutter && PATH="$(FLUTTER_PATH)" flutter build apk --debug
+
+flutter-verify:
+	$(MAKE) flutter-structure-check
+	$(MAKE) flutter-doctor
+	$(MAKE) flutter-format-check
+	$(MAKE) flutter-analyze
+	$(MAKE) flutter-fake-smoke
+	$(MAKE) flutter-ios-launch-smoke
+	$(MAKE) flutter-macos-smoke
+	$(MAKE) flutter-macos-native-smoke
+	$(MAKE) flutter-backend-override-smoke
+	$(MAKE) flutter-web-smoke
+	$(MAKE) flutter-android-smoke
 
 check: verify
 

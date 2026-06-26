@@ -14,8 +14,12 @@
 #include <unistd.h>
 
 #if TARGET_OS_SIMULATOR
+#if IOSMACS_EMACS_CORE_ENTRY_OPTIONAL
+static int (*volatile iosmacs_emacs_entry_ref)(int, char **) = NULL;
+#else
 extern int iosmacs_emacs_main(int argc, char **argv);
 static int (*volatile iosmacs_emacs_entry_ref)(int, char **) = iosmacs_emacs_main;
+#endif
 static pthread_mutex_t emacs_core_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t emacs_core_thread;
 static bool emacs_core_started;
@@ -612,6 +616,11 @@ bool iosmacs_emacs_core_start(const char *lisp_dir,
                               const char *dump_file,
                               const char *workspace_root) {
 #if TARGET_OS_SIMULATOR
+    if (iosmacs_emacs_entry_ref == NULL) {
+        iosmacs_os_set_lifecycle_state("iosmacs: GNU Emacs entry is not linked");
+        return false;
+    }
+
     pthread_mutex_lock(&emacs_core_mutex);
     if (emacs_core_started) {
         bool running = emacs_core_running;

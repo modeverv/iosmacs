@@ -1,0 +1,652 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:iosmacs_flutter/src/backend/android_emacs_backend.dart';
+import 'package:iosmacs_flutter/src/backend/desktop_emacs_backend.dart';
+import 'package:iosmacs_flutter/src/backend/emacs_backend.dart';
+import 'package:iosmacs_flutter/src/backend/fake_emacs_backend.dart';
+import 'package:iosmacs_flutter/src/ui/terminal_screen.dart';
+import 'package:xterm/xterm.dart';
+
+void main() {
+  testWidgets('terminal screen starts fake backend and shows output', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TerminalView), findsOneWidget);
+    expect(find.text('running'), findsOneWidget);
+    expect(find.text('Backend fake'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'abc');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('received 4 input byte'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Capabilities'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fake backend'), findsOneWidget);
+    expect(find.text('Backend id: fake'), findsOneWidget);
+    expect(find.text('5 item(s)'), findsNWidgets(2));
+    expect(find.text('native GNU Emacs runtime'), findsOneWidget);
+  });
+
+  testWidgets('status strip shows backend id without opening capabilities', (
+    WidgetTester tester,
+  ) async {
+    final backend = AndroidEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Backend android-placeholder'), findsOneWidget);
+    expect(find.text('Android backend placeholder'), findsNothing);
+  });
+
+  testWidgets('capabilities dialog shows Android backend identity', (
+    WidgetTester tester,
+  ) async {
+    final backend = AndroidEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await _pumpCapabilitiesDialog(tester, backend);
+
+    expect(find.text('Android backend placeholder'), findsOneWidget);
+    expect(find.text('Backend id: android-placeholder'), findsOneWidget);
+    expect(find.text('Android backend selection'), findsOneWidget);
+    expect(find.text('Android NDK GNU Emacs core build'), findsOneWidget);
+  });
+
+  testWidgets('capabilities dialog shows desktop backend identity', (
+    WidgetTester tester,
+  ) async {
+    final linuxBackend = DesktopEmacsBackend(
+      platform: DesktopEmacsPlatform.linux,
+    );
+    addTearDown(linuxBackend.dispose);
+
+    await _pumpCapabilitiesDialog(tester, linuxBackend);
+
+    expect(find.text('Linux backend placeholder'), findsOneWidget);
+    expect(find.text('Backend id: linux-placeholder'), findsOneWidget);
+    expect(find.text('Linux backend selection'), findsOneWidget);
+    expect(find.text('Linux GNU Emacs process/PTY bridge'), findsOneWidget);
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    final windowsBackend = DesktopEmacsBackend(
+      platform: DesktopEmacsPlatform.windows,
+    );
+    addTearDown(windowsBackend.dispose);
+
+    await _pumpCapabilitiesDialog(tester, windowsBackend);
+
+    expect(find.text('Windows backend placeholder'), findsOneWidget);
+    expect(find.text('Backend id: windows-placeholder'), findsOneWidget);
+    expect(find.text('Windows backend selection'), findsOneWidget);
+    expect(find.text('Windows GNU Emacs process/PTY bridge'), findsOneWidget);
+  });
+
+  testWidgets('workspace dialog lists entries and shows export candidates', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    await tester.tap(find.byTooltip('Workspace'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Workspace'), findsOneWidget);
+    expect(find.text('scratch.el'), findsOneWidget);
+    expect(find.textContaining('/workspace/scratch.el'), findsOneWidget);
+
+    await tester.tap(find.text('Export'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Workspace export candidates'), findsOneWidget);
+    expect(find.text('1 export candidate(s)'), findsOneWidget);
+    expect(find.text('/workspace/scratch.el'), findsOneWidget);
+    expect(find.textContaining('fake export requested'), findsOneWidget);
+  });
+
+  testWidgets('workspace dialog imports files and exports refreshed entries', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TerminalScreen(
+          backend: backend,
+          workspaceImportUriProvider: () async => <Uri>[
+            Uri(path: '/tmp/imported.el'),
+          ],
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Workspace'));
+    await tester.pumpAndSettle();
+    expect(find.text('scratch.el'), findsOneWidget);
+    expect(find.text('imported.el'), findsNothing);
+
+    await tester.tap(find.text('Import'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 imported item(s)'), findsOneWidget);
+    expect(find.text('imported.el'), findsOneWidget);
+    expect(find.textContaining('/workspace/imported.el'), findsOneWidget);
+
+    await tester.tap(find.text('Export'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Workspace export candidates'), findsOneWidget);
+    expect(find.text('2 export candidate(s)'), findsOneWidget);
+    expect(find.text('/workspace/scratch.el'), findsOneWidget);
+    expect(find.text('/workspace/imported.el'), findsOneWidget);
+  });
+
+  testWidgets('workspace import cancel keeps dialog entries unchanged', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TerminalScreen(
+          backend: backend,
+          workspaceImportUriProvider: () async => <Uri>[],
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Workspace'));
+    await tester.pumpAndSettle();
+    expect(find.text('Workspace'), findsOneWidget);
+    expect(find.text('scratch.el'), findsOneWidget);
+
+    await tester.tap(find.text('Import'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Workspace'), findsOneWidget);
+    expect(find.text('scratch.el'), findsOneWidget);
+    expect(find.text('Import canceled'), findsOneWidget);
+    expect(find.text('imported.el'), findsNothing);
+    expect(backend.diagnostics.value.workspaceActions, 0);
+  });
+
+  testWidgets('workspace dialog refresh reloads backend entries', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    await tester.tap(find.byTooltip('Workspace'));
+    await tester.pumpAndSettle();
+    expect(find.text('scratch.el'), findsOneWidget);
+    expect(find.text('external.el'), findsNothing);
+
+    await backend.importToWorkspace(<Uri>[Uri(path: '/tmp/external.el')]);
+
+    await tester.tap(find.text('Refresh'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Workspace'), findsOneWidget);
+    expect(find.text('Workspace refreshed: 2 item(s)'), findsOneWidget);
+    expect(find.text('scratch.el'), findsOneWidget);
+    expect(find.text('external.el'), findsOneWidget);
+    expect(find.textContaining('/workspace/external.el'), findsOneWidget);
+  });
+
+  testWidgets('workspace dialog opens entries through terminal input', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Workspace'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Open scratch.el'));
+    await tester.pumpAndSettle();
+
+    final expectedByteCount = <int>[
+      0x18,
+      0x06,
+      ...utf8.encode('/workspace/scratch.el'),
+      0x0d,
+    ].length;
+    expect(find.text('Opening scratch.el'), findsOneWidget);
+    expect(backend.diagnostics.value.inputBytes, expectedByteCount);
+    expect(
+      backend.diagnostics.value.message,
+      'received $expectedByteCount input byte(s)',
+    );
+  });
+
+  testWidgets('status strip shows updated backend terminal geometry', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    expect(find.text('TTY 80x24'), findsOneWidget);
+
+    await backend.resize(cols: 100, rows: 30);
+    await tester.pump();
+
+    expect(find.text('TTY 100x30'), findsOneWidget);
+  });
+
+  testWidgets('diagnostics dialog shows current backend counters', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+    await backend.resize(cols: 100, rows: 30);
+    await tester.enterText(find.byType(TextField), 'diag');
+    await tester.tap(find.byTooltip('Send'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Diagnostics'));
+    await tester.pumpAndSettle();
+
+    final dialog = find.byType(AlertDialog);
+    expect(dialog, findsOneWidget);
+    expect(
+        find.descendant(of: dialog, matching: find.text('Backend diagnostics')),
+        findsOneWidget);
+    expect(
+      find.descendant(of: dialog, matching: find.text('Backend id')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('fake')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('Lifecycle')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('running')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('Geometry')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('100x30')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('Input bytes')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('5')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('Output bytes')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('Workspace actions')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('Message')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: dialog,
+        matching: find.textContaining('received 5 input byte'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('hardware keyboard shortcuts invoke terminal controls', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+    await tester.pump();
+
+    await _sendControlShiftShortcut(tester, LogicalKeyboardKey.keyS);
+    expect(find.text('running'), findsOneWidget);
+
+    await _sendControlShiftShortcut(tester, LogicalKeyboardKey.keyX);
+    expect(find.text('stopped'), findsOneWidget);
+
+    await _sendControlShiftShortcut(tester, LogicalKeyboardKey.keyS);
+    expect(find.text('running'), findsOneWidget);
+
+    await _sendControlShiftShortcut(tester, LogicalKeyboardKey.keyR);
+    expect(find.textContaining('redraw requested'), findsOneWidget);
+
+    await _sendControlShiftShortcut(tester, LogicalKeyboardKey.keyW);
+    expect(find.text('Workspace'), findsOneWidget);
+    expect(find.text('scratch.el'), findsOneWidget);
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    await _sendControlShiftShortcut(tester, LogicalKeyboardKey.keyI);
+    expect(find.text('Fake backend'), findsOneWidget);
+    expect(find.text('Backend id: fake'), findsOneWidget);
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    await _sendControlShiftShortcut(tester, LogicalKeyboardKey.keyD);
+    expect(find.text('Backend diagnostics'), findsOneWidget);
+    expect(find.text('Lifecycle'), findsOneWidget);
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<Slider>(find.byType(Slider)).value, 15);
+    await _sendControlShiftShortcut(tester, LogicalKeyboardKey.equal);
+    expect(tester.widget<Slider>(find.byType(Slider)).value, 16);
+    await _sendControlShiftShortcut(tester, LogicalKeyboardKey.minus);
+    expect(tester.widget<Slider>(find.byType(Slider)).value, 15);
+  });
+
+  testWidgets('paste keyboard shortcuts forward clipboard text as raw bytes', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+    const pastedText = 'shortcut paste 日本語';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TerminalScreen(
+          backend: backend,
+          clipboardTextProvider: () async => pastedText,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    await _sendControlShortcut(tester, LogicalKeyboardKey.keyV);
+
+    final expectedByteCount = utf8.encode(pastedText).length;
+    expect(find.text('Pasted $expectedByteCount byte(s)'), findsOneWidget);
+    expect(backend.diagnostics.value.inputBytes, expectedByteCount);
+    expect(
+      backend.diagnostics.value.message,
+      'received $expectedByteCount input byte(s)',
+    );
+  });
+
+  testWidgets('paste keyboard shortcuts ignore an empty clipboard', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TerminalScreen(
+          backend: backend,
+          clipboardTextProvider: () async => '',
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    await _sendControlShortcut(tester, LogicalKeyboardKey.keyV);
+
+    expect(find.text('Clipboard is empty'), findsOneWidget);
+    expect(backend.diagnostics.value.inputBytes, 0);
+    expect(backend.diagnostics.value.message, 'fake backend running');
+  });
+
+  testWidgets('toolbar Stop button shuts down the backend', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+    expect(find.text('running'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Stop'));
+    await tester.pumpAndSettle();
+    expect(find.text('stopped'), findsOneWidget);
+  });
+
+  testWidgets('input row Send button forwards committed terminal text', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'send me');
+    await tester.tap(find.byTooltip('Send'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('received 8 input byte'), findsOneWidget);
+    expect(find.text('send me'), findsNothing);
+  });
+
+  testWidgets('input row Paste button forwards clipboard text as raw bytes', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+    const pastedText = 'paste 日本語';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TerminalScreen(
+          backend: backend,
+          clipboardTextProvider: () async => pastedText,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Paste'));
+    await tester.pump();
+
+    final expectedByteCount = utf8.encode(pastedText).length;
+    expect(find.text('Pasted $expectedByteCount byte(s)'), findsOneWidget);
+    expect(backend.diagnostics.value.inputBytes, expectedByteCount);
+    expect(
+      backend.diagnostics.value.message,
+      'received $expectedByteCount input byte(s)',
+    );
+  });
+
+  testWidgets('input row Paste button ignores an empty clipboard', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TerminalScreen(
+          backend: backend,
+          clipboardTextProvider: () async => '',
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Paste'));
+    await tester.pump();
+
+    expect(find.text('Clipboard is empty'), findsOneWidget);
+    expect(backend.diagnostics.value.inputBytes, 0);
+    expect(backend.diagnostics.value.message, 'fake backend running');
+  });
+
+  testWidgets('toolbar avoids overflow on narrow mobile width', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byTooltip('Start'), findsOneWidget);
+    expect(find.byTooltip('Diagnostics'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('running'), findsOneWidget);
+  });
+
+  testWidgets('toolbar scroll reaches font size control on narrow width', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+    await tester.pump();
+
+    final sliderFinder = find.byType(Slider);
+    expect(
+      tester.getTopRight(sliderFinder).dx,
+      greaterThan(tester.view.physicalSize.width),
+    );
+
+    await tester.drag(
+      find.byKey(const ValueKey<String>('iosmacs-toolbar-scroll')),
+      const Offset(-220, 0),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.getCenter(sliderFinder).dx,
+      lessThan(tester.view.physicalSize.width),
+    );
+  });
+}
+
+Future<void> _pumpCapabilitiesDialog(
+  WidgetTester tester,
+  EmacsBackend backend,
+) async {
+  await tester.pumpWidget(
+    MaterialApp(home: TerminalScreen(backend: backend)),
+  );
+  await tester.tap(find.byTooltip('Capabilities'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _sendControlShiftShortcut(
+  WidgetTester tester,
+  LogicalKeyboardKey key,
+) async {
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+  await tester.sendKeyEvent(key);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _sendControlShortcut(
+  WidgetTester tester,
+  LogicalKeyboardKey key,
+) async {
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+  await tester.sendKeyEvent(key);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+  await tester.pump();
+}

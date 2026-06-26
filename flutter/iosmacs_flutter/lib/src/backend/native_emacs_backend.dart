@@ -1,0 +1,264 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+
+import 'backend_capabilities.dart';
+import 'backend_diagnostics.dart';
+import 'emacs_backend.dart';
+import 'workspace_entry.dart';
+
+class NativeEmacsBackend implements EmacsBackend {
+  NativeEmacsBackend({MethodChannel? channel})
+      : _channel = channel ?? const MethodChannel(channelName);
+
+  static const String channelName = 'iosmacs/native_emacs';
+
+  final MethodChannel _channel;
+  final StreamController<List<int>> _outputController =
+      StreamController<List<int>>.broadcast();
+  final ValueNotifier<String> _lifecycleState = ValueNotifier<String>('idle');
+  final ValueNotifier<BackendDiagnostics> _diagnostics =
+      ValueNotifier<BackendDiagnostics>(
+    const BackendDiagnostics(
+      message: 'native backend channel ready',
+      cols: 80,
+      rows: 24,
+      inputBytes: 0,
+      outputBytes: 0,
+      workspaceActions: 0,
+    ),
+  );
+  Timer? _pollTimer;
+
+  @override
+  BackendCapabilities get capabilities => const BackendCapabilities(
+        id: 'platform-native-channel',
+        displayName: 'Platform native channel backend',
+        supportedFeatures: <String>[
+          'Flutter MethodChannel transport',
+          'iOS backend factory selection',
+          'macOS backend factory selection',
+          'iOS simulator GNU Emacs core startup',
+          'macOS native channel diagnostics',
+          'macOS Emacs process probe',
+          'terminal byte stream from native Emacs',
+          'terminal input and resize channel calls',
+          'app-container workspace list/import/export',
+          'macOS sandbox workspace list/import/export',
+          'diagnostic native channel fallback',
+          'explicit unsupported diagnostics',
+        ],
+        unsupportedFeatures: <String>[
+          'physical-device GNU Emacs core startup',
+          'macOS interactive PTY GNU Emacs session',
+          'command-loop insertion marker proof',
+        ],
+      );
+
+  @override
+  Stream<List<int>> get outputStream => _outputController.stream;
+
+  @override
+  ValueListenable<String> get lifecycleState => _lifecycleState;
+
+  @override
+  ValueListenable<BackendDiagnostics> get diagnostics => _diagnostics;
+
+  @override
+  Future<void> start() async {
+    _lifecycleState.value = 'starting';
+    final ok = await _invokeNative('start');
+    if (ok != null) {
+      _lifecycleState.value = 'running';
+      _applyNativeStatus(ok, fallbackMessage: 'native backend started');
+      _startOutputPolling();
+      await _drainOutput();
+    }
+  }
+
+  @override
+  Future<void> stop() async {
+    final ok = await _invokeNative('stop');
+    if (ok != null) {
+      _lifecycleState.value = 'stopped';
+      _applyNativeStatus(ok, fallbackMessage: 'native backend stopped');
+      _stopOutputPolling();
+      await _drainOutput();
+    }
+  }
+
+  @override
+  Future<void> resetOrRedraw() async {
+    final ok = await _invokeNative('redraw');
+    if (ok != null) {
+      _applyNativeStatus(ok, fallbackMessage: 'native redraw reported');
+      await _drainOutput();
+    }
+  }
+
+  @override
+  Future<void> sendBytes(List<int> bytes) async {
+    final ok = await _invokeNative(
+      'sendBytes',
+      <String, Object>{'bytes': Uint8List.fromList(bytes)},
+    );
+    if (ok != null) {
+      _applyNativeStatus(ok);
+      _diagnostics.value = _diagnostics.value.copyWith(
+        message: 'sent input bytes to native backend',
+        inputBytes: _diagnostics.value.inputBytes + bytes.length,
+      );
+      await _drainOutput();
+    }
+  }
+
+  @override
+  Future<void> resize({required int cols, required int rows}) async {
+    final ok = await _invokeNative(
+      'resize',
+      <String, Object>{'cols': cols, 'rows': rows},
+    );
+    _diagnostics.value = _diagnostics.value.copyWith(cols: cols, rows: rows);
+    if (ok != null) {
+      _applyNativeStatus(ok, fallbackMessage: 'native resize reported');
+      await _drainOutput();
+    }
+  }
+
+  @override
+  Future<List<WorkspaceEntry>> listWorkspace() async {
+    final result = await _invokeNative<List<Object?>>('listWorkspace');
+    if (result != null) {
+      final entries = result
+          .whereType<Map<Object?, Object?>>()
+          .map(_workspaceEntryFromMap)
+          .toList(growable: false);
+      _diagnostics.value = _diagnostics.value.copyWith(
+        message: 'native workspace listed ${entries.length} item(s)',
+        workspaceActions: _diagnostics.value.workspaceActions + 1,
+      );
+      return entries;
+    }
+    return const <WorkspaceEntry>[];
+  }
+
+  @override
+  Future<int> importToWorkspace(List<Uri> uris) async {
+    final importedCount = await _invokeNative<int>(
+      'importWorkspace',
+      <String, Object>{'uris': uris.map((Uri uri) => uri.toString()).toList()},
+    );
+    if (importedCount != null) {
+      _diagnostics.value = _diagnostics.value.copyWith(
+        message: 'native workspace imported $importedCount item(s)',
+        workspaceActions: _diagnostics.value.workspaceActions + 1,
+      );
+      return importedCount;
+    }
+    return 0;
+  }
+
+  @override
+  Future<List<Uri>> exportWorkspaceSelection() async {
+    final result = await _invokeNative<List<Object?>>('exportWorkspace');
+    if (result != null) {
+      final uris =
+          result.whereType<String>().map(Uri.parse).toList(growable: false);
+      _diagnostics.value = _diagnostics.value.copyWith(
+        message: 'native workspace exported ${uris.length} item(s)',
+        workspaceActions: _diagnostics.value.workspaceActions + 1,
+      );
+      return uris;
+    }
+    return const <Uri>[];
+  }
+
+  @override
+  void dispose() {
+    _stopOutputPolling();
+    _lifecycleState.dispose();
+    _diagnostics.dispose();
+    unawaited(_outputController.close());
+  }
+
+  void _startOutputPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
+      unawaited(_drainOutput());
+    });
+  }
+
+  void _stopOutputPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+  }
+
+  Future<void> _drainOutput() async {
+    try {
+      final bytes = await _channel.invokeMethod<Uint8List>('drainOutput');
+      if (bytes == null || bytes.isEmpty) {
+        return;
+      }
+      _outputController.add(bytes);
+      _diagnostics.value = _diagnostics.value.copyWith(
+        outputBytes: _diagnostics.value.outputBytes + bytes.length,
+      );
+    } on MissingPluginException {
+      _recordUnsupported('drainOutput missing native channel handler');
+    } on PlatformException catch (error) {
+      _recordUnsupported('drainOutput ${error.message ?? error.code}');
+    }
+  }
+
+  Future<T?> _invokeNative<T extends Object>(String method,
+      [Object? arguments]) async {
+    try {
+      return await _channel.invokeMethod<T>(method, arguments);
+    } on MissingPluginException {
+      _recordUnsupported('$method missing native channel handler');
+    } on PlatformException catch (error) {
+      _recordUnsupported('$method ${error.message ?? error.code}');
+    }
+    return null;
+  }
+
+  WorkspaceEntry _workspaceEntryFromMap(Map<Object?, Object?> map) {
+    return WorkspaceEntry(
+      name: map['name'] as String? ?? '',
+      path: map['path'] as String? ?? '',
+      isDirectory: map['isDirectory'] as bool? ?? false,
+      sizeBytes: map['sizeBytes'] as int? ?? 0,
+    );
+  }
+
+  void _applyNativeStatus(Object status, {String? fallbackMessage}) {
+    if (status is! Map<Object?, Object?>) {
+      if (fallbackMessage != null) {
+        _setMessage(fallbackMessage);
+      }
+      return;
+    }
+
+    final nativeLifecycleState = status['lifecycleState'] as String?;
+    final cols = status['cols'] as int?;
+    final rows = status['rows'] as int?;
+    _diagnostics.value = _diagnostics.value.copyWith(
+      message: nativeLifecycleState ?? fallbackMessage,
+      cols: cols ?? _diagnostics.value.cols,
+      rows: rows ?? _diagnostics.value.rows,
+    );
+  }
+
+  void _setMessage(String message) {
+    _diagnostics.value = _diagnostics.value.copyWith(message: message);
+  }
+
+  void _recordUnsupported(String detail) {
+    final message = 'native backend unsupported: $detail';
+    _lifecycleState.value = 'unsupported';
+    _diagnostics.value = _diagnostics.value.copyWith(message: message);
+    _outputController.add(utf8.encode('$message\r\n'));
+  }
+}
