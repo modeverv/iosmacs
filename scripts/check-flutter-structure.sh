@@ -119,6 +119,14 @@ grep -q 'file_selector:' \
   "$app_dir/pubspec.yaml"
 grep -q 'IOSMACS_FLUTTER_AUTOSTART_NATIVE' \
   "$app_dir/lib/main.dart"
+grep -q 'defaultAutoStartBackend' \
+  "$app_dir/lib/main.dart"
+grep -q 'native platforms autostart backend by default' \
+  "$app_dir/test/widget_test.dart"
+grep -q 'web and placeholder platforms do not autostart by default' \
+  "$app_dir/test/widget_test.dart"
+grep -q 'autostart environment override wins over platform default' \
+  "$app_dir/test/widget_test.dart"
 grep -q 'IOSMACS_FLUTTER_MIRROR_TERMINAL_OUTPUT' \
   "$app_dir/lib/main.dart"
 grep -q 'IOSMACS_FLUTTER_WORKSPACE_SMOKE' \
@@ -357,9 +365,26 @@ grep -q 'lib-src in Resources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
 grep -q 'emacs.pdmp in Resources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
+grep -q '../../build/emacs-ios/source/lisp' \
+  "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
+grep -q '../../build/emacs-ios/source/etc' \
+  "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
+grep -q '../../build/emacs-ios/lib-src' \
+  "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
+grep -q '../../build/emacs-ios/iosmacs/nw-pdmp/emacs.pdmp' \
+  "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
+grep -q '../../build/emacs-ios/iosmacs/libiosmacs-temacs.a' \
+  "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
+grep -q 'IOSMACS_BUILD_ROOT=\\"${SRCROOT}/../../build/emacs-ios\\"' \
+  "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
 if grep -q 'IOSMACS_EMACS_CORE_ENTRY_OPTIONAL=1' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"; then
   printf 'error: Flutter Runner must link iosmacs_emacs_main instead of using optional-entry mode\n' >&2
+  exit 1
+fi
+if grep -q '../../../build/emacs-ios-probe' \
+  "$app_dir/ios/Runner.xcodeproj/project.pbxproj"; then
+  printf 'error: Flutter Runner must use flutter/build/emacs-ios, not root build/emacs-ios-probe\n' >&2
   exit 1
 fi
 grep -q 'iosmacs_host_facade.h' \
@@ -398,12 +423,19 @@ grep -q 'exportWorkspaceSelection' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'flutter-ios-smoke' Makefile
 grep -q 'check-flutter-ios-runner-smoke.sh' Makefile
+grep -Fq 'FLUTTER_EMACS_BUILD_ROOT ?= $(abspath flutter/build/emacs-ios)' Makefile
+grep -q 'flutter-emacs-static' Makefile
+grep -q 'flutter-emacs-pdmp' Makefile
+grep -q 'flutter-ipad-launch' Makefile
+grep -Fq 'IOSMACS_BUILD_ROOT="$(FLUTTER_EMACS_BUILD_ROOT)"' Makefile
+grep -q 'Build Emacs static lib into flutter/build/emacs-ios' Makefile
 grep -q 'flutter-ios-launch-smoke' Makefile
 grep -q 'run-flutter-ios-launch-smoke.sh' Makefile
 grep -q 'flutter-macos-smoke' Makefile
 grep -q 'run-flutter-macos-smoke.sh' Makefile
 grep -q 'flutter-macos-native-smoke' Makefile
 grep -q 'run-flutter-macos-native-smoke.sh' Makefile
+grep -q 'flutter/build/' .gitignore
 grep -q 'flutter-backend-override-smoke' Makefile
 grep -q 'run-flutter-backend-override-smoke.sh' Makefile
 grep -q 'IOSMACS_FLUTTER_BACKEND_SMOKE_BACKENDS' \

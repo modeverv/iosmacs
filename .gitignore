@@ -1,4 +1,5 @@
 build/
+flutter/build/
 DerivedData/
 .DS_Store
 .idea

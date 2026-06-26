@@ -6,10 +6,12 @@ IOSMACS_CONFIGURATION ?= Debug
 IOSMACS_SDK ?= iphonesimulator
 IOSMACS_DESTINATION ?= generic/platform=iOS Simulator
 IOSMACS_IPHONE_DESTINATION ?= platform=iOS Simulator,name=iPhone 17
+IOSMACS_IPAD_DESTINATION ?= platform=iOS Simulator,name=iPad (A16)
 IOSMACS_EMACS_SOURCE ?= wasmacs/vendor/emacs
 IOSMACS_SIMULATOR_UDID ?= booted
 IOSMACS_APP_BUNDLE_ID ?= local.iosmacs
 FLUTTER_PATH := $(HOME)/work/flutter/bin:$(PATH)
+FLUTTER_EMACS_BUILD_ROOT ?= $(abspath flutter/build/emacs-ios)
 JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || printf '4')
 
 .DEFAULT_GOAL := help
@@ -19,7 +21,7 @@ JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || printf '4')
 	app-installl smoke verify verify-iphone flutter-doctor flutter-structure-check flutter-bootstrap \
 	flutter-format-check flutter-analyze flutter-fake-smoke flutter-ios-smoke flutter-ios-launch-smoke flutter-macos-smoke \
 	flutter-macos-native-smoke flutter-backend-override-smoke flutter-web-smoke flutter-android-smoke \
-	flutter-verify check clean distclean
+	flutter-emacs-static flutter-emacs-pdmp flutter-ipad-launch flutter-verify check clean distclean
 
 help:
 	@printf '%s\n' \
@@ -43,6 +45,9 @@ help:
 	  '  make flutter-fake-smoke Run Flutter fake-backend tests when Flutter SDK is available' \
 	  '  make flutter-ios-smoke Verify Flutter iOS Runner build resources and Emacs symbols' \
 	  '  make flutter-ios-launch-smoke Install and launch Flutter iOS Runner on a booted simulator' \
+	  '  make flutter-emacs-static   Build Emacs static lib into flutter/build/emacs-ios (isolated)' \
+	  '  make flutter-emacs-pdmp    Build Emacs pdmp into flutter/build/emacs-ios (isolated)' \
+	  '  make flutter-ipad-launch    Build Flutter iOS app and launch on booted iPad simulator' \
 	  '  make flutter-macos-smoke Build and launch Flutter macOS app briefly' \
 	  '  make flutter-macos-native-smoke Autostart and verify Flutter macOS native probe' \
 	  '  make flutter-backend-override-smoke Verify forced Flutter backend selection on macOS' \
@@ -140,8 +145,33 @@ flutter-fake-smoke:
 flutter-ios-smoke:
 	scripts/check-flutter-ios-runner-smoke.sh
 
+flutter-emacs-static:
+	IOSMACS_BUILD_ROOT="$(FLUTTER_EMACS_BUILD_ROOT)" JOBS="$(JOBS)" \
+	  scripts/build-emacs-ios-static-probe.sh
+
+flutter-emacs-pdmp: flutter-emacs-static
+	IOSMACS_BUILD_ROOT="$(FLUTTER_EMACS_BUILD_ROOT)" JOBS="$(JOBS)" \
+	  scripts/run-emacs-ios-nw-smoke.sh
+
 flutter-ios-launch-smoke:
 	scripts/run-flutter-ios-launch-smoke.sh
+
+flutter-ipad-launch: flutter-emacs-pdmp
+	@PATH="$(FLUTTER_PATH)"; command -v flutter >/dev/null 2>&1 || { \
+	  printf 'error: flutter command not found; install Flutter SDK under ~/work/flutter or add it to PATH\n' >&2; \
+	  exit 127; \
+	}
+	@if ! xcrun simctl list devices booted | grep -qi "ipad"; then \
+	  printf 'error: no booted iPad simulator found; open Simulator.app and boot an iPad device\n' >&2; \
+	  exit 1; \
+	fi
+	@ipad_udid="$$(xcrun simctl list devices booted | grep -i ipad | grep -oE '[0-9A-F-]{36}' | head -1)"; \
+	if [[ -z "$$ipad_udid" ]]; then \
+	  printf 'error: could not resolve booted iPad UDID\n' >&2; \
+	  exit 1; \
+	fi; \
+	cd flutter/iosmacs_flutter && PATH="$(FLUTTER_PATH)" \
+	  flutter run --device-id "$$ipad_udid" --debug
 
 flutter-macos-smoke:
 	scripts/run-flutter-macos-smoke.sh

@@ -83,10 +83,9 @@ fi
 
 rsync -a \
   --include='*/' \
-  --include='*loaddefs.el' \
-  --include='cus-load.el' \
-  --include='finder-inf.el' \
-  --include='ja-dic.el' \
+  --exclude='/loadup.el' \
+  --exclude='/startup.el' \
+  --include='*.el' \
   --exclude='*' \
   "${artifact_lisp}/" "${runtime_lisp}/"
 
@@ -97,7 +96,7 @@ rsync -a \
   --include='*.elc' \
   --exclude='*' \
   "${artifact_lisp}/" "${runtime_lisp}/"
-find "${runtime_lisp}" -type f -name '*.elc' -exec touch {} +
+find "${runtime_lisp}" -type f \( -name '*.el' -o -name '*.elc' \) -exec touch {} +
 
 while IFS= read -r source_file; do
   rel="${source_file#"${runtime_lisp}/"}"

@@ -701,7 +701,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
     BuildContext context,
   ) async {
     await _sendWorkspaceOpenCommand(entry);
-    if (!mounted) {
+    if (!context.mounted) {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(

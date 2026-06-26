@@ -226,6 +226,14 @@ Current TODO:
 - [x] Verify runtime stop smoke with tests, structure check, targeted smokes,
   and diff check.
 - [x] Sync Flutter architecture docs with the current runtime smoke flag set.
+- [x] Document and guard Flutter Emacs build output isolation under
+  `flutter/build/emacs-ios`.
+- [x] Prevent Flutter iOS Runner references from regressing to the root
+  `build/emacs-ios-probe` path.
+- [x] Verify build-output isolation guards with structure and diff checks.
+- [x] Make Flutter native-platform backend autostart defaults testable.
+- [x] Verify iOS/macOS autostart defaults and Web/Android placeholder defaults.
+- [x] Guard native autostart default behavior in the Flutter structure check.
 - [x] Document input, resize, redraw, stop, capabilities, workspace, and backend
   override smoke evidence.
 - [x] Verify smoke documentation sync with structure and diff checks.

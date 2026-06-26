@@ -7,6 +7,55 @@ import 'package:xterm/xterm.dart';
 import 'package:iosmacs_flutter/main.dart';
 
 void main() {
+  test('native platforms autostart backend by default', () {
+    expect(
+      defaultAutoStartBackend(platform: TargetPlatform.iOS, isWeb: false),
+      isTrue,
+    );
+    expect(
+      defaultAutoStartBackend(platform: TargetPlatform.macOS, isWeb: false),
+      isTrue,
+    );
+  });
+
+  test('web and placeholder platforms do not autostart by default', () {
+    expect(
+      defaultAutoStartBackend(platform: TargetPlatform.iOS, isWeb: true),
+      isFalse,
+    );
+    expect(
+      defaultAutoStartBackend(platform: TargetPlatform.android, isWeb: false),
+      isFalse,
+    );
+    expect(
+      defaultAutoStartBackend(platform: TargetPlatform.linux, isWeb: false),
+      isFalse,
+    );
+    expect(
+      defaultAutoStartBackend(platform: TargetPlatform.windows, isWeb: false),
+      isFalse,
+    );
+  });
+
+  test('autostart environment override wins over platform default', () {
+    expect(
+      defaultAutoStartBackend(
+        platform: TargetPlatform.iOS,
+        isWeb: false,
+        environmentOverride: false,
+      ),
+      isFalse,
+    );
+    expect(
+      defaultAutoStartBackend(
+        platform: TargetPlatform.android,
+        isWeb: false,
+        environmentOverride: true,
+      ),
+      isTrue,
+    );
+  });
+
   testWidgets('app starts on the terminal screen', (WidgetTester tester) async {
     await tester.pumpWidget(const IOSMacsFlutterApp());
     await tester.pump();

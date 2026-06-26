@@ -1647,3 +1647,44 @@ Flutter diagnostics keyboard shortcut:
 - Ran `flutter test`: passed, 56 tests.
 - Ran `make flutter-structure-check`: passed.
 - Ran `git diff --check`: passed.
+
+Flutter Emacs build output isolation guards:
+
+- Starting build-output isolation guard work.
+- Goal for this unit: keep Flutter-owned Emacs build artifacts under
+  `flutter/build/emacs-ios` and prevent the Flutter iOS Runner from drifting
+  back to root `build/emacs-ios-probe` references.
+- Planned checks: structure check and diff whitespace check.
+- Added structure-check guards for `FLUTTER_EMACS_BUILD_ROOT`,
+  `flutter-emacs-static`, `flutter-emacs-pdmp`, `flutter-ipad-launch`, and the
+  `IOSMACS_BUILD_ROOT="$(FLUTTER_EMACS_BUILD_ROOT)"` Makefile handoff.
+- Added structure-check guards for Flutter iOS Runner resource/static-library
+  paths under `../../build/emacs-ios` and an explicit failure if the Runner
+  references root `../../../build/emacs-ios-probe`.
+- Added a structure-check guard that `.gitignore` keeps `flutter/build/`
+  ignored.
+- Ran `bash -n scripts/check-flutter-structure.sh`: passed.
+- Ran `make flutter-structure-check`: passed.
+- Ran `git diff --check`: passed.
+
+Flutter native autostart defaults:
+
+- Starting native autostart default guard work.
+- Goal for this unit: make iOS/macOS Flutter runs autostart the selected native
+  backend by default while keeping Web and placeholder platforms manually
+  started unless explicitly overridden.
+- Planned checks: Dart format, focused Flutter tests, structure check, and diff
+  whitespace check.
+- Replaced the private `_defaultAutoStart()` helper with
+  `defaultAutoStartBackend()` so platform, Web, and explicit environment
+  override behavior can be tested directly.
+- Added tests proving iOS/macOS autostart by default, Web/Android/Linux/Windows
+  do not autostart by default, and the explicit autostart override wins over
+  platform defaults.
+- Updated the Flutter structure check to guard the autostart helper and tests.
+- Ran `dart format flutter/iosmacs_flutter/lib/main.dart flutter/iosmacs_flutter/test/widget_test.dart`:
+  passed, 1 file changed.
+- Ran `flutter test test/widget_test.dart`: passed, 10 tests.
+- Ran `flutter test`: passed, 66 tests.
+- Ran `make flutter-structure-check`: passed.
+- Ran `git diff --check`: passed.

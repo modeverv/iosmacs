@@ -1,30 +1,50 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'src/backend/backend_factory.dart';
 import 'src/backend/emacs_backend.dart';
 import 'src/ui/terminal_screen.dart';
 
+@visibleForTesting
+bool defaultAutoStartBackend({
+  bool isWeb = kIsWeb,
+  TargetPlatform? platform,
+  bool? environmentOverride,
+}) {
+  if (environmentOverride != null) {
+    return environmentOverride;
+  }
+  if (const bool.hasEnvironment('IOSMACS_FLUTTER_AUTOSTART_NATIVE')) {
+    return const bool.fromEnvironment('IOSMACS_FLUTTER_AUTOSTART_NATIVE');
+  }
+  final targetPlatform = platform ?? defaultTargetPlatform;
+  return !isWeb &&
+      (targetPlatform == TargetPlatform.iOS ||
+          targetPlatform == TargetPlatform.macOS);
+}
+
 void main() {
   runApp(
-    const IOSMacsFlutterApp(
-      autoStartBackend: bool.fromEnvironment(
-        'IOSMACS_FLUTTER_AUTOSTART_NATIVE',
-      ),
-      mirrorTerminalOutputToLog: bool.fromEnvironment(
+    IOSMacsFlutterApp(
+      autoStartBackend: defaultAutoStartBackend(),
+      mirrorTerminalOutputToLog: const bool.fromEnvironment(
         'IOSMACS_FLUTTER_MIRROR_TERMINAL_OUTPUT',
       ),
-      runWorkspaceSmoke: bool.fromEnvironment(
+      runWorkspaceSmoke: const bool.fromEnvironment(
         'IOSMACS_FLUTTER_WORKSPACE_SMOKE',
       ),
-      runCapabilitiesSmoke: bool.fromEnvironment(
+      runCapabilitiesSmoke: const bool.fromEnvironment(
         'IOSMACS_FLUTTER_CAPABILITIES_SMOKE',
       ),
-      runInputSmoke: bool.fromEnvironment('IOSMACS_FLUTTER_INPUT_SMOKE'),
-      runResizeSmoke: bool.fromEnvironment('IOSMACS_FLUTTER_RESIZE_SMOKE'),
-      runRedrawSmoke: bool.fromEnvironment('IOSMACS_FLUTTER_REDRAW_SMOKE'),
-      runStatusSmoke: bool.fromEnvironment('IOSMACS_FLUTTER_STATUS_SMOKE'),
-      runStopSmoke: bool.fromEnvironment('IOSMACS_FLUTTER_STOP_SMOKE'),
-      backendOverride: String.fromEnvironment('IOSMACS_FLUTTER_BACKEND'),
+      runInputSmoke: const bool.fromEnvironment('IOSMACS_FLUTTER_INPUT_SMOKE'),
+      runResizeSmoke:
+          const bool.fromEnvironment('IOSMACS_FLUTTER_RESIZE_SMOKE'),
+      runRedrawSmoke:
+          const bool.fromEnvironment('IOSMACS_FLUTTER_REDRAW_SMOKE'),
+      runStatusSmoke:
+          const bool.fromEnvironment('IOSMACS_FLUTTER_STATUS_SMOKE'),
+      runStopSmoke: const bool.fromEnvironment('IOSMACS_FLUTTER_STOP_SMOKE'),
+      backendOverride: const String.fromEnvironment('IOSMACS_FLUTTER_BACKEND'),
     ),
   );
 }
