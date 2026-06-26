@@ -579,6 +579,36 @@ void main() {
     expect(terminalView.keyboardType, TextInputType.text);
   });
 
+  testWidgets('terminal key repeat is boosted for held hardware keys', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(TerminalView));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    final beforeRepeat = backend.diagnostics.value.inputBytes;
+
+    await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowDown);
+
+    expect(
+      backend.diagnostics.value.inputBytes - beforeRepeat,
+      9,
+    );
+  });
+
   testWidgets('input row Paste button forwards normalized paste bytes', (
     WidgetTester tester,
   ) async {

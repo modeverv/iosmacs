@@ -176,7 +176,7 @@ static int open_flags_write_to_path(int flags) {
 
 static int is_iosmacs_tty_fd(int fd) {
     return (fake_tty_fd >= 0 && fd == fake_tty_fd)
-        || (stdio_redirected && fd >= STDIN_FILENO && fd <= STDERR_FILENO);
+        || (stdio_redirected && fd >= STDIN_FILENO && fd <= STDOUT_FILENO);
 }
 
 static void *output_pump_main(void *arg) {
@@ -265,14 +265,10 @@ int iosmacs_terminal_shim_attach_stdio(void) {
     if (dup2(fd, STDOUT_FILENO) < 0) {
         return -1;
     }
-    if (dup2(fd, STDERR_FILENO) < 0) {
-        return -1;
-    }
     iosmacs_os_terminal_note_tty_fd(fd);
     iosmacs_os_terminal_note_stdio_redirected();
     setvbuf(stdin, NULL, _IONBF, 0);
     setvbuf(stdout, NULL, _IONBF, 0);
-    setvbuf(stderr, NULL, _IONBF, 0);
     stdio_redirected = 1;
     return 0;
 }

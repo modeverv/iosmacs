@@ -60,6 +60,7 @@ class TerminalScreen extends StatefulWidget {
 class _TerminalScreenState extends State<TerminalScreen> {
   static const double _minFontSize = 12;
   static const double _maxFontSize = 22;
+  static const int _keyRepeatMultiplier = 3;
 
   final FocusNode _terminalFocusNode = FocusNode();
   final FocusNode _inputFocusNode = FocusNode();
@@ -133,6 +134,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                       autofocus: true,
                       focusNode: _terminalFocusNode,
                       keyboardType: TextInputType.text,
+                      onKeyEvent: _handleTerminalKeyEvent,
                       padding: const EdgeInsets.all(12),
                       textStyle: TerminalStyle(fontSize: _fontSize),
                       theme: const TerminalTheme(
@@ -228,6 +230,101 @@ class _TerminalScreenState extends State<TerminalScreen> {
       const SingleActivator(LogicalKeyboardKey.minus, meta: true, shift: true):
           _decreaseFontSize,
     };
+  }
+
+  KeyEventResult _handleTerminalKeyEvent(FocusNode focusNode, KeyEvent event) {
+    if (event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    final bytes = _boostedRepeatBytes(event);
+    if (bytes.isEmpty) {
+      return KeyEventResult.ignored;
+    }
+
+    unawaited(widget.backend.sendBytes(bytes));
+    return KeyEventResult.ignored;
+  }
+
+  List<int> _boostedRepeatBytes(KeyRepeatEvent event) {
+    const extraRepeats = _keyRepeatMultiplier - 1;
+    if (extraRepeats <= 0) {
+      return const <int>[];
+    }
+
+    final sequence = _terminalRepeatSequence(event);
+    if (sequence.isEmpty) {
+      return const <int>[];
+    }
+
+    return List<int>.generate(
+      sequence.length * extraRepeats,
+      (int index) => sequence[index % sequence.length],
+      growable: false,
+    );
+  }
+
+  List<int> _terminalRepeatSequence(KeyRepeatEvent event) {
+    final hardware = HardwareKeyboard.instance;
+    if (hardware.isMetaPressed) {
+      return const <int>[];
+    }
+
+    final key = event.logicalKey;
+    switch (key) {
+      case LogicalKeyboardKey.arrowUp:
+        return const <int>[0x1b, 0x5b, 0x41];
+      case LogicalKeyboardKey.arrowDown:
+        return const <int>[0x1b, 0x5b, 0x42];
+      case LogicalKeyboardKey.arrowRight:
+        return const <int>[0x1b, 0x5b, 0x43];
+      case LogicalKeyboardKey.arrowLeft:
+        return const <int>[0x1b, 0x5b, 0x44];
+      case LogicalKeyboardKey.backspace:
+        return const <int>[0x7f];
+      case LogicalKeyboardKey.delete:
+        return const <int>[0x1b, 0x5b, 0x33, 0x7e];
+      case LogicalKeyboardKey.enter:
+        return const <int>[0x0d];
+      case LogicalKeyboardKey.tab:
+        return const <int>[0x09];
+      case LogicalKeyboardKey.space:
+        return hardware.isControlPressed
+            ? const <int>[0x00]
+            : const <int>[0x20];
+    }
+
+    if (hardware.isControlPressed) {
+      final controlByte = _controlByteForKey(key);
+      return controlByte == null ? const <int>[] : <int>[controlByte];
+    }
+
+    if (hardware.isAltPressed) {
+      return const <int>[];
+    }
+
+    final character = event.character;
+    if (character == null || character.isEmpty) {
+      return const <int>[];
+    }
+
+    final codeUnits = character.codeUnits;
+    if (codeUnits.length != 1 ||
+        codeUnits.single < 0x20 ||
+        codeUnits.single > 0x7e) {
+      return const <int>[];
+    }
+    return codeUnits;
+  }
+
+  int? _controlByteForKey(LogicalKeyboardKey key) {
+    final keyId = key.keyId;
+    final keyA = LogicalKeyboardKey.keyA.keyId;
+    final keyZ = LogicalKeyboardKey.keyZ.keyId;
+    if (keyId >= keyA && keyId <= keyZ) {
+      return (keyId - keyA + 1).toInt();
+    }
+    return null;
   }
 
   void _setFontSize(double value) {

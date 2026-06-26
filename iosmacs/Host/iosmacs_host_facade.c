@@ -580,7 +580,6 @@ void iosmacs_os_terminal_note_stdio_redirected(void) {
     stdio_redirected_to_terminal = 1;
     terminal_note_tty_fd_locked(STDIN_FILENO);
     terminal_note_tty_fd_locked(STDOUT_FILENO);
-    terminal_note_tty_fd_locked(STDERR_FILENO);
     pthread_mutex_unlock(&terminal_mutex);
 }
 
@@ -588,7 +587,7 @@ int iosmacs_os_terminal_is_tty_fd(int fd) {
     pthread_mutex_lock(&terminal_mutex);
     int is_tty = 0;
     if (direct_tty_mode) {
-        if (stdio_redirected_to_terminal && fd >= STDIN_FILENO && fd <= STDERR_FILENO) {
+        if (stdio_redirected_to_terminal && fd >= STDIN_FILENO && fd <= STDOUT_FILENO) {
             is_tty = 1;
         }
         for (size_t i = 0; !is_tty && i < noted_tty_fd_count; i++) {

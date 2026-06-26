@@ -356,6 +356,10 @@ grep -q 'LogicalKeyboardKey.keyV, meta: true' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'keyboardType: TextInputType.text' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q '_keyRepeatMultiplier = 3' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'KeyRepeatEvent' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'pasteText' \
   "$app_dir/lib/src/ui/terminal_input_bridge.dart"
 grep -q 'pasteText' \
@@ -409,6 +413,8 @@ grep -q 'input row Send button forwards Japanese text once' \
 grep -q 'terminal body keeps Japanese IME composing text inline until commit' \
   "$app_dir/test/terminal_screen_test.dart"
 grep -q 'terminal body uses normal text keyboard for IME candidates' \
+  "$app_dir/test/terminal_screen_test.dart"
+grep -q 'terminal key repeat is boosted for held hardware keys' \
   "$app_dir/test/terminal_screen_test.dart"
 grep -q 'toolbar avoids overflow on narrow mobile width' \
   "$app_dir/test/terminal_screen_test.dart"
@@ -471,6 +477,15 @@ grep -q 'iosmacs_terminal_shim.c in Sources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
 grep -q 'iosmacs_host_terminal_read' iosmacs/Host/iosmacs_host_facade.h
 grep -q 'iosmacs_os_terminal_read_available' iosmacs/Host/iosmacs_host_facade.c
+if grep -q 'dup2(fd, STDERR_FILENO)' iosmacs/Host/iosmacs_terminal_shim.c; then
+  printf 'error: Flutter iOS fake tty must not redirect process stderr into the terminal screen\n' >&2
+  exit 1
+fi
+if grep -q 'fd <= STDERR_FILENO' iosmacs/Host/iosmacs_terminal_shim.c \
+  || grep -q 'fd <= STDERR_FILENO' iosmacs/Host/iosmacs_host_facade.c; then
+  printf 'error: Flutter iOS fake tty must not classify process stderr as the terminal tty\n' >&2
+  exit 1
+fi
 grep -q 'iosmacs_host_terminal_read (tty_buf, nbyte)' \
   scripts/build-emacs-ios-probe.sh
 if [[ -f build/emacs-ios-probe/source/src/sysdep.c ]] \

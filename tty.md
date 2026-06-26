@@ -7,7 +7,7 @@ Goal: make Flutter iOS terminal I/O behave like a normal OS terminal/PTY closely
 - Flutter UI/main isolate owns screen rendering, toolbar actions, and MethodChannel calls.
 - `FlutterNativeEmacsBridge.swift` receives Flutter input and currently pushes bytes into the native terminal input ring.
 - `iosmacs_emacs_core.c` starts GNU Emacs on a detached pthread, so Emacs may block without blocking Flutter UI.
-- `iosmacs_terminal_shim.c` opens a fake tty/PTY or socketpair, redirects stdin/stdout/stderr, and pumps terminal output to the host output ring.
+- `iosmacs_terminal_shim.c` opens a fake tty/PTY or socketpair, redirects stdin/stdout, and pumps terminal output to the host output ring. Stderr stays on the app log stream so platform diagnostics do not appear inside Emacs.
 - `iosmacs_host_facade.c` owns input/output rings and `pthread_cond` wakeups for host wait points.
 - The generated Emacs probe patches `keyboard.c`/`sysdep.c` so Emacs can wait on `iosmacs_host_wait_for_input` and read from the host tty facade.
 

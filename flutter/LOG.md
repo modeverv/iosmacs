@@ -2345,3 +2345,43 @@ Flutter iOS Japanese IME candidates:
   `git diff --check`, and `flutter build ios --simulator --debug`.
 - Installed and launched the rebuilt app on the booted iPad Simulator with
   process id `62574`.
+
+Flutter iOS platform log isolation:
+
+- Starting cleanup after CoreText/Runner diagnostic lines appeared inside the
+  Emacs terminal screen.
+- Found that `iosmacs_terminal_shim_attach_stdio()` redirected process-level
+  stdin, stdout, and stderr to the fake tty. That made app/framework stderr
+  diagnostics indistinguishable from terminal output.
+- Changed the fake tty stdio attachment to redirect only stdin/stdout. Stderr
+  now remains on the normal app log stream, while Emacs terminal output still
+  flows through stdout to the Flutter terminal.
+- Added structure-check guards that fail if process stderr is redirected or
+  classified as the Flutter terminal tty again.
+- Verified with `make flutter-structure-check`, `git diff --check`, and
+  `flutter build ios --simulator --debug`.
+- Installed and launched the rebuilt app on the booted iPad Simulator with
+  process id `96259`.
+
+Flutter iOS key repeat boost:
+
+- Starting work after the user asked for stronger key-repeat volume when
+  holding a hardware key.
+- Added a terminal-body `onKeyEvent` hook that only handles
+  `KeyRepeatEvent`. The original repeat event is still passed through to
+  xterm, and the app sends two extra copies directly to the backend for a
+  total multiplier of three.
+- The repeat boost maps common terminal/navigation keys, delete/backspace,
+  enter/tab/space, printable ASCII, and control-letter repeats. Meta/command
+  repeats and non-ASCII text are ignored so app shortcuts and Japanese IME
+  composition are not amplified.
+- Added widget coverage that holds `arrowDown`, sends one repeat event, and
+  verifies the repeat contributes nine input bytes: one normal escape sequence
+  plus two boosted copies.
+- Added structure-check guards for the repeat multiplier, `KeyRepeatEvent`
+  handling, and repeat widget coverage.
+- Verified with `flutter test test/terminal_screen_test.dart
+  test/terminal_input_bridge_test.dart`, `make flutter-structure-check`,
+  `git diff --check`, and `flutter build ios --simulator --debug`.
+- Installed and launched the rebuilt app on the booted iPad Simulator with
+  process id `26809`.

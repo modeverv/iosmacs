@@ -405,6 +405,14 @@ Current TODO:
   type for the terminal body instead of the email-address keyboard profile.
 - [x] Verify terminal-body keyboard type coverage with Flutter tests,
   structure check, and iOS Simulator build.
+- [x] Stop platform stderr logs such as CoreText diagnostics from entering the
+  Flutter Emacs terminal screen.
+- [x] Verify the stderr isolation with structure check and an iOS Simulator
+  build/install smoke.
+- [x] Boost held hardware-key repeat throughput in the Flutter terminal so one
+  repeat event sends multiple terminal input units.
+- [x] Verify boosted key repeat with Flutter widget tests, structure check, and
+  an iOS Simulator build.
 - [ ] Make Flutter iOS build, install, and run on a physical iPad/iPhone with
   documented signing and device smoke evidence.
 
