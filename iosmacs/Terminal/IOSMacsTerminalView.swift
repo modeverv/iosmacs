@@ -18,7 +18,7 @@ struct IOSMacsTerminalView: UIViewRepresentable {
         uiView.font = .monospacedSystemFont(ofSize: session.fontSize, weight: .regular)
         context.coordinator.focusTerminalIfRequested(session.focusRequest)
         context.coordinator.sendSpaceIfRequested(session.spaceRequest)
-        context.coordinator.drainOutput()
+        context.coordinator.scheduleDrainOutput()
     }
 
     func makeCoordinator() -> Coordinator {
@@ -33,6 +33,9 @@ struct IOSMacsTerminalView: UIViewRepresentable {
         private var didStartAutomatedInputSmoke = false
         private var lastFocusRequest: UInt64 = 0
         private var lastSpaceRequest: UInt64 = 0
+        private var outputStreamTask: Task<Void, Never>?
+        private var drainOutputTask: Task<Void, Never>?
+        private var didRequestInitialRedraw = false
 
         init(session: EmacsSession) {
             self.session = session
@@ -43,9 +46,15 @@ struct IOSMacsTerminalView: UIViewRepresentable {
             self.hostView = hostView
             self.terminalView = hostView.terminalView
             hostView.terminalView.terminalDelegate = self
+            startOutputStream()
             focusTerminal()
-            drainOutput()
+            scheduleDrainOutput()
             startAutomatedInputSmokeIfRequested()
+        }
+
+        deinit {
+            outputStreamTask?.cancel()
+            drainOutputTask?.cancel()
         }
 
         @MainActor
@@ -63,29 +72,52 @@ struct IOSMacsTerminalView: UIViewRepresentable {
                 return
             }
             lastSpaceRequest = request
-            focusTerminal()
-            sendBytes([32], reason: "toolbar-space")
-            drainOutputAfterInput()
+            Task { @MainActor [weak self] in
+                await Task.yield()
+                guard let self else {
+                    return
+                }
+                self.focusTerminal()
+                self.sendSpecialKey([32], reason: "toolbar-space")
+            }
         }
 
         @MainActor
         @discardableResult
         func drainOutput() -> Int {
-            guard let terminalView else {
-                return 0
+            session.requestTerminalOutputDrain()
+            return 0
+        }
+
+        @MainActor
+        private func feedOutput(_ chunk: [UInt8]) {
+            guard let terminalView, !chunk.isEmpty else {
+                return
             }
-            let chunks = session.drainTerminalOutput()
-            var byteCount = 0
-            for chunk in chunks where !chunk.isEmpty {
-                byteCount += chunk.count
-                session.noteTerminalBridge("swiftterm feed count=\(chunk.count) bytes=\(hexPreview(chunk))")
-                observeOutput(chunk)
-                terminalView.feed(byteArray: chunk[...])
+            session.noteTerminalBridge(
+                "swiftterm feed count=\(chunk.count) bytes=\(hexPreview(chunk))",
+                publish: false
+            )
+            observeOutput(chunk)
+            terminalView.feed(byteArray: chunk[...])
+            hostView?.terminalCursorDidChange()
+            session.noteTerminalOutputFed(byteCount: chunk.count)
+            requestInitialRedrawIfNeeded()
+        }
+
+        @MainActor
+        func scheduleDrainOutput() {
+            guard drainOutputTask == nil else {
+                return
             }
-            if byteCount > 0 {
-                hostView?.terminalCursorDidChange()
+            drainOutputTask = Task { @MainActor [weak self] in
+                await Task.yield()
+                guard let self else {
+                    return
+                }
+                self.drainOutputTask = nil
+                self.session.requestTerminalOutputDrain()
             }
-            return byteCount
         }
 
         @MainActor
@@ -114,9 +146,6 @@ struct IOSMacsTerminalView: UIViewRepresentable {
         func sendSpecialKey(_ bytes: [UInt8], reason: String) {
             focusTerminal()
             sendBytes(bytes, reason: reason)
-            if shouldRedrawAfterInput(bytes, reason: reason) {
-                sendBytes([12], reason: "\(reason)-redraw")
-            }
             drainOutputAfterInput()
         }
 
@@ -151,17 +180,29 @@ struct IOSMacsTerminalView: UIViewRepresentable {
 
         @MainActor
         private func drainOutputAfterInput() {
-            drainOutput()
+            session.requestTerminalOutputDrain()
             Task { @MainActor [weak self] in
                 try? await Task.sleep(nanoseconds: 20_000_000)
-                self?.drainOutput()
+                self?.session.requestTerminalOutputDrain()
                 try? await Task.sleep(nanoseconds: 60_000_000)
-                self?.drainOutput()
+                self?.session.requestTerminalOutputDrain()
             }
         }
 
-        private func shouldRedrawAfterInput(_ bytes: [UInt8], reason: String) -> Bool {
-            reason.contains("delete") || bytes == [127] || bytes == [27, 91, 51, 126]
+        @MainActor
+        private func requestInitialRedrawIfNeeded() {
+            guard !didRequestInitialRedraw else {
+                return
+            }
+            didRequestInitialRedraw = true
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                guard let self else {
+                    return
+                }
+                self.sendBytes([12], reason: "initial-redraw")
+                self.drainOutputAfterInput()
+            }
         }
 
         private func observeOutput(_ chunk: [UInt8]) {
@@ -190,7 +231,7 @@ struct IOSMacsTerminalView: UIViewRepresentable {
                     try? await Task.sleep(nanoseconds: UInt64(forcedDelayMs) * 1_000_000)
                 } else {
                     for _ in 0..<300 {
-                        self.drainOutput()
+                        self.session.requestTerminalOutputDrain()
                         if self.observedOutput.contains("(Lisp Interaction")
                             || self.observedOutput.contains("For information about GNU Emacs")
                             || self.observedOutput.count > 1024 {
@@ -210,7 +251,25 @@ struct IOSMacsTerminalView: UIViewRepresentable {
 
                 for _ in 0..<80 {
                     try? await Task.sleep(nanoseconds: 50_000_000)
-                    self.drainOutput()
+                    self.session.requestTerminalOutputDrain()
+                }
+            }
+        }
+
+        @MainActor
+        private func startOutputStream() {
+            guard outputStreamTask == nil else {
+                return
+            }
+            outputStreamTask = Task { @MainActor [weak self] in
+                guard let self else {
+                    return
+                }
+                for await chunk in self.session.terminalOutputStream() {
+                    guard !Task.isCancelled else {
+                        return
+                    }
+                    self.feedOutput(chunk)
                 }
             }
         }
@@ -376,6 +435,8 @@ final class IOSMacsTerminalHostView: UIView {
 
     func terminalBytes(for key: UIKey) -> [UInt8]? {
         switch key.keyCode {
+        case .keyboardSpacebar:
+            return [32]
         case .keyboardReturnOrEnter:
             return [13]
         case .keyboardTab:
@@ -418,11 +479,12 @@ final class IOSMacsTerminalHostView: UIView {
             }
         }
 
-        var bytes = Array((key.characters.isEmpty ? text : key.characters).utf8)
         if key.modifierFlags.contains(.alternate) {
+            var bytes = Array(text.utf8)
             bytes.insert(27, at: 0)
+            return bytes
         }
-        return bytes
+        return Array((key.characters.isEmpty ? text : key.characters).utf8)
     }
 
     private func reportLayoutIfNeeded() {
@@ -621,6 +683,16 @@ final class IOSMacsKeyboardInputView: UITextView, UITextViewDelegate {
         flushCommittedTextIfPossible(reason: "textinput")
     }
 
+    override func insertText(_ text: String) {
+        if markedTextRange == nil, text == " " {
+            terminalHost?.sendCommittedText(text, reason: "textinput-space")
+            self.text = ""
+            selectedRange = NSRange(location: 0, length: 0)
+            return
+        }
+        super.insertText(text)
+    }
+
     override func setMarkedText(_ markedText: String?, selectedRange: NSRange) {
         super.setMarkedText(markedText, selectedRange: selectedRange)
         if let markedText, !markedText.isEmpty {
@@ -694,7 +766,8 @@ final class IOSMacsKeyboardInputView: UITextView, UITextViewDelegate {
 
     private func shouldHandleOutsideTextInput(_ key: UIKey) -> Bool {
         switch key.keyCode {
-        case .keyboardReturnOrEnter,
+        case .keyboardSpacebar,
+             .keyboardReturnOrEnter,
              .keyboardTab,
              .keyboardEscape,
              .keyboardDeleteOrBackspace,

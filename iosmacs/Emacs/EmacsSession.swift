@@ -15,7 +15,7 @@ final class EmacsSession: ObservableObject {
     private static let workspaceBookmarkDefaultsKey = "iosmacs.workspace.bookmark"
     private static let workspacePathDefaultsKey = "iosmacs.workspace.path"
 
-    private let maxDrainBytes = 16 * 1024
+    private let outputWorker = TerminalOutputWorker(maxDrainBytes: 16 * 1024)
     private var didStart = false
     private var diagnosticMode = false
     private var outputPumpTask: Task<Void, Never>?
@@ -28,6 +28,10 @@ final class EmacsSession: ObservableObject {
         pendingWorkspaceRootPath = UserDefaults.standard.string(forKey: Self.workspacePathDefaultsKey)
     }
 
+    deinit {
+        outputWorker.stop()
+    }
+
     func start() {
         guard !didStart else {
             return
@@ -36,6 +40,7 @@ final class EmacsSession: ObservableObject {
         didStart = true
         startTime = Date()
         iosmacs_os_terminal_reset()
+        outputWorker.start()
         if startRealEmacs() {
             diagnosticMode = false
         } else {
@@ -91,8 +96,10 @@ final class EmacsSession: ObservableObject {
         iosmacs_os_terminal_resize(Int32(cols), Int32(rows))
     }
 
-    func noteTerminalBridge(_ message: String) {
-        lifecycleState = "iosmacs: \(message)"
+    func noteTerminalBridge(_ message: String, publish: Bool = true) {
+        if publish {
+            lifecycleState = "iosmacs: \(message)"
+        }
         guard let path = ProcessInfo.processInfo.environment["IOSMACS_WEB_TERMINAL_DEBUG_MARKER"],
               !path.isEmpty else {
             return
@@ -105,7 +112,7 @@ final class EmacsSession: ObservableObject {
         let line = "\(Date()): \(message)\n"
         if FileManager.default.fileExists(atPath: url.path),
            let handle = try? FileHandle(forWritingTo: url) {
-            try? handle.seekToEnd()
+            _ = try? handle.seekToEnd()
             try? handle.write(contentsOf: Data(line.utf8))
             try? handle.close()
         } else {
@@ -113,25 +120,23 @@ final class EmacsSession: ObservableObject {
         }
     }
 
-    func drainTerminalOutput() -> [[UInt8]] {
-        var chunks: [[UInt8]] = []
-        while true {
-            var buffer = [UInt8](repeating: 0, count: maxDrainBytes)
-            let count = buffer.withUnsafeMutableBufferPointer { pointer in
-                iosmacs_os_terminal_drain_output(pointer.baseAddress, pointer.count)
-            }
-            if count <= 0 {
-                break
-            }
-            let chunk = Array(buffer.prefix(count))
-            noteTerminalBridge("swift session-drain-output count=\(chunk.count) bytes=\(hexPreview(chunk))")
-            chunks.append(chunk)
+    func terminalOutputStream() -> AsyncStream<[UInt8]> {
+        outputWorker.stream()
+    }
+
+    func requestTerminalOutputDrain() {
+        outputWorker.requestDrain()
+    }
+
+    func noteTerminalOutputFed(byteCount: Int) {
+        guard byteCount > 0 else {
+            return
         }
-        if !chunks.isEmpty && !didRecordFirstOutput {
+        if !didRecordFirstOutput {
             didRecordFirstOutput = true
             updateMetrics(prefix: "first output")
         }
-        return chunks
+        outputPulse &+= 1
     }
 
     private func hexPreview(_ bytes: [UInt8]) -> String {
@@ -410,5 +415,109 @@ final class EmacsSession: ObservableObject {
             return 0
         }
         return Int(info.resident_size / 1024 / 1024)
+    }
+}
+
+private final class TerminalOutputWorker: @unchecked Sendable {
+    private let maxDrainBytes: Int
+    private let lock = NSLock()
+    private var continuations: [UUID: AsyncStream<[UInt8]>.Continuation] = [:]
+    private var didStart = false
+    private var workerThread: Thread?
+
+    init(maxDrainBytes: Int) {
+        self.maxDrainBytes = maxDrainBytes
+    }
+
+    deinit {
+        stop()
+    }
+
+    func start() {
+        let shouldStart: Bool = lock.withLock {
+            if !didStart {
+                didStart = true
+                return true
+            }
+            return false
+        }
+        guard shouldStart else {
+            return
+        }
+
+        let thread = Thread { [weak self] in
+            self?.runOutputLoop()
+        }
+        thread.name = "local.iosmacs.terminal-output-worker"
+        workerThread = thread
+        thread.start()
+    }
+
+    func stop() {
+        let continuationsToFinish: [AsyncStream<[UInt8]>.Continuation] = lock.withLock {
+            didStart = false
+            let values = Array(continuations.values)
+            continuations.removeAll()
+            workerThread = nil
+            return values
+        }
+        for continuation in continuationsToFinish {
+            continuation.finish()
+        }
+    }
+
+    func stream() -> AsyncStream<[UInt8]> {
+        AsyncStream { continuation in
+            let id = UUID()
+            lock.withLock {
+                continuations[id] = continuation
+            }
+            requestDrain()
+            continuation.onTermination = { @Sendable [weak self] _ in
+                guard let worker = self else {
+                    return
+                }
+                _ = worker.lock.withLock {
+                    worker.continuations.removeValue(forKey: id)
+                }
+            }
+        }
+    }
+
+    func requestDrain() {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self?.drainAvailableOutput()
+        }
+    }
+
+    private func runOutputLoop() {
+        while isRunning {
+            drainAvailableOutput()
+            _ = iosmacs_os_terminal_wait_for_output(250)
+        }
+    }
+
+    private func drainAvailableOutput() {
+        while true {
+            var buffer = [UInt8](repeating: 0, count: maxDrainBytes)
+            let count = buffer.withUnsafeMutableBufferPointer { pointer in
+                iosmacs_os_terminal_drain_output(pointer.baseAddress, pointer.count)
+            }
+            guard count > 0 else {
+                return
+            }
+
+            let chunk = Array(buffer.prefix(count))
+            let continuationsSnapshot = lock.withLock {
+                Array(continuations.values)
+            }
+            for continuation in continuationsSnapshot {
+                continuation.yield(chunk)
+            }
+        }
+    }
+
+    private var isRunning: Bool {
+        lock.withLock { didStart }
     }
 }

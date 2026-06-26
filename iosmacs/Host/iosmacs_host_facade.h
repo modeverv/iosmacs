@@ -13,6 +13,7 @@ extern "C" {
 #define IOSMACS_HOST_WAIT_TIMEOUT 0
 #define IOSMACS_HOST_WAIT_INPUT 1
 #define IOSMACS_HOST_WAIT_RESIZE 2
+#define IOSMACS_HOST_WAIT_OUTPUT 3
 #define IOSMACS_HOST_WAIT_UNAVAILABLE -1
 
 const char *iosmacs_os_lifecycle_state(void);
@@ -27,6 +28,7 @@ ssize_t iosmacs_os_terminal_write(const uint8_t *bytes, size_t count);
 ssize_t iosmacs_os_terminal_push_input(const uint8_t *bytes, size_t count);
 void iosmacs_os_terminal_note_input_signal(size_t count);
 ssize_t iosmacs_os_terminal_drain_output(uint8_t *buffer, size_t capacity);
+int iosmacs_os_terminal_wait_for_output(int timeout_ms);
 int iosmacs_os_terminal_wait_for_input(int timeout_ms);
 int iosmacs_os_terminal_read_byte(void);
 int iosmacs_os_terminal_input_available(void);

@@ -112,6 +112,18 @@ if [[ -f "${sysdep_c}" ]] && ! grep -q "iosmacs: direct tty facade fallback defi
   ' "${sysdep_c}"
 fi
 
+if [[ -f "${sysdep_c}" ]] && ! grep -q "iosmacs: direct tty read-byte fallback definition" "${sysdep_c}"; then
+  perl -0pi -e '
+    s/(\/\* iosmacs: direct tty facade fallback definitions\. \*\/)/__attribute__ ((weak)) int\niosmacs_host_terminal_read_byte (void)\n{\n  return -1;\n}\n\n\/* iosmacs: direct tty read-byte fallback definition. *\/\n\n$1/s
+  ' "${sysdep_c}"
+fi
+
+if [[ -f "${sysdep_c}" ]] && ! grep -q "iosmacs: direct tty read in emacs_intr_read" "${sysdep_c}"; then
+  perl -0pi -e '
+    s/(  ssize_t result;\n\n)/$1  if (nbyte > 0 && iosmacs_host_is_tty_fd (fd))\n    {\n      unsigned char *tty_buf = buf;\n      ptrdiff_t bytes_read = 0;\n\n      while (bytes_read == 0)\n        {\n          while (bytes_read < nbyte)\n            {\n              int byte = iosmacs_host_terminal_read_byte ();\n              if (byte < 0)\n                break;\n              tty_buf[bytes_read++] = (unsigned char) byte;\n            }\n\n          if (bytes_read > 0)\n            {\n              char iosmacs_trace[128];\n              snprintf (iosmacs_trace, sizeof iosmacs_trace,\n                        "sysdep tty-read bytes=%td", bytes_read);\n              iosmacs_host_trace_event (iosmacs_trace);\n              return bytes_read;\n            }\n\n          if (interruptible)\n            maybe_quit ();\n          iosmacs_host_wait_for_input (50);\n        }\n    }\n  \/* iosmacs: direct tty read in emacs_intr_read. *\/\n\n/s
+  ' "${sysdep_c}"
+fi
+
 emacs_c="${configure_root}/src/emacs.c"
 if [[ -f "${emacs_c}" ]] && ! grep -q "iosmacs-main-before-recursive-edit" "${emacs_c}"; then
   perl -0pi -e '
@@ -180,6 +192,13 @@ fi
 if [[ -f "${keyboard_c}" ]] && ! grep -q "iosmacs: direct tty waitpoint before decoded event read" "${keyboard_c}"; then
   perl -0pi -e '
     s/(  if \(NILP \(c\)\)\n    \{\n)(      c = read_decoded_event_from_main_queue)/$1      if (!noninteractive && iosmacs_host_is_tty_fd (0))\n        {\n          int iosmacs_timeout_ms = iosmacs_host_timeout_ms_until (end_time);\n          if (!end_time || iosmacs_timeout_ms > 0)\n            {\n              char iosmacs_trace[128];\n              int iosmacs_wait_result = iosmacs_host_wait_for_input (iosmacs_timeout_ms);\n              int iosmacs_available = iosmacs_host_terminal_input_available ();\n              int iosmacs_nread;\n              snprintf (iosmacs_trace, sizeof iosmacs_trace,\n                        "keyboard wait-before-gobble wait=%d timeout=%d available=%d",\n                        iosmacs_wait_result, iosmacs_timeout_ms,\n                        iosmacs_available);\n              iosmacs_host_trace_event (iosmacs_trace);\n              iosmacs_nread = gobble_input ();\n              snprintf (iosmacs_trace, sizeof iosmacs_trace,\n                        "keyboard gobble-input nread=%d wait=%d",\n                        iosmacs_nread, iosmacs_wait_result);\n              iosmacs_host_trace_event (iosmacs_trace);\n              if (getenv ("IOSMACS_NW_DEBUG_ERROR"))\n                fprintf (stderr, "iosmacs-keyboard-drain nread=%d wait=%d\\n",\n                         iosmacs_nread, iosmacs_wait_result);\n            }\n        }\n      \/* iosmacs: direct tty waitpoint before decoded event read. *\/\n\n$2/s
+  ' "${keyboard_c}"
+fi
+
+if [[ -f "${keyboard_c}" ]] && ! grep -q "iosmacs: direct tty available input bypasses pty FIONREAD" "${keyboard_c}"; then
+  perl -0pi -e '
+    s/(\/\* Determine how many characters we should \*try\* to read\.  \*\/\n)/$1  if (iosmacs_host_is_tty_fd (fileno (tty->input))\n      && iosmacs_host_terminal_input_available ())\n    {\n      n_to_read = sizeof cbuf;\n      goto iosmacs_direct_tty_read_available_input;\n    }\n\n/s;
+    s/(  \/\* Now read; for one reason or another, this will not block\.)/iosmacs_direct_tty_read_available_input:\n  \/* iosmacs: direct tty available input bypasses pty FIONREAD. *\/\n$1/s
   ' "${keyboard_c}"
 fi
 
@@ -300,11 +319,6 @@ term_c="${configure_root}/src/term.c"
 if [[ -f "${term_c}" ]] && ! grep -q "iosmacs: reset terminal cost vector on first iOS probe calculation" "${term_c}"; then
   perl -0pi -e '
     s/  FRAME_COST_BAUD_RATE \(frame\) = baud_rate;\n\n#ifndef HAVE_ANDROID/  FRAME_COST_BAUD_RATE (frame) = baud_rate;\n\n#ifndef HAVE_ANDROID\n  static int iosmacs_cost_vector_reset;\n  if (!iosmacs_cost_vector_reset)\n    {\n      char_ins_del_vector = NULL;\n      max_frame_cols = 0;\n      iosmacs_cost_vector_reset = 1;\n    }\n  \/* iosmacs: reset terminal cost vector on first iOS probe calculation. *\//s
-  ' "${term_c}"
-fi
-if [[ -f "${term_c}" ]] && ! grep -q "iosmacs: skip cursor motion cost init in the iOS tty probe" "${term_c}"; then
-  perl -0pi -e '
-    s/      cmcostinit \(FRAME_TTY \(frame\)\); \/\* set up cursor motion costs \*\//      \/* iosmacs: skip cursor motion cost init in the iOS tty probe. *\//s
   ' "${term_c}"
 fi
 if [[ -f "${term_c}" ]] && ! grep -q "iosmacs-init-tty-before-open" "${term_c}"; then

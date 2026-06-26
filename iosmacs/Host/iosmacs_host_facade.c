@@ -63,6 +63,7 @@ static char lifecycle_state[IOSMACS_LIFECYCLE_STATE_SIZE] = "iosmacs: initialize
 static int32_t terminal_cols = 80;
 static int32_t terminal_rows = 24;
 static uint64_t input_generation;
+static uint64_t output_generation;
 static uint64_t resize_generation;
 static int direct_tty_mode;
 static int stdio_redirected_to_terminal;
@@ -338,6 +339,7 @@ void iosmacs_os_terminal_reset(void) {
     ring_reset(&input_ring);
     ring_reset(&output_ring);
     input_generation++;
+    output_generation++;
     resize_generation++;
     direct_tty_mode = 1;
     query_state = QUERY_STATE_GROUND;
@@ -399,6 +401,10 @@ ssize_t iosmacs_os_terminal_write(const uint8_t *bytes, size_t count) {
     pthread_mutex_lock(&terminal_mutex);
     terminal_observe_output_locked(bytes, count);
     ssize_t written = (ssize_t)ring_write(&output_ring, bytes, count);
+    if (written > 0) {
+        output_generation++;
+        pthread_cond_broadcast(&terminal_cond);
+    }
     pthread_mutex_unlock(&terminal_mutex);
     if (written > 0) {
         terminal_debug_log_bytes("write-output", bytes, (size_t)written);
@@ -452,6 +458,29 @@ ssize_t iosmacs_os_terminal_drain_output(uint8_t *buffer, size_t capacity) {
         terminal_debug_log_bytes("drain-output", buffer, (size_t)count);
     }
     return count;
+}
+
+int iosmacs_os_terminal_wait_for_output(int timeout_ms) {
+    int result = IOSMACS_HOST_WAIT_TIMEOUT;
+    pthread_mutex_lock(&terminal_mutex);
+    uint64_t seen_output = output_generation;
+    while (output_ring.count == 0 && seen_output == output_generation) {
+        if (timeout_ms < 0) {
+            pthread_cond_wait(&terminal_cond, &terminal_mutex);
+        } else {
+            struct timespec deadline;
+            terminal_make_timeout(&deadline, timeout_ms);
+            int wait_result = pthread_cond_timedwait(&terminal_cond, &terminal_mutex, &deadline);
+            if (wait_result == ETIMEDOUT) {
+                break;
+            }
+        }
+    }
+    if (output_ring.count > 0 || seen_output != output_generation) {
+        result = IOSMACS_HOST_WAIT_OUTPUT;
+    }
+    pthread_mutex_unlock(&terminal_mutex);
+    return result;
 }
 
 int iosmacs_os_terminal_wait_for_input(int timeout_ms) {

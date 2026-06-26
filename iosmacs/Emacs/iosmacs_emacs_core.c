@@ -512,6 +512,20 @@ static void *emacs_core_thread_main(void *arg) {
     setenv("LC_CTYPE", "en_US.UTF-8", 1);
     setlocale(LC_ALL, "");
     setenv("TERM", "xterm-256color", 1);
+    setenv(
+        "TERMCAP",
+        "xterm-256color:co#80:li#24:Co#16777216:"
+        "cl=\\E[H\\E[2J:cm=\\E[%i%d;%dH:"
+        "up=\\E[A:do=\\E[B:nd=\\E[C:le=\\b:bs:"
+        "ku=\\E[A:kd=\\E[B:kr=\\E[C:kl=\\E[D:kh=\\E[H:@7=\\E[F:kD=\\E[3~:"
+        "ks=\\E[?1h\\E=:ke=\\E[?1l\\E>:"
+        "vi=\\E[?25l:ve=\\E[?25h:vs=\\E[?25h:"
+        "ti=\\E[?1049h:te=\\E[?1049l:"
+        "so=\\E[7m:se=\\E[27m:us=\\E[4m:ue=\\E[24m:"
+        "md=\\E[1m:mr=\\E[7m:me=\\E[0m:"
+        "AF=\\E[38;5;%dm:AB=\\E[48;5;%dm:op=\\E[39;49m:",
+        1
+    );
     setenv("IOSMACS_TERMINAL_AUTO_XTERM_REPLIES", "1", 1);
     setenv("IOSMACS_NW_SKIP_GC", "1", 1);
     setenv("IOSMACS_PDMP_FALLBACK_CHARPROP", "1", 1);

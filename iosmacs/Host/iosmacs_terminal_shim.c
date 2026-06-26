@@ -246,27 +246,12 @@ ssize_t iosmacs_terminal_shim_push_input(const uint8_t *bytes, size_t count) {
         errno = EINVAL;
         return -1;
     }
-    if (fake_peer_fd < 0) {
-        errno = ENXIO;
-        return -1;
-    }
 
-    size_t written_total = 0;
-    while (written_total < count) {
-        ssize_t written = (ssize_t)syscall(SYS_write, fake_peer_fd, bytes + written_total, count - written_total);
-        if (written < 0 && errno == EINTR) {
-            continue;
-        }
-        if (written <= 0) {
-            break;
-        }
-        written_total += (size_t)written;
+    ssize_t written = iosmacs_os_terminal_push_input(bytes, count);
+    if (written > 0) {
+        shim_debug_log_bytes("direct-input-ring-write", bytes, (size_t)written);
     }
-    if (written_total > 0) {
-        shim_debug_log_bytes("direct-input-write", bytes, written_total);
-        iosmacs_os_terminal_note_input_signal(written_total);
-    }
-    return (ssize_t)written_total;
+    return written;
 }
 
 int iosmacs_terminal_shim_attach_stdio(void) {
