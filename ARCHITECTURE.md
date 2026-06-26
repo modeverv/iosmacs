@@ -1,5 +1,32 @@
 # iosmacs Architecture
 
+## Current Active Direction: Flutter Edition
+
+The repository is now preparing a Flutter edition of iosmacs alongside the
+existing native Xcode/Swift app.
+
+Future LLM agents should read `flutter/PLAN.md` and
+`flutter/ARCHITECTURE.md` before starting new implementation work. Those files
+are the active working documents for the cross-platform Flutter path. This root
+architecture remains the reference for the proven native iOS host, the Emacs
+host facade, the fake TTY boundary, and the current verification baseline.
+
+The Flutter edition should reuse the hard-won iosmacs boundaries:
+
+- Emacs owns editor semantics. Dart must not own command dispatch, buffers,
+  minibuffer behavior, Dired semantics, Lisp evaluation, undo, kill ring, or
+  keymap interpretation.
+- Flutter/Dart should transport committed terminal bytes to Emacs and display
+  terminal output, not reinterpret normal editing behavior.
+- Runtime responsibilities should be split into Flutter main isolate, backend
+  worker, and Emacs runtime.
+- The existing native iOS backend should be connected to Flutter before broad
+  platform expansion.
+- macOS should be the next desktop proving ground, with Linux, Windows,
+  Android, and Web added through explicit platform backends.
+- Web should use a separate `wasmacs`/WASM backend direction instead of assuming
+  the native FFI backend applies there.
+
 ## Purpose
 
 `iosmacs` is a native iOS/iPadOS host for GNU Emacs.

@@ -1,5 +1,32 @@
 # iosmacs Plan
 
+## Current Active Direction: Flutter Edition
+
+The next active development direction is the Flutter edition of iosmacs.
+
+Future LLM agents should treat `flutter/PLAN.md` as the working plan for the
+new cross-platform Flutter app and `flutter/ARCHITECTURE.md` as the working
+architecture for its UI/backend split.
+
+The existing native Xcode/Swift app remains valuable as the reference
+implementation and verification baseline. Do not remove or rewrite it while
+starting the Flutter path. The Flutter work should begin beside it under
+`flutter/`, first with a fake backend and then with the existing iOS native
+Emacs backend connected through a Dart interface.
+
+Key Flutter constraints:
+
+- Do not move Emacs editor semantics into Dart. Dart and Flutter transport
+  terminal bytes, display diagnostics, coordinate workers, and present UI;
+  Emacs owns command semantics, buffers, minibuffer behavior, Dired, Lisp, undo,
+  kill ring, and keymaps.
+- Split runtime responsibilities into Flutter main isolate, backend worker, and
+  Emacs runtime.
+- Preserve the existing top-level `make verify` contract for the native iOS app
+  until the Flutter iOS backend has equivalent smoke evidence.
+- Treat Web as a separate `wasmacs`/WASM backend direction rather than a direct
+  native FFI port.
+
 ## Phase 0: Repository Baseline
 
 - Keep `wasmacs` as a reference submodule.
