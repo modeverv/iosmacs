@@ -401,6 +401,10 @@ Current TODO:
   input on Flutter `TerminalView` instead of the hidden native `UITextView`.
 - [x] Verify inline Japanese IME composition with a Flutter terminal-body
   composing/commit widget test, structure check, and iOS Simulator build.
+- [x] Enable iOS Japanese IME candidate UI by using the normal text keyboard
+  type for the terminal body instead of the email-address keyboard profile.
+- [x] Verify terminal-body keyboard type coverage with Flutter tests,
+  structure check, and iOS Simulator build.
 - [ ] Make Flutter iOS build, install, and run on a physical iPad/iPhone with
   documented signing and device smoke evidence.
 

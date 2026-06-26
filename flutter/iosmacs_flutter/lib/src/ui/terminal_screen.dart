@@ -132,6 +132,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                       _terminal,
                       autofocus: true,
                       focusNode: _terminalFocusNode,
+                      keyboardType: TextInputType.text,
                       padding: const EdgeInsets.all(12),
                       textStyle: TerminalStyle(fontSize: _fontSize),
                       theme: const TerminalTheme(

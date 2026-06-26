@@ -565,6 +565,20 @@ void main() {
     expect(backend.diagnostics.value.inputBytes, expectedByteCount);
   });
 
+  testWidgets('terminal body uses normal text keyboard for IME candidates', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    final terminalView = tester.widget<TerminalView>(find.byType(TerminalView));
+    expect(terminalView.keyboardType, TextInputType.text);
+  });
+
   testWidgets('input row Paste button forwards normalized paste bytes', (
     WidgetTester tester,
   ) async {

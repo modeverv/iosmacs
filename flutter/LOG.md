@@ -2326,3 +2326,22 @@ Flutter iOS inline Japanese IME:
   `git diff --check`, and `flutter build ios --simulator --debug`.
 - Installed and launched the rebuilt app on the booted iPad Simulator with
   process id `35199`.
+
+Flutter iOS Japanese IME candidates:
+
+- Starting follow-up work after inline Japanese composition improved but the
+  iOS Japanese conversion candidates were still not visible enough.
+- Confirmed `TerminalView` defaults to `TextInputType.emailAddress`, while
+  `xterm.dart`'s lower-level `CustomTextEdit` supports ordinary text input.
+- Overrode the terminal body `TerminalView` to use `TextInputType.text` so iOS
+  can use the normal Japanese IME candidate UI instead of the email-address
+  keyboard profile.
+- Added widget coverage that asserts the terminal body is configured with
+  `TextInputType.text`.
+- Added structure-check guards for the terminal keyboard type and candidate UI
+  coverage.
+- Verified with `flutter test test/terminal_screen_test.dart
+  test/terminal_input_bridge_test.dart`, `make flutter-structure-check`,
+  `git diff --check`, and `flutter build ios --simulator --debug`.
+- Installed and launched the rebuilt app on the booted iPad Simulator with
+  process id `62574`.

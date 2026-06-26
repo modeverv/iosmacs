@@ -354,6 +354,8 @@ grep -q 'clipboardTextProvider' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'LogicalKeyboardKey.keyV, meta: true' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'keyboardType: TextInputType.text' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'pasteText' \
   "$app_dir/lib/src/ui/terminal_input_bridge.dart"
 grep -q 'pasteText' \
@@ -405,6 +407,8 @@ grep -q 'input row Send button forwards committed terminal text' \
 grep -q 'input row Send button forwards Japanese text once' \
   "$app_dir/test/terminal_screen_test.dart"
 grep -q 'terminal body keeps Japanese IME composing text inline until commit' \
+  "$app_dir/test/terminal_screen_test.dart"
+grep -q 'terminal body uses normal text keyboard for IME candidates' \
   "$app_dir/test/terminal_screen_test.dart"
 grep -q 'toolbar avoids overflow on narrow mobile width' \
   "$app_dir/test/terminal_screen_test.dart"
