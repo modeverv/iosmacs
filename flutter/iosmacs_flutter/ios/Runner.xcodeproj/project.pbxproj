@@ -17,6 +17,7 @@
 		78B100052EC9000000000001 /* iosmacs_emacs_diagnostic.c in Sources */ = {isa = PBXBuildFile; fileRef = 78B100042EC9000000000001 /* iosmacs_emacs_diagnostic.c */; };
 		78B100072EC9000000000001 /* iosmacs_emacs_core.c in Sources */ = {isa = PBXBuildFile; fileRef = 78B100062EC9000000000001 /* iosmacs_emacs_core.c */; };
 		78B100092EC9000000000001 /* iosmacs_terminal_shim.c in Sources */ = {isa = PBXBuildFile; fileRef = 78B100082EC9000000000001 /* iosmacs_terminal_shim.c */; };
+		78B100142EC9000000000001 /* IOSMacsURLSessionBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78B100152EC9000000000001 /* IOSMacsURLSessionBridge.swift */; };
 		78B1000C2EC9000000000001 /* lisp in Resources */ = {isa = PBXBuildFile; fileRef = 78B1000B2EC9000000000001 /* lisp */; };
 		78B1000E2EC9000000000001 /* etc in Resources */ = {isa = PBXBuildFile; fileRef = 78B1000D2EC9000000000001 /* etc */; };
 		78B100102EC9000000000001 /* lib-src in Resources */ = {isa = PBXBuildFile; fileRef = 78B1000F2EC9000000000001 /* lib-src */; };
@@ -64,6 +65,7 @@
 		78B100042EC9000000000001 /* iosmacs_emacs_diagnostic.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = iosmacs_emacs_diagnostic.c; path = ../../../../iosmacs/Emacs/iosmacs_emacs_diagnostic.c; sourceTree = "<group>"; };
 		78B100062EC9000000000001 /* iosmacs_emacs_core.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = iosmacs_emacs_core.c; path = ../../../../iosmacs/Emacs/iosmacs_emacs_core.c; sourceTree = "<group>"; };
 		78B100082EC9000000000001 /* iosmacs_terminal_shim.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = iosmacs_terminal_shim.c; path = ../../../../iosmacs/Host/iosmacs_terminal_shim.c; sourceTree = "<group>"; };
+		78B100152EC9000000000001 /* IOSMacsURLSessionBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = IOSMacsURLSessionBridge.swift; path = ../../../../iosmacs/Host/IOSMacsURLSessionBridge.swift; sourceTree = "<group>"; };
 		78B1000B2EC9000000000001 /* lisp */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ../../build/emacs-ios/source/lisp; sourceTree = SOURCE_ROOT; };
 		78B1000D2EC9000000000001 /* etc */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ../../build/emacs-ios/source/etc; sourceTree = SOURCE_ROOT; };
 		78B1000F2EC9000000000001 /* lib-src */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ../../build/emacs-ios/lib-src; sourceTree = SOURCE_ROOT; };
@@ -156,6 +158,7 @@
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 				78B100022EC9000000000001 /* iosmacs_host_facade.c */,
+				78B100152EC9000000000001 /* IOSMacsURLSessionBridge.swift */,
 				78B100042EC9000000000001 /* iosmacs_emacs_diagnostic.c */,
 				78B100062EC9000000000001 /* iosmacs_emacs_core.c */,
 				78B100082EC9000000000001 /* iosmacs_terminal_shim.c */,
@@ -342,6 +345,7 @@
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				78B100012EC9000000000001 /* FlutterNativeEmacsBridge.swift in Sources */,
 				78B100032EC9000000000001 /* iosmacs_host_facade.c in Sources */,
+				78B100142EC9000000000001 /* IOSMacsURLSessionBridge.swift in Sources */,
 				78B100052EC9000000000001 /* iosmacs_emacs_diagnostic.c in Sources */,
 				78B100072EC9000000000001 /* iosmacs_emacs_core.c in Sources */,
 				78B100092EC9000000000001 /* iosmacs_terminal_shim.c in Sources */,

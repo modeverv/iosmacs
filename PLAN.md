@@ -348,6 +348,30 @@ Detailed execution state lives in `flutter/PLAN.md`; running notes live in
 - [x] Verify Ctrl+V empty paste shows feedback without sending backend input
   bytes.
 - [x] Guard empty paste shortcut behavior with structure check and diff check.
+- [x] Add Flutter iOS native runtime smoke harness for mirrored logs.
+- [x] Prove Flutter iOS reaches the real `*scratch*` terminal frame.
+- [x] Prove Flutter iOS terminal input inserts into `*scratch*`.
+- [x] Prove Flutter iOS can save, reopen, and Dired-list workspace files.
+- [x] Prove Flutter iOS relaunch-persist workspace files.
+- [x] Fix Flutter iOS terminal geometry so mode lines do not wrap after smoke
+  resize checks.
+- [x] Fix Japanese committed input so it is not sent twice.
+- [x] Restore `M-x dired` and `M-x tetris` command discovery in the bundled
+  runtime.
+- [x] Fix terminal-body Japanese IME duplicate chunks, not only the visible
+  Send text-field path.
+- [x] Strengthen the Flutter iOS `M-x dired` / `M-x tetris` smoke to verify
+  command completion candidates, not only `commandp`.
+- [x] Bind `M-X` to the ordinary `M-x` command path on bundled iOS Emacs so
+  shifted/meta keyboard input does not use buffer-filtered command completion.
+- [x] Add Flutter iOS support for selecting an arbitrary iPadOS/iCloud folder
+  and using it as Emacs `/home/user` via a security-scoped bookmark.
+- [x] Link the native iOS URLSession network bridge into the Flutter iOS Runner
+  so Emacs `url.el` requests work from the Flutter app.
+- [x] Verify Flutter iOS `/home/user` folder selection and network bridge work
+  with tests, structure check, native smoke, and an Emacs HTTPS marker.
+- [ ] Make Flutter iOS build, install, and run on a physical iPad/iPhone with
+  documented signing and device smoke evidence.
 
 ## Phase 0: Repository Baseline
 

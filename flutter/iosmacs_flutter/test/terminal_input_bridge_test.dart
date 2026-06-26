@@ -35,8 +35,56 @@ void main() {
     ]);
   });
 
-  test('forwards pasted text as raw UTF-8 bytes without carriage return',
+  test('normalizes committed multiline text to terminal carriage returns',
       () async {
+    final backend = _RecordingBackend();
+    final bridge = TerminalInputBridge(backend);
+
+    await bridge.submitCommittedText("(require 'url)\n\n(message \"ok\")");
+
+    expect(backend.sentBytes, <List<int>>[
+      utf8.encode("(require 'url)\r\r(message \"ok\")\r"),
+    ]);
+  });
+
+  test('drops duplicate terminal IME chunks without filtering ASCII input',
+      () async {
+    final backend = _RecordingBackend();
+    var now = DateTime(2026, 6, 26, 19, 20);
+    final bridge = TerminalInputBridge(backend, now: () => now);
+
+    await bridge.sendTerminalOutput('日本語');
+    now = now.add(const Duration(milliseconds: 100));
+    await bridge.sendTerminalOutput('日本語');
+    now = now.add(const Duration(milliseconds: 100));
+    await bridge.sendTerminalOutput('a');
+    now = now.add(const Duration(milliseconds: 100));
+    await bridge.sendTerminalOutput('a');
+
+    expect(backend.sentBytes, <List<int>>[
+      utf8.encode('日本語'),
+      <int>[0x61],
+      <int>[0x61],
+    ]);
+  });
+
+  test('allows repeated terminal IME text outside the duplicate window',
+      () async {
+    final backend = _RecordingBackend();
+    var now = DateTime(2026, 6, 26, 19, 21);
+    final bridge = TerminalInputBridge(backend, now: () => now);
+
+    await bridge.sendTerminalOutput('日本語');
+    now = now.add(const Duration(seconds: 1));
+    await bridge.sendTerminalOutput('日本語');
+
+    expect(backend.sentBytes, <List<int>>[
+      utf8.encode('日本語'),
+      utf8.encode('日本語'),
+    ]);
+  });
+
+  test('forwards pasted text as normalized UTF-8 bytes', () async {
     final backend = _RecordingBackend();
     final bridge = TerminalInputBridge(backend);
 
@@ -44,6 +92,18 @@ void main() {
 
     expect(backend.sentBytes, <List<int>>[
       utf8.encode('clip 日本語'),
+    ]);
+  });
+
+  test('normalizes pasted multiline text to terminal carriage returns',
+      () async {
+    final backend = _RecordingBackend();
+    final bridge = TerminalInputBridge(backend);
+
+    await bridge.pasteText("(require 'url)\r\n\n(message \"ok\")");
+
+    expect(backend.sentBytes, <List<int>>[
+      utf8.encode("(require 'url)\r\r(message \"ok\")"),
     ]);
   });
 
@@ -102,6 +162,9 @@ class _RecordingBackend implements EmacsBackend {
   }
 
   @override
+  Future<bool> pasteSystemClipboard() async => false;
+
+  @override
   Future<void> resize({required int cols, required int rows}) async {}
 
   @override
@@ -112,6 +175,13 @@ class _RecordingBackend implements EmacsBackend {
 
   @override
   Future<List<Uri>> exportWorkspaceSelection() async => <Uri>[];
+
+  @override
+  Future<String> selectWorkspaceRoot() async => 'recording workspace selected';
+
+  @override
+  Future<String> clearWorkspaceRootSelection() async =>
+      'recording default workspace set';
 
   @override
   void dispose() {

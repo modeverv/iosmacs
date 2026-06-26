@@ -81,6 +81,9 @@ class AndroidEmacsBackend implements EmacsBackend {
   }
 
   @override
+  Future<bool> pasteSystemClipboard() async => false;
+
+  @override
   Future<void> resize({required int cols, required int rows}) async {
     await Future<void>.delayed(Duration.zero);
     _diagnostics.value = _diagnostics.value.copyWith(
@@ -122,6 +125,24 @@ class AndroidEmacsBackend implements EmacsBackend {
       workspaceActions: _diagnostics.value.workspaceActions + 1,
     );
     return const <Uri>[];
+  }
+
+  @override
+  Future<String> selectWorkspaceRoot() async {
+    _diagnostics.value = _diagnostics.value.copyWith(
+      message: 'android workspace root selection pending',
+      workspaceActions: _diagnostics.value.workspaceActions + 1,
+    );
+    return 'Android workspace root selection pending';
+  }
+
+  @override
+  Future<String> clearWorkspaceRootSelection() async {
+    _diagnostics.value = _diagnostics.value.copyWith(
+      message: 'android default workspace pending',
+      workspaceActions: _diagnostics.value.workspaceActions + 1,
+    );
+    return 'Android default workspace pending';
   }
 
   @override

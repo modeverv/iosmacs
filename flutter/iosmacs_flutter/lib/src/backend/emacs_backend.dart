@@ -14,11 +14,14 @@ abstract interface class EmacsBackend {
   Future<void> stop();
   Future<void> resetOrRedraw();
   Future<void> sendBytes(List<int> bytes);
+  Future<bool> pasteSystemClipboard();
   Future<void> resize({required int cols, required int rows});
 
   Future<List<WorkspaceEntry>> listWorkspace();
   Future<int> importToWorkspace(List<Uri> uris);
   Future<List<Uri>> exportWorkspaceSelection();
+  Future<String> selectWorkspaceRoot();
+  Future<String> clearWorkspaceRootSelection();
 
   void dispose();
 }

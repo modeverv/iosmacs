@@ -89,6 +89,24 @@ EOF
     --with-modules=no
 )
 
+if [[ "${IOSMACS_DISABLE_TERMINFO:-0}" == "1" ]]; then
+  config_h="${build_root}/src/config.h"
+  src_makefile="${build_root}/src/Makefile"
+  if [[ -f "${config_h}" ]]; then
+    perl -0pi -e '
+      s@^#define TERMINFO 1$@/* #undef TERMINFO */@m;
+      s@^#define TERMINFO_DEFINES_BC 1$@/* #undef TERMINFO_DEFINES_BC */@m;
+      s@^#define HAVE_TERMINFO 1$@/* #undef HAVE_TERMINFO */@m;
+    ' "${config_h}"
+  fi
+  if [[ -f "${src_makefile}" ]]; then
+    perl -0pi -e '
+      s/^LIBS_TERMCAP=.*$/LIBS_TERMCAP=/m;
+      s/^TERMCAP_OBJ=.*$/TERMCAP_OBJ=termcap.o tparam.o/m;
+    ' "${src_makefile}"
+  fi
+fi
+
 loadup_el="${configure_root}/lisp/loadup.el"
 if [[ -f "${loadup_el}" ]] && ! grep -q "iosmacs: Dired without external ls" "${loadup_el}"; then
   perl -0pi -e '
@@ -108,7 +126,7 @@ fi
 
 if [[ -f "${sysdep_c}" ]] && ! grep -q "iosmacs: direct tty facade fallback definitions" "${sysdep_c}"; then
   perl -0pi -e '
-    s/(\/\* Read from FD to a buffer BUF with size NBYTE\.)/__attribute__ ((weak)) int\niosmacs_host_wait_for_input (int timeout_ms)\n{\n  (void) timeout_ms;\n  return 0;\n}\n\n__attribute__ ((weak)) int\niosmacs_host_terminal_input_available (void)\n{\n  return 0;\n}\n\n__attribute__ ((weak)) int\niosmacs_host_is_tty_fd (int fd)\n{\n  (void) fd;\n  return 0;\n}\n\n__attribute__ ((weak)) void\niosmacs_host_trace_event (const char *message)\n{\n  (void) message;\n}\n\n\/* iosmacs: direct tty facade fallback definitions. *\/\n\n$1/s
+	    s/(\/\* Read from FD to a buffer BUF with size NBYTE\.)/__attribute__ ((weak)) int\niosmacs_host_wait_for_input (int timeout_ms)\n{\n  (void) timeout_ms;\n  return 0;\n}\n\n__attribute__ ((weak)) ssize_t\niosmacs_host_terminal_read (unsigned char *buffer, size_t capacity)\n{\n  (void) buffer;\n  (void) capacity;\n  return 0;\n}\n\n__attribute__ ((weak)) int\niosmacs_host_terminal_input_available (void)\n{\n  return 0;\n}\n\n__attribute__ ((weak)) int\niosmacs_host_is_tty_fd (int fd)\n{\n  (void) fd;\n  return 0;\n}\n\n__attribute__ ((weak)) void\niosmacs_host_trace_event (const char *message)\n{\n  (void) message;\n}\n\n__attribute__ ((weak)) int\niosmacs_host_trace_hotpath_active (void)\n{\n  return 0;\n}\n\n\/* iosmacs: direct tty facade fallback definitions. *\/\n\n$1/s
   ' "${sysdep_c}"
 fi
 
@@ -120,7 +138,15 @@ fi
 
 if [[ -f "${sysdep_c}" ]] && ! grep -q "iosmacs: direct tty read in emacs_intr_read" "${sysdep_c}"; then
   perl -0pi -e '
-    s/(  ssize_t result;\n\n)/$1  if (nbyte > 0 && iosmacs_host_is_tty_fd (fd))\n    {\n      unsigned char *tty_buf = buf;\n      ptrdiff_t bytes_read = 0;\n\n      while (bytes_read == 0)\n        {\n          while (bytes_read < nbyte)\n            {\n              int byte = iosmacs_host_terminal_read_byte ();\n              if (byte < 0)\n                break;\n              tty_buf[bytes_read++] = (unsigned char) byte;\n            }\n\n          if (bytes_read > 0)\n            {\n              char iosmacs_trace[128];\n              snprintf (iosmacs_trace, sizeof iosmacs_trace,\n                        "sysdep tty-read bytes=%td", bytes_read);\n              iosmacs_host_trace_event (iosmacs_trace);\n              return bytes_read;\n            }\n\n          if (interruptible)\n            maybe_quit ();\n          iosmacs_host_wait_for_input (50);\n        }\n    }\n  \/* iosmacs: direct tty read in emacs_intr_read. *\/\n\n/s
+	    s/(  ssize_t result;\n\n)/$1  if (nbyte > 0 && iosmacs_host_is_tty_fd (fd))\n    {\n      unsigned char *tty_buf = buf;\n      ptrdiff_t bytes_read = 0;\n\n      while (bytes_read == 0)\n        {\n          bytes_read = iosmacs_host_terminal_read (tty_buf, nbyte);\n\n          if (bytes_read > 0)\n            {\n              char iosmacs_trace[128];\n              snprintf (iosmacs_trace, sizeof iosmacs_trace,\n                        "sysdep tty-read bytes=%td", bytes_read);\n              iosmacs_host_trace_event (iosmacs_trace);\n              return bytes_read;\n            }\n\n          if (bytes_read < 0)\n            return bytes_read;\n\n          if (interruptible)\n            maybe_quit ();\n          iosmacs_host_wait_for_input (50);\n        }\n    }\n  \/* iosmacs: direct tty read in emacs_intr_read. *\/\n\n/s
+  ' "${sysdep_c}"
+fi
+
+if [[ -f "${sysdep_c}" ]] \
+  && grep -q "iosmacs: direct tty read in emacs_intr_read" "${sysdep_c}" \
+  && grep -q "iosmacs_host_terminal_read_byte" "${sysdep_c}"; then
+  perl -0pi -e '
+    s/  if \(nbyte > 0 && iosmacs_host_is_tty_fd \(fd\)\)\n    \{\n      unsigned char \*tty_buf = buf;\n      ptrdiff_t bytes_read = 0;\n\n      while \(bytes_read == 0\)\n        \{\n          while \(bytes_read < nbyte\)\n            \{\n              int byte = iosmacs_host_terminal_read_byte \(\);\n              if \(byte < 0\)\n                break;\n              tty_buf\[bytes_read\+\+\] = \(unsigned char\) byte;\n            \}\n\n          if \(bytes_read > 0\)\n            \{\n              char iosmacs_trace\[128\];\n              snprintf \(iosmacs_trace, sizeof iosmacs_trace,\n                        "sysdep tty-read bytes=%td", bytes_read\);\n              iosmacs_host_trace_event \(iosmacs_trace\);\n              return bytes_read;\n            \}\n\n          if \(interruptible\)\n            maybe_quit \(\);\n          iosmacs_host_wait_for_input \(50\);\n        \}\n    \}\n  \/\* iosmacs: direct tty read in emacs_intr_read\. \*\//  if (nbyte > 0 && iosmacs_host_is_tty_fd (fd))\n    {\n      unsigned char *tty_buf = buf;\n      ptrdiff_t bytes_read = 0;\n\n      while (bytes_read == 0)\n        {\n          bytes_read = iosmacs_host_terminal_read (tty_buf, nbyte);\n\n          if (bytes_read > 0)\n            {\n              char iosmacs_trace[128];\n              snprintf (iosmacs_trace, sizeof iosmacs_trace,\n                        "sysdep tty-read bytes=%td", bytes_read);\n              iosmacs_host_trace_event (iosmacs_trace);\n              return bytes_read;\n            }\n\n          if (bytes_read < 0)\n            return bytes_read;\n\n          if (interruptible)\n            maybe_quit ();\n          iosmacs_host_wait_for_input (50);\n        }\n    }\n  \/* iosmacs: direct tty read in emacs_intr_read. *\//s
   ' "${sysdep_c}"
 fi
 
@@ -159,6 +185,11 @@ if [[ -f "${alloc_c}" ]] && ! grep -q "iosmacs: suppress explicit GC in the iOS 
 fi
 
 keyboard_c="${configure_root}/src/keyboard.c"
+if [[ -f "${keyboard_c}" ]] && ! grep -q "iosmacs: hotpath keyboard trace declaration" "${keyboard_c}"; then
+  perl -0pi -e '
+    s/(#include "dispextern\.h"\n)/$1\nextern void iosmacs_host_trace_event (const char *message);\nextern int iosmacs_host_trace_hotpath_active (void);\n\/* iosmacs: hotpath keyboard trace declaration. *\/\n/s
+  ' "${keyboard_c}"
+fi
 if [[ -f "${keyboard_c}" ]] && ! grep -q "iosmacs: mirror command-loop startup errors for the iOS nw smoke" "${keyboard_c}"; then
   perl -0pi -e '
     s/  Vinhibit_quit = Qt;\n/  Vinhibit_quit = Qt;\n\n  if (getenv ("IOSMACS_NW_DEBUG_ERROR"))\n    {\n      fprintf (stderr, "\\niosmacs-nw-command-error\\n");\n      print_error_message (data, Qexternal_debugging_output,\n                           context ? context : "", Vsignaling_function);\n      Fterpri (Qexternal_debugging_output, Qnil);\n    }\n  \/* iosmacs: mirror command-loop startup errors for the iOS nw smoke. *\/\n/s
@@ -182,16 +213,21 @@ if [[ -f "${keyboard_c}" ]] && grep -q "debug_print (Vtop_level)" "${keyboard_c}
     s/  if \(getenv \("IOSMACS_NW_DEBUG_ERROR"\)\)\n    \{\n      fprintf \(stderr, "iosmacs-top-level-vtop-level: "\);\n      debug_print \(Vtop_level\);\n    \}/  if (getenv ("IOSMACS_NW_DEBUG_ERROR"))\n    fprintf (stderr, "iosmacs-top-level-vtop-level\\n");/s
   ' "${keyboard_c}"
 fi
+if [[ -f "${keyboard_c}" ]] && ! grep -q "iosmacs: hotpath command-loop marker" "${keyboard_c}"; then
+  perl -0pi -e '
+    s/static Lisp_Object\ncommand_loop_1 \(void\)\n\{/static Lisp_Object\ncommand_loop_1 (void)\n{\n  if (iosmacs_host_trace_hotpath_active ())\n    iosmacs_host_trace_event ("hotpath command-loop-1 entry");\n  \/* iosmacs: hotpath command-loop marker. *\//s
+  ' "${keyboard_c}"
+fi
 
 if [[ -f "${keyboard_c}" ]] && ! grep -q "iosmacs: direct tty waitpoint declarations" "${keyboard_c}"; then
   perl -0pi -e '
-    s/(\/\* Read a character from the keyboard; call the redisplay if needed\.  \*\/)/extern int iosmacs_host_wait_for_input (int timeout_ms);\nextern int iosmacs_host_terminal_input_available (void);\nextern int iosmacs_host_is_tty_fd (int fd);\nextern void iosmacs_host_trace_event (const char *message);\nextern int gobble_input (void);\n\nstatic int\niosmacs_host_timeout_ms_until (struct timespec *end_time)\n{\n  struct timespec now;\n  struct timespec duration;\n  long nsec_ms;\n  long total_ms;\n\n  if (!end_time)\n    return 50;\n\n  now = current_timespec ();\n  if (timespec_cmp (*end_time, now) <= 0)\n    return 0;\n\n  duration = timespec_sub (*end_time, now);\n  if (duration.tv_sec > 60)\n    return 60000;\n\n  nsec_ms = (duration.tv_nsec + 999999L) \/ 1000000L;\n  total_ms = duration.tv_sec * 1000L + nsec_ms;\n  return total_ms > 0 ? (int) total_ms : 0;\n}\n\/* iosmacs: direct tty waitpoint declarations. *\/\n\n$1/s
+    s/(\/\* Read a character from the keyboard; call the redisplay if needed\.  \*\/)/extern int iosmacs_host_wait_for_input (int timeout_ms);\nextern int iosmacs_host_terminal_input_available (void);\nextern int iosmacs_host_is_tty_fd (int fd);\nextern void iosmacs_host_trace_event (const char *message);\nextern int gobble_input (void);\nextern bool kbd_buffer_events_waiting (void);\n\nstatic int\niosmacs_host_timeout_ms_until (struct timespec *end_time)\n{\n  struct timespec now;\n  struct timespec duration;\n  long nsec_ms;\n  long total_ms;\n\n  if (!end_time)\n    return 50;\n\n  now = current_timespec ();\n  if (timespec_cmp (*end_time, now) <= 0)\n    return 0;\n\n  duration = timespec_sub (*end_time, now);\n  if (duration.tv_sec > 60)\n    return 60000;\n\n  nsec_ms = (duration.tv_nsec + 999999L) \/ 1000000L;\n  total_ms = duration.tv_sec * 1000L + nsec_ms;\n  return total_ms > 0 ? (int) total_ms : 0;\n}\n\/* iosmacs: direct tty waitpoint declarations. *\/\n\n$1/s
   ' "${keyboard_c}"
 fi
 
 if [[ -f "${keyboard_c}" ]] && ! grep -q "iosmacs: direct tty waitpoint before decoded event read" "${keyboard_c}"; then
   perl -0pi -e '
-    s/(  if \(NILP \(c\)\)\n    \{\n)(      c = read_decoded_event_from_main_queue)/$1      if (!noninteractive && iosmacs_host_is_tty_fd (0))\n        {\n          int iosmacs_timeout_ms = iosmacs_host_timeout_ms_until (end_time);\n          if (!end_time || iosmacs_timeout_ms > 0)\n            {\n              char iosmacs_trace[128];\n              int iosmacs_wait_result = iosmacs_host_wait_for_input (iosmacs_timeout_ms);\n              int iosmacs_available = iosmacs_host_terminal_input_available ();\n              int iosmacs_nread;\n              snprintf (iosmacs_trace, sizeof iosmacs_trace,\n                        "keyboard wait-before-gobble wait=%d timeout=%d available=%d",\n                        iosmacs_wait_result, iosmacs_timeout_ms,\n                        iosmacs_available);\n              iosmacs_host_trace_event (iosmacs_trace);\n              iosmacs_nread = gobble_input ();\n              snprintf (iosmacs_trace, sizeof iosmacs_trace,\n                        "keyboard gobble-input nread=%d wait=%d",\n                        iosmacs_nread, iosmacs_wait_result);\n              iosmacs_host_trace_event (iosmacs_trace);\n              if (getenv ("IOSMACS_NW_DEBUG_ERROR"))\n                fprintf (stderr, "iosmacs-keyboard-drain nread=%d wait=%d\\n",\n                         iosmacs_nread, iosmacs_wait_result);\n            }\n        }\n      \/* iosmacs: direct tty waitpoint before decoded event read. *\/\n\n$2/s
+    s/(  if \(NILP \(c\)\)\n    \{\n)(      c = read_decoded_event_from_main_queue)/$1      if (!noninteractive && iosmacs_host_is_tty_fd (0)\n          && !kbd_buffer_events_waiting ())\n        {\n          int iosmacs_timeout_ms = iosmacs_host_timeout_ms_until (end_time);\n          if (!end_time || iosmacs_timeout_ms > 0)\n            {\n              char iosmacs_trace[128];\n              int iosmacs_wait_result = iosmacs_host_wait_for_input (iosmacs_timeout_ms);\n              int iosmacs_available = iosmacs_host_terminal_input_available ();\n              int iosmacs_nread;\n              snprintf (iosmacs_trace, sizeof iosmacs_trace,\n                        "keyboard wait-before-gobble wait=%d timeout=%d available=%d",\n                        iosmacs_wait_result, iosmacs_timeout_ms,\n                        iosmacs_available);\n              iosmacs_host_trace_event (iosmacs_trace);\n              iosmacs_nread = gobble_input ();\n              snprintf (iosmacs_trace, sizeof iosmacs_trace,\n                        "keyboard gobble-input nread=%d wait=%d",\n                        iosmacs_nread, iosmacs_wait_result);\n              iosmacs_host_trace_event (iosmacs_trace);\n              if (getenv ("IOSMACS_NW_DEBUG_ERROR"))\n                fprintf (stderr, "iosmacs-keyboard-drain nread=%d wait=%d\\n",\n                         iosmacs_nread, iosmacs_wait_result);\n            }\n        }\n      \/* iosmacs: direct tty waitpoint before decoded event read. *\/\n\n$2/s
   ' "${keyboard_c}"
 fi
 
@@ -331,6 +367,18 @@ if [[ -f "${term_c}" ]] && ! grep -q "iosmacs-init-tty-before-open" "${term_c}";
   ' "${term_c}"
 fi
 xdisp_c="${configure_root}/src/xdisp.c"
+if [[ -f "${xdisp_c}" ]] && ! grep -q "iosmacs: hotpath redisplay declarations" "${xdisp_c}"; then
+  perl -0pi -e '
+    s/(#include "dispextern\.h"\n)/$1\nextern void iosmacs_host_trace_event (const char *message);\nextern int iosmacs_host_trace_hotpath_active (void);\n\nstatic bool\niosmacs_trace_emacs_hotpath_enabled (void)\n{\n  return iosmacs_host_trace_hotpath_active ();\n}\n\nstatic void\niosmacs_trace_emacs_hotpath (const char *message)\n{\n  if (iosmacs_trace_emacs_hotpath_enabled ())\n    iosmacs_host_trace_event (message);\n}\n\n\/* iosmacs: hotpath redisplay declarations. *\/\n/s
+  ' "${xdisp_c}"
+fi
+if [[ -f "${xdisp_c}" ]] && ! grep -q "iosmacs: hotpath redisplay markers" "${xdisp_c}"; then
+  perl -0pi -e '
+    s/static void\nredisplay_internal \(void\)\n\{/static void\nredisplay_internal (void)\n{\n  iosmacs_trace_emacs_hotpath ("hotpath redisplay-internal entry");\n  \/* iosmacs: hotpath redisplay markers. *\//s;
+    s/static int\ntry_window \(Lisp_Object window, struct text_pos pos, int flags\)\n\{/static int\ntry_window (Lisp_Object window, struct text_pos pos, int flags)\n{\n  iosmacs_trace_emacs_hotpath ("hotpath try-window entry");\n  \/* iosmacs: hotpath try-window marker. *\//s;
+    s/static bool\ndisplay_line \(struct it \*it, int cursor_vpos\)\n\{/static bool\ndisplay_line (struct it *it, int cursor_vpos)\n{\n  static int iosmacs_display_line_trace_count;\n  if (iosmacs_trace_emacs_hotpath_enabled ()\n      && iosmacs_display_line_trace_count < 80)\n    {\n      iosmacs_display_line_trace_count++;\n      iosmacs_host_trace_event ("hotpath display-line entry");\n    }\n  \/* iosmacs: hotpath display-line marker. *\//s
+  ' "${xdisp_c}"
+fi
 if [[ -f "${xdisp_c}" ]] && ! grep -q "iosmacs: derive initial display windows from selected frame" "${xdisp_c}"; then
   perl -0pi -e '
     s/      struct window \*m = XWINDOW \(minibuf_window\);\n      Lisp_Object frame = m->frame;\n      struct frame \*f = XFRAME \(frame\);\n      Lisp_Object root = FRAME_ROOT_WINDOW \(f\);\n      struct window \*r = XWINDOW \(root\);/      Lisp_Object frame = selected_frame;\n      struct frame *f = XFRAME (frame);\n      Lisp_Object root = FRAME_ROOT_WINDOW (f);\n      Lisp_Object mini = FRAME_MINIBUF_WINDOW (f);\n      struct window *r = XWINDOW (root);\n      struct window *m = XWINDOW (mini);\n      minibuf_window = mini;\n      \/* iosmacs: derive initial display windows from selected frame. *\//s
@@ -346,6 +394,18 @@ if [[ -f "${xdisp_c}" ]] && ! grep -q "iosmacs: ignore load messages until the c
   perl -0pi -e '
     s/      mini_window = FRAME_MINIBUF_WINDOW \(sf\);\n      f = XFRAME \(WINDOW_FRAME \(XWINDOW \(mini_window\)\)\);\n\n      \/\* Error messages get reported properly by cmd_error, so this must be\n\t just an informative message; if the frame hasn\x27t really been\n\t initialized yet, just toss it\.  \*\/\n      need_message = f->glyphs_initialized_p;/      mini_window = FRAME_MINIBUF_WINDOW (sf);\n      if (!WINDOWP (mini_window))\n        need_message = false;\n      else\n        {\n          f = XFRAME (WINDOW_FRAME (XWINDOW (mini_window)));\n\n          \/* Error messages get reported properly by cmd_error, so this must be\n             just an informative message; if the frame has not really been\n             initialized yet, just toss it.  *\/\n          need_message = f->glyphs_initialized_p;\n        }\n      \/* iosmacs: ignore load messages until the converted tty minibuffer is live. *\//s
   ' "${xdisp_c}"
+fi
+
+alloc_c="${configure_root}/src/alloc.c"
+if [[ -f "${alloc_c}" ]] && ! grep -q "iosmacs: hotpath GC marker declarations" "${alloc_c}"; then
+  perl -0pi -e '
+    s/(#include "pdumper\.h"\n)/$1\nextern void iosmacs_host_trace_event (const char *message);\nextern int iosmacs_host_trace_hotpath_active (void);\n\nstatic void\niosmacs_trace_gc_hotpath (const char *message)\n{\n  if (iosmacs_host_trace_hotpath_active ())\n    iosmacs_host_trace_event (message);\n}\n\n\/* iosmacs: hotpath GC marker declarations. *\/\n/s
+  ' "${alloc_c}"
+fi
+if [[ -f "${alloc_c}" ]] && ! grep -q "iosmacs: hotpath GC markers" "${alloc_c}"; then
+  perl -0pi -e '
+    s/void\ngarbage_collect \(void\)\n\{/void\ngarbage_collect (void)\n{\n  iosmacs_trace_gc_hotpath ("hotpath garbage-collect entry");\n  \/* iosmacs: hotpath GC markers. *\//s
+  ' "${alloc_c}"
 fi
 
 frame_c="${configure_root}/src/frame.c"

@@ -61,7 +61,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
   static const double _minFontSize = 12;
   static const double _maxFontSize = 22;
 
-  final FocusNode _focusNode = FocusNode();
+  final FocusNode _terminalFocusNode = FocusNode();
+  final FocusNode _inputFocusNode = FocusNode();
   final TextEditingController _inputController = TextEditingController();
   late final Terminal _terminal;
   late final TerminalInputBridge _inputBridge;
@@ -100,7 +101,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
   @override
   void dispose() {
     _outputSubscription?.cancel();
-    _focusNode.dispose();
+    _terminalFocusNode.dispose();
+    _inputFocusNode.dispose();
     _inputController.dispose();
     super.dispose();
   }
@@ -129,7 +131,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                     child: TerminalView(
                       _terminal,
                       autofocus: true,
-                      focusNode: _focusNode,
+                      focusNode: _terminalFocusNode,
                       padding: const EdgeInsets.all(12),
                       textStyle: TerminalStyle(fontSize: _fontSize),
                       theme: const TerminalTheme(
@@ -162,7 +164,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                 ),
                 _InputRow(
                   controller: _inputController,
-                  focusNode: _focusNode,
+                  focusNode: _inputFocusNode,
                   onSubmitted: _sendText,
                   onPaste: _pasteClipboardText,
                 ),
@@ -212,8 +214,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
           control: true, shift: true): _openDiagnostics,
       const SingleActivator(LogicalKeyboardKey.keyD, meta: true, shift: true):
           _openDiagnostics,
-      const SingleActivator(LogicalKeyboardKey.keyV, control: true): () =>
-          unawaited(_pasteClipboardText()),
       const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () =>
           unawaited(_pasteClipboardText()),
       const SingleActivator(LogicalKeyboardKey.equal,
@@ -360,7 +360,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   }
 
   Future<void> _runInputSmoke() async {
-    const text = 'iosmacs input smoke 日本語';
+    const text = 'iosmacs input smoke';
     final byteCount = utf8.encode('$text\r').length;
     await _inputBridge.submitCommittedText(text);
     await Future<void>.delayed(Duration.zero);
@@ -378,8 +378,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
   }
 
   Future<void> _runResizeSmoke() async {
-    const cols = 100;
-    const rows = 30;
+    final cols = _terminal.viewWidth;
+    final rows = _terminal.viewHeight;
     await widget.backend.resize(cols: cols, rows: rows);
     await Future<void>.delayed(Duration.zero);
     final diagnostics = widget.backend.diagnostics.value;
@@ -578,6 +578,47 @@ class _TerminalScreenState extends State<TerminalScreen> {
                 TextButton.icon(
                   onPressed: () async {
                     final messenger = ScaffoldMessenger.of(context);
+                    final message = await widget.backend.selectWorkspaceRoot();
+                    final refreshedEntries =
+                        await widget.backend.listWorkspace();
+                    if (!mounted) {
+                      return;
+                    }
+                    setDialogState(() {
+                      entries = refreshedEntries;
+                    });
+                    messenger.clearSnackBars();
+                    messenger.showSnackBar(
+                      SnackBar(content: Text(message)),
+                    );
+                  },
+                  icon: const Icon(Icons.drive_folder_upload),
+                  label: const Text('Choose /home/user'),
+                ),
+                TextButton.icon(
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final message =
+                        await widget.backend.clearWorkspaceRootSelection();
+                    final refreshedEntries =
+                        await widget.backend.listWorkspace();
+                    if (!mounted) {
+                      return;
+                    }
+                    setDialogState(() {
+                      entries = refreshedEntries;
+                    });
+                    messenger.clearSnackBars();
+                    messenger.showSnackBar(
+                      SnackBar(content: Text(message)),
+                    );
+                  },
+                  icon: const Icon(Icons.folder_off),
+                  label: const Text('Use Default'),
+                ),
+                TextButton.icon(
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
                     final refreshedEntries =
                         await widget.backend.listWorkspace();
                     if (!mounted) {
@@ -681,19 +722,32 @@ class _TerminalScreenState extends State<TerminalScreen> {
     if (!mounted) {
       return;
     }
-    if (text.isEmpty) {
+    if (text.isNotEmpty) {
+      await _inputBridge.pasteText(text);
+      if (!mounted) {
+        return;
+      }
       messenger.showSnackBar(
-        const SnackBar(content: Text('Clipboard is empty')),
+        SnackBar(content: Text('Pasted ${utf8.encode(text).length} byte(s)')),
       );
       return;
     }
-    await _inputBridge.pasteText(text);
-    if (!mounted) {
+
+    if (await widget.backend.pasteSystemClipboard()) {
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Pasted from system clipboard')),
+      );
       return;
     }
-    messenger.showSnackBar(
-      SnackBar(content: Text('Pasted ${utf8.encode(text).length} byte(s)')),
-    );
+
+    if (mounted) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Clipboard is empty')),
+      );
+    }
   }
 
   Future<void> _openWorkspaceEntry(
@@ -936,7 +990,6 @@ class _InputRow extends StatelessWidget {
             child: TextField(
               controller: controller,
               focusNode: focusNode,
-              autofocus: true,
               minLines: 1,
               maxLines: 2,
               onSubmitted: onSubmitted,

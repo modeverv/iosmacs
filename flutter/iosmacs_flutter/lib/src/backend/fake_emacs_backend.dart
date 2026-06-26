@@ -69,6 +69,9 @@ class FakeEmacsBackend implements EmacsBackend {
       _dispatch(SendBytesBackendCommand(bytes));
 
   @override
+  Future<bool> pasteSystemClipboard() async => false;
+
+  @override
   Future<void> resize({required int cols, required int rows}) =>
       _dispatch(ResizeBackendCommand(cols: cols, rows: rows));
 
@@ -89,6 +92,24 @@ class FakeEmacsBackend implements EmacsBackend {
     final result =
         await _worker.dispatch(const ExportWorkspaceBackendCommand());
     return result.exportedUris ?? const <Uri>[];
+  }
+
+  @override
+  Future<String> selectWorkspaceRoot() async {
+    _diagnostics.value = _diagnostics.value.copyWith(
+      message: 'fake workspace root selection requested',
+      workspaceActions: _diagnostics.value.workspaceActions + 1,
+    );
+    return 'Fake workspace root selected for next launch';
+  }
+
+  @override
+  Future<String> clearWorkspaceRootSelection() async {
+    _diagnostics.value = _diagnostics.value.copyWith(
+      message: 'fake default workspace requested',
+      workspaceActions: _diagnostics.value.workspaceActions + 1,
+    );
+    return 'Fake default workspace set';
   }
 
   @override

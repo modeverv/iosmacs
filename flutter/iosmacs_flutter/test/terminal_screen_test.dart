@@ -224,6 +224,41 @@ void main() {
     expect(find.textContaining('/workspace/external.el'), findsOneWidget);
   });
 
+  testWidgets('workspace dialog can choose and clear /home/user root', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    await tester.tap(find.byTooltip('Workspace'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Choose /home/user'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Fake workspace root selected for next launch'),
+      findsOneWidget,
+    );
+    expect(
+      backend.diagnostics.value.message,
+      'fake workspace root selection requested',
+    );
+
+    await tester.tap(find.text('Use Default'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fake default workspace set'), findsOneWidget);
+    expect(
+      backend.diagnostics.value.message,
+      'fake default workspace requested',
+    );
+  });
+
   testWidgets('workspace dialog opens entries through terminal input', (
     WidgetTester tester,
   ) async {
@@ -403,61 +438,6 @@ void main() {
     expect(tester.widget<Slider>(find.byType(Slider)).value, 15);
   });
 
-  testWidgets('paste keyboard shortcuts forward clipboard text as raw bytes', (
-    WidgetTester tester,
-  ) async {
-    final backend = FakeEmacsBackend();
-    addTearDown(backend.dispose);
-    const pastedText = 'shortcut paste 日本語';
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: TerminalScreen(
-          backend: backend,
-          clipboardTextProvider: () async => pastedText,
-        ),
-      ),
-    );
-
-    await tester.tap(find.byTooltip('Start'));
-    await tester.pumpAndSettle();
-
-    await _sendControlShortcut(tester, LogicalKeyboardKey.keyV);
-
-    final expectedByteCount = utf8.encode(pastedText).length;
-    expect(find.text('Pasted $expectedByteCount byte(s)'), findsOneWidget);
-    expect(backend.diagnostics.value.inputBytes, expectedByteCount);
-    expect(
-      backend.diagnostics.value.message,
-      'received $expectedByteCount input byte(s)',
-    );
-  });
-
-  testWidgets('paste keyboard shortcuts ignore an empty clipboard', (
-    WidgetTester tester,
-  ) async {
-    final backend = FakeEmacsBackend();
-    addTearDown(backend.dispose);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: TerminalScreen(
-          backend: backend,
-          clipboardTextProvider: () async => '',
-        ),
-      ),
-    );
-
-    await tester.tap(find.byTooltip('Start'));
-    await tester.pumpAndSettle();
-
-    await _sendControlShortcut(tester, LogicalKeyboardKey.keyV);
-
-    expect(find.text('Clipboard is empty'), findsOneWidget);
-    expect(backend.diagnostics.value.inputBytes, 0);
-    expect(backend.diagnostics.value.message, 'fake backend running');
-  });
-
   testWidgets('toolbar Stop button shuts down the backend', (
     WidgetTester tester,
   ) async {
@@ -498,7 +478,32 @@ void main() {
     expect(find.text('send me'), findsNothing);
   });
 
-  testWidgets('input row Paste button forwards clipboard text as raw bytes', (
+  testWidgets('input row Send button forwards Japanese text once', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), '日本語');
+    await tester.tap(find.byTooltip('Send'));
+    await tester.pumpAndSettle();
+
+    final expectedByteCount = utf8.encode('日本語\r').length;
+    expect(backend.diagnostics.value.inputBytes, expectedByteCount);
+    expect(
+      backend.diagnostics.value.message,
+      'received $expectedByteCount input byte(s)',
+    );
+  });
+
+  testWidgets('input row Paste button forwards normalized paste bytes', (
     WidgetTester tester,
   ) async {
     final backend = FakeEmacsBackend();
@@ -520,12 +525,77 @@ void main() {
     await tester.tap(find.byTooltip('Paste'));
     await tester.pump();
 
-    final expectedByteCount = utf8.encode(pastedText).length;
-    expect(find.text('Pasted $expectedByteCount byte(s)'), findsOneWidget);
-    expect(backend.diagnostics.value.inputBytes, expectedByteCount);
+    final displayByteCount = utf8.encode(pastedText).length;
+    final expectedInputBytes = utf8.encode(pastedText).length;
+    expect(find.text('Pasted $displayByteCount byte(s)'), findsOneWidget);
+    expect(backend.diagnostics.value.inputBytes, expectedInputBytes);
     expect(
       backend.diagnostics.value.message,
-      'received $expectedByteCount input byte(s)',
+      'received $expectedInputBytes input byte(s)',
+    );
+  });
+
+  testWidgets('Cmd+V shortcut forwards normalized paste bytes', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+    const pastedText = 'shortcut 日本語';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TerminalScreen(
+          backend: backend,
+          clipboardTextProvider: () async => pastedText,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    await _sendMetaShortcut(tester, LogicalKeyboardKey.keyV);
+
+    final displayByteCount = utf8.encode(pastedText).length;
+    final expectedInputBytes = utf8.encode(pastedText).length;
+    expect(find.text('Pasted $displayByteCount byte(s)'), findsOneWidget);
+    expect(backend.diagnostics.value.inputBytes, expectedInputBytes);
+    expect(
+      backend.diagnostics.value.message,
+      'received $expectedInputBytes input byte(s)',
+    );
+  });
+
+  testWidgets('input row Paste button normalizes multiline clipboard text', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+    const pastedText = "(require 'url)\n\n(message \"ok\")";
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TerminalScreen(
+          backend: backend,
+          clipboardTextProvider: () async => pastedText,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Paste'));
+    await tester.pump();
+
+    final displayByteCount = utf8.encode(pastedText).length;
+    final expectedInputBytes =
+        utf8.encode("(require 'url)\r\r(message \"ok\")").length;
+    expect(find.text('Pasted $displayByteCount byte(s)'), findsOneWidget);
+    expect(backend.diagnostics.value.inputBytes, expectedInputBytes);
+    expect(
+      backend.diagnostics.value.message,
+      'received $expectedInputBytes input byte(s)',
     );
   });
 
@@ -638,6 +708,16 @@ Future<void> _sendControlShiftShortcut(
   await tester.sendKeyEvent(key);
   await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
   await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _sendMetaShortcut(
+  WidgetTester tester,
+  LogicalKeyboardKey key,
+) async {
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+  await tester.sendKeyEvent(key);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
   await tester.pumpAndSettle();
 }
 

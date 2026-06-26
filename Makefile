@@ -20,7 +20,7 @@ JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || printf '4')
 	emacs-link-smoke emacs-batch-smoke emacs-nw-smoke emacs-pdmp app app-iphone xcode-build \
 	app-installl smoke verify verify-iphone flutter-doctor flutter-structure-check flutter-bootstrap \
 	flutter-format-check flutter-analyze flutter-fake-smoke flutter-ios-smoke flutter-ios-launch-smoke flutter-macos-smoke \
-	flutter-macos-native-smoke flutter-backend-override-smoke flutter-web-smoke flutter-android-smoke \
+	flutter-ios-native-smoke flutter-macos-native-smoke flutter-backend-override-smoke flutter-web-smoke flutter-android-smoke \
 	flutter-emacs-static flutter-emacs-pdmp flutter-ipad-launch flutter-verify check clean distclean
 
 help:
@@ -45,6 +45,7 @@ help:
 	  '  make flutter-fake-smoke Run Flutter fake-backend tests when Flutter SDK is available' \
 	  '  make flutter-ios-smoke Verify Flutter iOS Runner build resources and Emacs symbols' \
 	  '  make flutter-ios-launch-smoke Install and launch Flutter iOS Runner on a booted simulator' \
+	  '  make flutter-ios-native-smoke Capture Flutter iOS native backend runtime smoke logs' \
 	  '  make flutter-emacs-static   Build Emacs static lib into flutter/build/emacs-ios (isolated)' \
 	  '  make flutter-emacs-pdmp    Build Emacs pdmp into flutter/build/emacs-ios (isolated)' \
 	  '  make flutter-ipad-launch    Build Flutter iOS app and launch on booted iPad simulator' \
@@ -156,6 +157,15 @@ flutter-emacs-pdmp: flutter-emacs-static
 flutter-ios-launch-smoke:
 	scripts/run-flutter-ios-launch-smoke.sh
 
+flutter-ios-native-smoke:
+	IOSMACS_FLUTTER_IOS_EXPECT_SCRATCH=1 \
+	IOSMACS_FLUTTER_IOS_EXPECT_INPUT_INSERTION=1 \
+	IOSMACS_FLUTTER_IOS_EXPECT_COMMAND_MARKER=1 \
+	IOSMACS_FLUTTER_IOS_EXPECT_FILE_OPS=1 \
+	IOSMACS_FLUTTER_IOS_EXPECT_COMMANDS=1 \
+	IOSMACS_FLUTTER_IOS_EXPECT_RELAUNCH_PERSISTENCE=1 \
+	  scripts/run-flutter-ios-native-smoke.sh
+
 flutter-ipad-launch: flutter-emacs-pdmp
 	@PATH="$(FLUTTER_PATH)"; command -v flutter >/dev/null 2>&1 || { \
 	  printf 'error: flutter command not found; install Flutter SDK under ~/work/flutter or add it to PATH\n' >&2; \
@@ -195,6 +205,7 @@ flutter-verify:
 	$(MAKE) flutter-analyze
 	$(MAKE) flutter-fake-smoke
 	$(MAKE) flutter-ios-launch-smoke
+	$(MAKE) flutter-ios-native-smoke
 	$(MAKE) flutter-macos-smoke
 	$(MAKE) flutter-macos-native-smoke
 	$(MAKE) flutter-backend-override-smoke

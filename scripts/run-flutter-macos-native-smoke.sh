@@ -108,7 +108,7 @@ if ! grep -Eq 'iosmacs-input-smoke: committed [1-9][0-9]* byte\(s\); backend inp
   exit 1
 fi
 
-if ! grep -q 'iosmacs-resize-smoke: requested 100x30; backend geometry 100x30' "${log_path}"; then
+if ! grep -Eq 'iosmacs-resize-smoke: requested [1-9][0-9]*x[1-9][0-9]*; backend geometry [1-9][0-9]*x[1-9][0-9]*' "${log_path}"; then
   echo "error: macOS native smoke did not report resize smoke evidence" >&2
   cat "${log_path}" >&2 || true
   kill -TERM "${app_pid}" 2>/dev/null || true

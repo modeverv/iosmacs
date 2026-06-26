@@ -1537,7 +1537,7 @@ Flutter terminal paste action:
 - Added an injectable clipboard text provider so widget tests can prove paste
   behavior without relying on the platform clipboard channel.
 - Added bridge and widget coverage proving pasted Japanese text is counted as
-  raw bytes and forwarded to the backend.
+  forwarded bytes and sent to the backend.
 - Updated `flutter/ARCHITECTURE.md` and `scripts/check-flutter-structure.sh`
   to guard clipboard paste ownership and tests.
 - Ran `dart format lib/src/ui/terminal_input_bridge.dart lib/src/ui/terminal_screen.dart test/terminal_input_bridge_test.dart test/terminal_screen_test.dart`:
@@ -1688,3 +1688,598 @@ Flutter native autostart defaults:
 - Ran `flutter test`: passed, 66 tests.
 - Ran `make flutter-structure-check`: passed.
 - Ran `git diff --check`: passed.
+
+Flutter iOS parity and device-readiness plan:
+
+- Starting Flutter iOS parity planning and native smoke harness work.
+- Goal for this unit: write down the path from Flutter iOS launch proof to
+  `*scratch*`, command-loop input, file save/reopen, relaunch persistence, and
+  physical-device runs, then add the first dedicated Flutter iOS native runtime
+  smoke harness.
+- Planned checks: shell syntax, structure check, diff whitespace check, and
+  existing Flutter widget tests. A full simulator launch is deferred until an
+  iOS simulator is booted.
+- Added Phase 4A to `flutter/PLAN.md` with simulator runtime-smoke,
+  bridge/workspace, physical-device, and completion-criteria TODOs.
+- Added `scripts/run-flutter-ios-native-smoke.sh`, which builds the Flutter iOS
+  simulator app with native autostart, terminal-output mirroring, capabilities,
+  input, resize, redraw, status, and workspace smoke flags enabled.
+- The new smoke installs and launches the Runner on a booted simulator,
+  captures Runner/system logs, requires the `platform-native-channel` backend,
+  checks input/resize/redraw/workspace smoke markers, requires linked GNU Emacs
+  output, and fails if diagnostic fallback output appears.
+- Added `make flutter-ios-native-smoke` as a focused target; it is not yet part
+  of `make flutter-verify` because it still needs stable booted-simulator
+  runtime evidence.
+- Updated `scripts/check-flutter-structure.sh` to guard the new script,
+  Makefile target, dart-define flags, and key iOS native smoke log markers.
+- Ran `bash -n scripts/run-flutter-ios-native-smoke.sh scripts/check-flutter-structure.sh`:
+  passed.
+- Ran `make flutter-structure-check`: passed.
+- Ran `flutter test test/widget_test.dart`: passed, 10 tests.
+- Ran `git diff --check`: passed.
+- Did not run `make flutter-ios-native-smoke` yet because no iOS simulator is
+  currently booted.
+- Added optional `IOSMACS_FLUTTER_IOS_EXPECT_SCRATCH=1` mode to
+  `scripts/run-flutter-ios-native-smoke.sh`; when enabled, the smoke now
+  requires `*scratch*` and Lisp Interaction mode in captured Runner logs.
+
+Flutter iOS native runtime smoke execution:
+
+- Booted simulator: iPad (A16)
+  `D0F9B2BE-1CD0-49D6-BC25-6FF7650031D6`.
+- Ran `make flutter-ios-native-smoke`: passed.
+- The captured log reported `iosmacs-capabilities-smoke:
+  id=platform-native-channel`, `Flutter MethodChannel started linked GNU Emacs
+  on iOS.`, native status smoke, input smoke, resize smoke, redraw smoke, and
+  workspace list/import/open/export smoke markers.
+- Ran `IOSMACS_FLUTTER_IOS_EXPECT_SCRATCH=1 make flutter-ios-native-smoke`:
+  passed. The captured log contained `*scratch*` and Lisp Interaction mode.
+- Added optional `IOSMACS_FLUTTER_IOS_EXPECT_INPUT_INSERTION=1` mode to require
+  the Flutter input smoke text in captured terminal output.
+- Ran `IOSMACS_FLUTTER_IOS_EXPECT_SCRATCH=1
+  IOSMACS_FLUTTER_IOS_EXPECT_INPUT_INSERTION=1 make
+  flutter-ios-native-smoke`: passed.
+- Added optional `IOSMACS_FLUTTER_IOS_EXPECT_COMMAND_MARKER=1` mode, which
+  passes `IOSMACS_APP_SMOKE_MARKER` into the simulator app via
+  `SIMCTL_CHILD_...`, then checks the `/home/user` marker in the app container
+  for `iosmacs-app-smoke-ok` and the inserted input text.
+- Ran `IOSMACS_FLUTTER_IOS_EXPECT_SCRATCH=1
+  IOSMACS_FLUTTER_IOS_EXPECT_INPUT_INSERTION=1
+  IOSMACS_FLUTTER_IOS_EXPECT_COMMAND_MARKER=1 make
+  flutter-ios-native-smoke`: passed.
+- Added optional `IOSMACS_FLUTTER_IOS_EXPECT_FILE_OPS=1` mode, which passes
+  `IOSMACS_APP_FILE_SMOKE_MARKER` into the simulator app, checks the app
+  container marker for `iosmacs-app-file-smoke-ok`, and verifies the saved
+  `/home/user/notes/iosmacs-file-smoke.txt` contents.
+- Ran `IOSMACS_FLUTTER_IOS_EXPECT_SCRATCH=1
+  IOSMACS_FLUTTER_IOS_EXPECT_INPUT_INSERTION=1
+  IOSMACS_FLUTTER_IOS_EXPECT_COMMAND_MARKER=1
+  IOSMACS_FLUTTER_IOS_EXPECT_FILE_OPS=1 make flutter-ios-native-smoke`: passed.
+- Added optional `IOSMACS_FLUTTER_IOS_EXPECT_RELAUNCH_PERSISTENCE=1` mode. The
+  smoke now relaunches the same installed Flutter iOS Runner, verifies the
+  saved `/home/user/notes/iosmacs-file-smoke.txt` still exists with expected
+  contents, and checks that the Flutter workspace smoke runs again after
+  relaunch.
+- Ran `IOSMACS_FLUTTER_IOS_EXPECT_SCRATCH=1
+  IOSMACS_FLUTTER_IOS_EXPECT_INPUT_INSERTION=1
+  IOSMACS_FLUTTER_IOS_EXPECT_COMMAND_MARKER=1
+  IOSMACS_FLUTTER_IOS_EXPECT_FILE_OPS=1
+  IOSMACS_FLUTTER_IOS_EXPECT_RELAUNCH_PERSISTENCE=1 make
+  flutter-ios-native-smoke`: passed.
+- Promoted `make flutter-ios-native-smoke` to require scratch, input insertion,
+  command marker, file-ops, and relaunch-persistence checks by default.
+- Added `flutter-ios-native-smoke` to `make flutter-verify` after the existing
+  Flutter iOS launch smoke.
+- Ran promoted `make flutter-ios-native-smoke`: passed.
+
+Flutter iOS interactive terminal fixes:
+
+- Starting fixes for the reported simulator UI issues: wrapped/broken modeline
+  after resize smoke, Japanese committed text being inserted twice, and
+  `M-x dired` / `M-x tetris` reporting no match.
+- Planned checks: Dart format, focused Flutter widget tests, structure check,
+  diff whitespace check, and Flutter iOS native smoke on the booted iPad
+  simulator.
+- Split the Flutter terminal focus node from the visible input-row text-field
+  focus node, and removed input-row autofocus so IME committed text is not
+  routed through both terminal and text-field input paths.
+- Changed the Flutter runtime resize smoke to use the current xterm
+  `Terminal.viewWidth` / `viewHeight` instead of forcing `100x30`, preventing
+  the native Emacs modeline from being rendered wider than the visible terminal.
+- Changed runtime input smoke text to ASCII-only `iosmacs input smoke`; Japanese
+  committed input remains covered by focused Flutter tests rather than being
+  injected automatically into interactive smoke builds.
+- Added widget coverage proving the input-row Send button forwards Japanese
+  text exactly once.
+- Updated the iOS/macOS/backend-override smoke scripts to accept the current
+  nonzero terminal geometry instead of hard-coded `100x30`.
+- Updated the bundled runtime eval form to autoload `dired` and `tetris`, and
+  to skip missing `cus-load` / `finder-inf` quietly instead of logging load
+  errors.
+- Added `IOSMACS_FLUTTER_IOS_EXPECT_COMMANDS=1` to the Flutter iOS native smoke;
+  it checks an Emacs-side marker proving `(commandp 'dired)` and
+  `(commandp 'tetris)`.
+- Ran `flutter test test/terminal_screen_test.dart test/widget_test.dart test/terminal_input_bridge_test.dart`:
+  passed, 35 tests.
+- Ran promoted `make flutter-ios-native-smoke`: passed on the booted iPad (A16)
+  simulator. The log showed resize smoke using `88x50`, `*scratch*` in Lisp
+  Interaction mode, input insertion, file/relaunch markers, and
+  `iosmacs-app-commands-smoke-ok`.
+- Ran full `flutter test`: passed, 67 tests. This includes the regression test
+  that the visible input-row Send button forwards Japanese committed text once.
+- Ran `make flutter-structure-check`: passed.
+- Ran `git diff --check`: passed.
+
+Flutter iOS terminal-body input and M-x follow-up fixes:
+
+- The first Japanese fix only covered the visible input-row Send path. The
+  screenshot showed the terminal body still received duplicated IME commit
+  chunks, so `TerminalInputBridge.sendTerminalOutput()` now suppresses only
+  short-window duplicate printable non-ASCII chunks while leaving ASCII,
+  escape/control input, paste, and explicit Send paths unchanged.
+- Added focused bridge tests proving duplicate terminal-body Japanese chunks are
+  dropped, repeated Japanese text outside the duplicate window is allowed, and
+  ASCII repeated input is not filtered.
+- Strengthened `IOSMACS_FLUTTER_IOS_EXPECT_COMMANDS=1` so the Flutter iOS
+  native smoke checks that `dired` and `tetris` appear in
+  `(all-completions ... obarray #'commandp)`, matching the `M-x` completion
+  table more closely than `commandp` alone.
+- Ran `flutter test test/terminal_input_bridge_test.dart
+  test/terminal_screen_test.dart test/widget_test.dart`: passed, 37 tests.
+- Ran `make flutter-structure-check`: passed.
+- Ran promoted `make flutter-ios-native-smoke`: passed on the booted iPad (A16)
+  simulator. The log showed `iosmacs-app-commands-smoke-ok` after checking both
+  `commandp` and `all-completions` for `dired` and `tetris`.
+- Ran full `flutter test`: passed, 69 tests.
+- Ran `git diff --check`: passed.
+
+Flutter iOS M-X command completion diagnosis:
+
+- The user confirmed `(tetris)` works but `M-x tetris` still reports no match.
+  The screenshot prompt was `M-X`, not `M-x`; in current Emacs this is a
+  separate buffer-filtered extended-command path, so general commands such as
+  `tetris` can be hidden even when the command symbol exists and direct
+  evaluation works.
+- Updated the bundled iOS runtime initialization to bind `M-X` to ordinary
+  `execute-extended-command`, matching the expected iPad terminal behavior and
+  avoiding the buffer-specific command-completion filter.
+- Strengthened the Flutter iOS native command smoke to verify
+  `(key-binding (kbd "M-X"))` is `execute-extended-command` in addition to the
+  existing `commandp` and `all-completions` checks for `dired` and `tetris`.
+- Ran `bash -n scripts/run-flutter-ios-native-smoke.sh
+  scripts/check-flutter-structure.sh`: passed.
+- Ran `make flutter-structure-check`: passed.
+- Ran promoted `make flutter-ios-native-smoke`: passed on the booted iPad (A16)
+  simulator. The log showed the `M-X` binding check in `IOSMACS_APP_ELISP` and
+  `iosmacs-app-commands-smoke-ok`.
+- Ran `git diff --check`: passed.
+
+Flutter iOS workspace-root and network parity:
+
+- Starting root-native iOS parity work for two surfaces: user-selectable
+  `/home/user` folders and Emacs network access.
+- Added `EmacsBackend.selectWorkspaceRoot()` and
+  `clearWorkspaceRootSelection()` to the Dart backend boundary, with native
+  MethodChannel implementations and explicit placeholder/fake behavior on
+  other backends.
+- Added Workspace dialog actions: `Choose /home/user` opens the iOS folder
+  picker, and `Use Default` clears the saved selection.
+- Updated `FlutterNativeEmacsBridge` to store selected workspace folders as
+  security-scoped bookmarks, start security-scoped access when resolving the
+  workspace, and report the active workspace root path in diagnostics.
+- Updated the default Flutter iOS workspace to prefer the app's iCloud ubiquity
+  container `Documents/home/user` when available, falling back to app
+  Documents. The smoke script now checks `Documents/home/user`, matching the
+  Emacs-visible path.
+- Linked the existing native `IOSMacsURLSessionBridge.swift` into the Flutter
+  iOS Runner target so the Flutter app has the same URLSession-backed Emacs
+  network bridge as the root iOS app.
+- Reworked `iosmacs_host_url_retrieve()` to resolve
+  `iosmacs_swift_url_retrieve` with `dlsym(RTLD_DEFAULT, ...)`; this avoids the
+  old weak C fallback being called before the Swift bridge in the Flutter
+  Runner.
+- Verified the Flutter iOS debug dylib exports both
+  `_iosmacs_host_url_retrieve` and `_iosmacs_swift_url_retrieve`.
+- Ran focused Flutter tests for native backend, terminal screen, and input
+  bridge: passed, 34 tests.
+- Ran `make flutter-ios-native-smoke`: passed after updating the host-side
+  smoke path to `Documents/home/user`.
+- Ran a manual Flutter iOS Emacs network smoke with
+  `(url-retrieve-synchronously "https://example.com" t t 20)`: passed and wrote
+  `/home/user/iosmacs-flutter-network-smoke.marker` containing
+  `iosmacs-flutter-network-ok`.
+- Ran full `flutter test`: passed, 71 tests.
+- Ran `make flutter-structure-check`: passed.
+- Ran `git diff --check`: passed.
+
+Flutter paste newline normalization:
+
+- Reproduced from the screenshot: multiline Elisp sent through the Flutter
+  input row preserved LF bytes, and Emacs Lisp Interaction treated those bytes
+  as `C-j`, which invoked `eval-print-last-sexp` and opened a Backtrace buffer.
+- Changed `TerminalInputBridge.submitCommittedText()` and `pasteText()` to
+  normalize text line endings to terminal carriage returns before forwarding
+  bytes. Raw `TerminalView` output remains unchanged for hardware/control-key
+  input.
+- Added bridge tests for committed multiline text and pasted multiline text.
+- Added a widget test proving the input-row Paste button normalizes multiline
+  clipboard text before forwarding.
+- Updated structure-check guards and paste documentation wording.
+- Ran `flutter test test/terminal_input_bridge_test.dart test/terminal_screen_test.dart`:
+  passed, 31 tests.
+- Ran `make flutter-structure-check`: passed.
+- Ran `git diff --check`: passed.
+
+Flutter iOS paste throughput:
+
+- Investigated slow paste after the multiline newline fix. The Dart/Swift side
+  already forwards each Paste as one `sendBytes` call, but the patched Emacs
+  direct TTY path was reading the native input ring one byte at a time through
+  `iosmacs_host_terminal_read_byte()`.
+- Added `iosmacs_host_terminal_read()` / `iosmacs_os_terminal_read_available()`
+  so Emacs can bulk-read available terminal input from the native ring.
+- Updated the Emacs iOS build patch in `scripts/build-emacs-ios-probe.sh` so
+  `emacs_intr_read` uses the bulk read path before waiting for more input.
+- Added structure-check guards for the bulk terminal input read path.
+- Rebuilt the Flutter iOS Emacs static archive with
+  `IOSMACS_FORCE_EMACS_BUILD=1 make flutter-emacs-static`: passed. The
+  generated `flutter/build/emacs-ios/source/src/sysdep.c` now calls
+  `iosmacs_host_terminal_read (tty_buf, nbyte)`.
+- Updated `scripts/run-flutter-ios-native-smoke.sh` to uninstall the simulator
+  app before install so stale security-scoped workspace bookmarks do not move
+  smoke markers out of `Documents/home/user`.
+- Because clean installs take longer to reach full smoke markers, raised the
+  default full native-smoke hold from 14 seconds to 25 seconds.
+- Ran `flutter test test/terminal_input_bridge_test.dart test/terminal_screen_test.dart`:
+  passed, 31 tests.
+- Ran `make flutter-structure-check`: passed.
+- Ran `git diff --check`: passed.
+- Ran `IOSMACS_FLUTTER_IOS_NATIVE_HOLD_SECONDS=25 make
+  flutter-ios-native-smoke`: passed.
+
+Flutter iOS Emacs O3 trial:
+
+- Rebuilt the Flutter iOS Emacs static archive with
+  `IOSMACS_FORCE_EMACS_BUILD=1 IOSMACS_EMACS_OPT_FLAGS="-O3 -g" make
+  flutter-emacs-static`: passed.
+- Verified `flutter/build/emacs-ios/nt/Makefile` contains `CFLAGS=... -O3 -g`.
+- Verified `flutter/build/emacs-ios/iosmacs/libiosmacs-temacs.a` still exports
+  `_iosmacs_emacs_main`, `_iosmacs_host_terminal_read`, and
+  `_iosmacs_host_terminal_read_byte`.
+- Ran `make flutter-ios-native-smoke` with the default 25 second hold: failed
+  at relaunch persistence because the workspace smoke marker did not appear
+  before timeout.
+- Ran `IOSMACS_FLUTTER_IOS_NATIVE_HOLD_SECONDS=45 make
+  flutter-ios-native-smoke`: passed.
+- Conclusion: the current build tree now contains an O3 Emacs static archive
+  and it is functional in the Flutter iOS Runner. The script default remains
+  `-O0 -g` unless `IOSMACS_EMACS_OPT_FLAGS` is supplied, so making O3 permanent
+  is still a separate decision.
+
+Flutter iOS paste output drain throughput:
+
+- The remaining paste delay looked too large for compiler optimization alone.
+  The native backend was polling output every 50ms and the iOS bridge drained
+  only 16KB per call, so large Emacs redisplay output could take many seconds
+  or minutes to become visible even after the paste bytes reached Emacs.
+- Changed `NativeEmacsBackend.sendBytes()` so it returns after native input is
+  accepted and schedules output drain asynchronously instead of waiting for
+  drain completion.
+- Changed native output polling from 50ms to 16ms.
+- Changed `_drainOutput()` to keep draining multiple native chunks in one pass
+  and combine them into one stream event before writing to the terminal.
+- Increased the Flutter iOS native `drainOutput` chunk from 16KB to 256KB.
+- Added tests proving multi-chunk native output is emitted as one stream event
+  and `sendBytes()` does not wait for native output drain to finish.
+- Ran `flutter test test/native_emacs_backend_test.dart
+  test/terminal_input_bridge_test.dart test/terminal_screen_test.dart`: passed,
+  39 tests.
+- Ran full `flutter test`: passed, 76 tests.
+- Ran `make flutter-structure-check`: passed.
+- Ran `IOSMACS_FLUTTER_IOS_NATIVE_HOLD_SECONDS=45 make
+  flutter-ios-native-smoke`: passed.
+- Ran `git diff --check`: passed.
+
+Flutter iOS native text input paste parity:
+
+- Compared the root native iOS app implementation and found it does not read
+  `UIPasteboard` from a separate app control. It keeps a transparent
+  `UITextView` first responder and lets UIKit deliver committed text and paste
+  through `insertText` / `textViewDidChange`.
+- Reworked the Flutter iOS Runner to install the same style of transparent
+  native `UITextView` over the Flutter view, keep it focused, and forward
+  committed text directly into the native terminal input ring.
+- Added a native `pasteSystemClipboard` MethodChannel path. Flutter's Paste
+  button now asks the native text input view to run `paste(nil)` first; only
+  non-native backends fall back to Dart `Clipboard.getData`.
+- Removed Flutter `Cmd+V` shortcut handling so hardware paste can go to the
+  native first responder instead of being intercepted by Dart.
+- Verified with Simulator + computer-use that normal text enters through the
+  native text-input path without polluting the terminal display.
+- Verified a 740 byte paste after the iOS permission prompt produced one
+  native terminal `push-input count=740` and one Emacs
+  `read-available bytes=740`.
+- Verified a 30,400 byte paste produced one native terminal
+  `push-input count=30400`; Emacs then consumed it in 4095 byte reads over
+  about 5.7 seconds. This confirms the previous long delay was not Flutter
+  output drain after the native paste path, while remaining multi-second
+  processing is inside Emacs input consumption/redisplay.
+
+Flutter iOS fake tty bulk-read strengthening:
+
+- Added `tty.md` as the focused TODO/checklist for making the Flutter iOS tty
+  behave like a normal OS terminal path.
+- Confirmed the desired shape is: Flutter/native input enters the shim-level
+  tty path, Emacs blocks only on its own pthread, input push wakes the host
+  waitpoint immediately, and output can still be drained on UI-friendly
+  boundaries.
+- Changed Flutter iOS native input forwarding to call
+  `iosmacs_terminal_shim_push_input` instead of bypassing the shim through
+  `iosmacs_os_terminal_push_input`.
+- Removed per-byte debug marker writes from `iosmacs_os_terminal_read_byte` so
+  stale byte-read paths cannot make paste catastrophically slow when terminal
+  debug logging is enabled.
+- Added a migration guard in `scripts/build-emacs-ios-probe.sh` so generated
+  Emacs `sysdep.c` moves stale `iosmacs_host_terminal_read_byte()` loops to
+  the bulk `iosmacs_host_terminal_read(tty_buf, nbyte)` path.
+- Added a structure check that fails when an existing generated
+  `build/emacs-ios-probe/source/src/sysdep.c` still contains the stale
+  byte-at-a-time loop.
+- Updated the current generated probe `sysdep.c` to the bulk-read block for
+  local validation.
+- Verified `flutter/build/emacs-ios/source/src/sysdep.c` was already on the
+  bulk-read path.
+- Ran `flutter test`: passed, 74 tests.
+- Ran `make flutter-structure-check`: passed.
+- Ran `git diff --check`: passed.
+- Ran `IOSMACS_FLUTTER_IOS_NATIVE_HOLD_SECONDS=30 make
+  flutter-ios-native-smoke`: passed.
+- Ran a native C bulk-read probe: 30,400 bytes pushed into the input ring were
+  read back in one `iosmacs_host_terminal_read` call.
+
+Flutter iOS native paste line endings:
+
+- Investigated a manual Simulator paste of a 411 byte Lisp networking snippet
+  that produced `( is undefined` and a later `(void-variable url)` debugger.
+- The native debug marker showed one `push-input count=411` and one
+  `read-available bytes=411` in the same monotonic millisecond, so the terminal
+  input hot path was not the source of that failure.
+- The pasted bytes contained raw `0a` line feeds. In terminal Emacs
+  `*scratch*`, `LF` is `C-j` and runs `eval-print-last-sexp`, so the pasted
+  Lisp was being evaluated while it was being pasted instead of inserted as
+  inert multiline text.
+- Changed the Flutter iOS native `UITextView` committed-text path to normalize
+  `CRLF`/`CR`/`LF` to terminal `CR` before writing bytes through
+  `iosmacs_terminal_shim_push_input`.
+- Added a Flutter structure-check guard for the native line-ending
+  normalization.
+- Ran `make flutter-structure-check`: passed.
+- Ran `flutter test`: passed, 74 tests.
+- Ran `git diff --check`: passed.
+- Ran `IOSMACS_FLUTTER_IOS_NATIVE_HOLD_SECONDS=15 make
+  flutter-ios-native-smoke`: passed.
+
+Flutter iOS native paste-stage instrumentation:
+
+- A single-line Japanese paste still took around 20 seconds after bracketed
+  paste and redisplay-suppressed slurping. Because the text has no line breaks,
+  the remaining delay is not RET command processing.
+- Current Runner logs show Pasteboard file-coordination reads, but did not show
+  when the hidden `UITextView` paste delegate fires or when bytes are forwarded
+  into the fake tty.
+- Added native timing markers for `pasteSystemClipboard` start/return,
+  hidden text view `paste(_:)` start/return/done, `textViewDidChange`, and
+  `sendNativeCommittedText` byte counts / shim write completion.
+- Ran `make flutter-structure-check`: passed.
+- Ran `flutter test`: passed, 74 tests.
+- Ran `git diff --check`: passed.
+- Ran `IOSMACS_FLUTTER_IOS_NATIVE_HOLD_SECONDS=15 make
+  flutter-ios-native-smoke`: passed.
+- A screenshot from the user showed the `NSLog` instrumentation leaking into
+  the Emacs terminal surface. Switched those markers to unified logging via
+  `os_log` so they remain visible in Simulator logs without polluting the
+  terminal buffer.
+- Ran `make flutter-structure-check`: passed.
+- Ran `flutter test`: passed, 74 tests.
+- Ran `git diff --check`: passed.
+- Ran `IOSMACS_FLUTTER_IOS_NATIVE_HOLD_SECONDS=15 make
+  flutter-ios-native-smoke`: passed.
+
+Flutter iOS native long-paste routing:
+
+- The user reported a plain Japanese multiline paste taking about 30 seconds,
+  which points away from network timeout and back toward terminal paste
+  semantics.
+- The native `UITextView` paste path was still forwarding normalized raw text,
+  so a multiline paste entered terminal Emacs as many ordinary `RET` commands.
+  In modes such as `*scratch*`, that can force per-line command processing,
+  indentation, redisplay, and Japanese width work.
+- Changed only native UIKit paste to wrap bytes in bracketed-paste markers
+  (`ESC [ 200 ~` / `ESC [ 201 ~`) after line-ending normalization. Ordinary
+  typing, hardware keys, delete, and IME commits remain raw terminal input.
+- Added structure-check guards for native paste override and bracketed-paste
+  routing.
+- The user confirmed Emacs internal kill/yank of the same Japanese text is
+  fast, which supports the diagnosis that the slow path is external paste being
+  processed as ordinary terminal input events rather than buffer insertion or
+  Japanese redisplay itself.
+- Ran `make flutter-structure-check`: passed.
+- Ran `flutter test`: passed, 74 tests.
+- Ran `git diff --check`: passed.
+- Ran `IOSMACS_FLUTTER_IOS_NATIVE_HOLD_SECONDS=15 make
+  flutter-ios-native-smoke`: passed.
+
+Flutter iOS direct native pasteboard path:
+
+- The user reported the Japanese multiline paste was still taking a long time
+  even after bracketed-paste routing, so the remaining likely stall was
+  `UITextView.paste(nil)` inserting a large body into the hidden text view
+  before our delegate could forward it.
+- Changed `FlutterTerminalInputView.paste(_:)` to read
+  `UIPasteboard.general.string` directly and forward that text as
+  `textinput-paste`, bypassing hidden `UITextView` body insertion. If the
+  pasteboard does not provide a nonempty string, the code falls back to the
+  previous `super.paste` path.
+- Added a structure-check guard for direct `UIPasteboard.general.string`
+  routing.
+- Ran `make flutter-structure-check`: passed.
+- Ran `flutter test`: passed, 74 tests.
+- Ran `git diff --check`: passed.
+- Ran `IOSMACS_FLUTTER_IOS_NATIVE_HOLD_SECONDS=15 make
+  flutter-ios-native-smoke`: passed.
+- After manual testing, this direct pasteboard path made paste stop reaching
+  Emacs and left the terminal unresponsive. The latest Runner log showed
+  Pasteboard file-coordination reads but no following `push-input` or terminal
+  output, so the direct `UIPasteboard.general.string` route was reverted.
+- Terminated the stuck Simulator Runner and rebuilt the Flutter iOS app without
+  the direct pasteboard route.
+- Ran `make flutter-structure-check`: passed.
+- Ran `flutter test`: passed, 74 tests.
+- Ran `git diff --check`: passed.
+- Ran `IOSMACS_FLUTTER_IOS_NATIVE_HOLD_SECONDS=15 make
+  flutter-ios-native-smoke`: passed.
+
+Flutter iOS bracketed paste slurp optimization:
+
+- The user confirmed paste works again but remains slow. Emacs internal
+  kill/yank of the same Japanese text is fast, so the likely remaining cost is
+  external terminal paste ingestion rather than final buffer insertion.
+- Inspected bundled `term/xterm.el`: `xterm--pasted-text` reads bracketed paste
+  contents with a `read-event` loop until `ESC [ 201 ~`, then `xterm-paste`
+  inserts via `yank` / `insert-for-yank`.
+- Added an iOS runtime override of `xterm--pasted-text` that keeps the same
+  logic but binds `inhibit-redisplay` and `inhibit-message` while slurping the
+  paste payload.
+- Added structure-check guards for this runtime paste optimization.
+- Ran `make flutter-structure-check`: passed.
+- Ran `flutter test`: passed, 74 tests.
+- Ran `git diff --check`: passed.
+- Ran `IOSMACS_FLUTTER_IOS_NATIVE_HOLD_SECONDS=15 make
+  flutter-ios-native-smoke`: passed.
+
+Flutter iOS Cmd+V paste routing:
+
+- The user pasted the long Japanese string again and observed about a 20 second
+  delay.
+- Pulled Simulator logs through `xcrun simctl spawn booted log show`. The
+  current Runner showed Pasteboard file-coordination reads at `23:48:06.722`
+  and terminal output containing the pasted Japanese text at `23:48:26.153`,
+  about 19.4 seconds later.
+- The same log window did not contain the native hidden-text-view
+  `textinput forward` markers for the current Runner PID, so this paste likely
+  bypassed the native paste override and flowed through Flutter
+  `TerminalView`/normal terminal text input instead.
+- Added an app-level `Cmd+V` shortcut in Flutter that calls the same
+  `_pasteClipboardText()` path as the toolbar Paste button. That path uses the
+  native clipboard paste bridge when accepted and otherwise falls back to
+  Dart-side bracketed paste bytes.
+- Added widget coverage for `Cmd+V` bracketed paste and structure-check guards
+  for the shortcut/test.
+- Rebuilt and installed a normal non-smoke Simulator build with trace logging.
+  The black-screen/workspace-smoke startup behavior disappeared and the app
+  opened directly to `*scratch*`.
+- Used Computer Use to click the Paste toolbar button. The first build still
+  called native `UITextView.paste(nil)` first: `pasteSystemClipboard` returned
+  accepted in about 4ms, but the pasted text appeared in terminal output about
+  42 seconds later. This showed the hidden `UITextView` paste path can defer
+  actual text delivery after returning accepted.
+- Changed `_pasteClipboardText()` to prefer Flutter `Clipboard.getData` and
+  direct `TerminalInputBridge.pasteText()` before using native
+  `pasteSystemClipboard` as a fallback.
+- Rebuilt and tested again. Flutter Clipboard paste pushed a 354 byte payload
+  through `iosmacs-native-sendBytes` in 6ms (`00:02:18.745` start,
+  `00:02:18.752` accepted), proving the front-end paste delay was removed.
+- That bracketed payload did not redisplay in Emacs, so bracketed paste is not
+  safe as the default for this fake tty path yet.
+- Changed Flutter Paste/Cmd+V and native paste fallback to send normalized raw
+  UTF-8 text, converting LF/CRLF to terminal CR and avoiding bracketed paste
+  markers for now.
+- Ran targeted paste tests: passed.
+- Ran `make flutter-structure-check`: passed.
+- Ran `git diff --check`: passed.
+- Rebuilt and installed the raw-normalized paste build on the iPad Simulator.
+  A 342 byte Japanese paste was accepted by native `sendBytes` in 6ms and first
+  appeared in terminal output about 6.1 seconds later. The screen showed the
+  pasted Japanese text in `*scratch*`.
+
+Flutter iOS paste bottleneck instrumentation:
+
+- Added a native terminal trace marker bridge. The Flutter iOS native bridge
+  now sets `IOSMACS_WEB_TERMINAL_DEBUG_MARKER` to an app temporary file and
+  forwards new C/Emacs trace lines into the Runner unified log as
+  `iosmacs flutter native terminal-trace ...`.
+- Added Swift native `sendBytes pushed` and native `drainOutput bytes` log
+  markers.
+- Added Dart-side `iosmacs-native-drainOutput: first` and `chunks`
+  timestamps so MethodChannel drain timing and output-stream emission can be
+  compared with native and Emacs markers without logging every empty 16ms poll.
+- Added structure-check guards for the new timing markers.
+- Rebuilt the instrumented Simulator app and pasted a 342 byte Japanese string.
+  Native `sendBytes` started at `00:18:08.965`, accepted the bytes at
+  `00:18:08.971`, and Dart first saw drained output at `00:18:15.218`.
+- The shared terminal marker file split the delay further: `terminal
+  push-input`, `terminal read-available bytes=342`, and `emacs sysdep tty-read
+  bytes=342` all occurred in the same monotonic millisecond `t=20756506`.
+- The first Emacs terminal output for that paste was `terminal write-output` at
+  `t=20762751`, followed by native `terminal drain-output count=434` at
+  `t=20762752`.
+- Current conclusion: the approximately 6245ms gap is after Emacs' tty read
+  already received the full paste and before Emacs emits redisplay output. It
+  is not caused by Flutter clipboard reading, native send acceptance, fake tty
+  wake/read, native output drain, or Dart terminal emission.
+
+Flutter iOS paste A/B timing:
+
+- Added environment-controlled Emacs startup A/B toggles:
+  `IOSMACS_GC_THRESHOLD_MB`, `IOSMACS_LIGHT_XTERM_INIT`,
+  `IOSMACS_SKIP_XTERM_INIT`, and `IOSMACS_DISABLE_TERMINFO`.
+- Added gated Emacs hotpath markers for command-loop, redisplay,
+  `garbage_collect`, `try_window`, and `display_line`. The gate is controlled
+  by `IOSMACS_TRACE_EMACS_HOTPATH` and only emits after terminal input is
+  pushed, so startup and idle tracing do not dominate the measurement.
+- Measured the repeated Japanese paste payload at 1077 UTF-8 bytes. Baseline
+  normal TERMINFO timing was `tty-read` to first `write-output` = 19754ms.
+- `gc-cons-threshold=100MB`: 19794ms. No improvement; this is expected because
+  the current iOS probe also sets `IOSMACS_NW_SKIP_GC`.
+- Lightweight `terminal-init-xterm`: 20137ms. No improvement.
+- Disabled `terminal-init-xterm`: 19725ms. No improvement.
+- TERMINFO disabled with internal termcap objects: 19658ms, but the display
+  regressed with literal terminal capability fragments, so this path is not
+  usable without more terminal capability work.
+- Hotpath split after removing the noisy `maybe_garbage_collect` marker:
+  `terminal push-input count=1077`, `terminal read-available bytes=1077`, and
+  `emacs sysdep tty-read bytes=1077` all occurred at `t=23633386`.
+- Emacs then repeatedly ran 50ms `keyboard wait-before-gobble` /
+  `keyboard gobble-input nread=0` checks until `emacs hotpath
+  redisplay-internal entry` at `t=23653200`.
+- First pasted-text `terminal write-output` followed immediately at
+  `t=23653201`, and native `terminal drain-output count=1307` followed at
+  `t=23653203`.
+- Current conclusion: the next bottleneck is not TERMINFO, xterm init, GC,
+  Flutter Clipboard, native send, fake tty read, output drain, or Dart stream
+  emission. The remaining delay is Emacs-side post-read command-loop/redisplay
+  scheduling after raw terminal paste input has already been consumed.
+
+Flutter iOS paste waitpoint fix:
+
+- Investigated the 1077 byte A/B trace and found the repeated 50ms waits were
+  introduced by the iosmacs direct tty waitpoint in `read_char`, not by normal
+  Emacs redisplay. The waitpoint ran before
+  `read_decoded_event_from_main_queue` even when `gobble_input` had already
+  filled Emacs' `kbd_buffer`.
+- Changed the generated `keyboard.c` patch so the fake tty waitpoint only waits
+  when `kbd_buffer_events_waiting()` is false. This preserves event-driven
+  blocking while preventing already-buffered paste input from paying a 50ms
+  sleep before each decoded event read.
+- Rebuilt the Emacs static probe with `IOSMACS_EMACS_OPT_FLAGS='-O3 -g'`,
+  rebuilt the Flutter iOS Simulator app, installed it, and pasted the same
+  1077 byte Japanese payload through the toolbar Paste button.
+- New trace: `terminal push-input count=1077` at `t=24209193`,
+  `terminal read-available bytes=1077` and `emacs sysdep tty-read bytes=1077`
+  at `t=24209194`, first `emacs hotpath redisplay-internal entry` at
+  `t=24209217`, first `terminal write-output` at `t=24209219`, and
+  `terminal drain-output count=1189` at `t=24209240`.
+- The post-read-to-output delay dropped from about 19.8 seconds to 25ms. The
+  trace contained one later `keyboard wait-before-gobble` instead of hundreds
+  of 50ms waits during the pasted input.

@@ -10,7 +10,16 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    DispatchQueue.main.async { [weak self] in
+      self?.nativeEmacsBridge.attachTerminalInput(to: self?.window?.rootViewController?.view)
+    }
+    return result
+  }
+
+  override func applicationDidBecomeActive(_ application: UIApplication) {
+    super.applicationDidBecomeActive(application)
+    nativeEmacsBridge.focusTerminalInput()
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
@@ -20,5 +29,8 @@ import UIKit
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
     nativeEmacsChannel?.setMethodCallHandler(nativeEmacsBridge.handle)
+    DispatchQueue.main.async { [weak self] in
+      self?.nativeEmacsBridge.attachTerminalInput(to: self?.window?.rootViewController?.view)
+    }
   }
 }

@@ -342,9 +342,20 @@ Current TODO:
 - [x] Verify workspace open smoke with widget tests, structure check, targeted
   runtime smoke, and diff check.
 - [x] Add a Flutter terminal Paste action backed by the system clipboard.
-- [x] Route pasted text as raw UTF-8 terminal bytes without appending `RET`.
+- [x] Route pasted text as UTF-8 terminal bytes without appending a final
+  `RET`, while normalizing pasted line feeds to terminal carriage returns.
 - [x] Verify paste behavior with bridge tests, widget tests, structure check,
   and diff check.
+- [x] Fix multiline Paste/Send so pasted line feeds do not arrive as Emacs
+  `C-j` and trigger `eval-print-last-sexp` in Lisp Interaction mode.
+- [x] Speed up Flutter iOS paste by bulk-reading available terminal input from
+  the native ring instead of reading one byte at a time in Emacs.
+- [x] Try a Flutter iOS Emacs `-O3 -g` static archive build for paste
+  throughput, and verify it still passes native smoke with extended relaunch
+  timing.
+- [x] Speed up Flutter iOS paste display by decoupling `sendBytes` from output
+  drain completion, draining native output every frame, and increasing native
+  drain chunks from 16KB to 256KB.
 - [x] Add Ctrl/Cmd+V hardware keyboard shortcuts for Flutter terminal paste.
 - [x] Route paste shortcuts through the same clipboard provider and raw-byte
   input path as the visible Paste action.
@@ -356,6 +367,30 @@ Current TODO:
 - [x] Verify Ctrl+V empty paste shows feedback without sending backend input
   bytes.
 - [x] Guard empty paste shortcut behavior with structure check and diff check.
+- [x] Add Flutter iOS native runtime smoke harness for mirrored logs.
+- [x] Prove Flutter iOS reaches the real `*scratch*` terminal frame.
+- [x] Prove Flutter iOS terminal input inserts into `*scratch*`.
+- [x] Prove Flutter iOS can save, reopen, and Dired-list workspace files.
+- [x] Prove Flutter iOS relaunch-persist workspace files.
+- [x] Fix Flutter iOS terminal geometry so mode lines do not wrap after smoke
+  resize checks.
+- [x] Fix Japanese committed input so it is not sent twice.
+- [x] Restore `M-x dired` and `M-x tetris` command discovery in the bundled
+  runtime.
+- [x] Fix terminal-body Japanese IME duplicate chunks, not only the visible
+  Send text-field path.
+- [x] Strengthen the Flutter iOS `M-x dired` / `M-x tetris` smoke to verify
+  command completion candidates, not only `commandp`.
+- [x] Bind `M-X` to the ordinary `M-x` command path on bundled iOS Emacs so
+  shifted/meta keyboard input does not use buffer-filtered command completion.
+- [x] Add Flutter iOS support for selecting an arbitrary iPadOS/iCloud folder
+  and using it as Emacs `/home/user` via a security-scoped bookmark.
+- [x] Link the native iOS URLSession network bridge into the Flutter iOS Runner
+  so Emacs `url.el` requests work from the Flutter app.
+- [x] Verify Flutter iOS `/home/user` folder selection and network bridge work
+  with tests, structure check, native smoke, and an Emacs HTTPS marker.
+- [ ] Make Flutter iOS build, install, and run on a physical iPad/iPhone with
+  documented signing and device smoke evidence.
 
 SDK verification steps:
 
@@ -387,6 +422,14 @@ Current verification status:
   resources plus linked Emacs core symbols.
 - `make flutter-ios-launch-smoke` passes and proves the Flutter iOS Runner can
   install, launch, stay alive briefly, and terminate on a booted simulator.
+- `make flutter-ios-native-smoke` passes and proves the Flutter iOS Runner can
+  start linked GNU Emacs, reach `*scratch*`, insert input, save and reopen a
+  file under `/home/user`, Dired-list it, and preserve it across relaunch.
+- Flutter iOS now exposes Workspace dialog controls to select an arbitrary
+  iPadOS/iCloud folder as `/home/user` and to return to the default workspace.
+- Flutter iOS now links the native URLSession bridge; a manual Emacs smoke
+  fetched `https://example.com` with `url-retrieve-synchronously` and wrote
+  `iosmacs-flutter-network-ok` under `/home/user`.
 - `make flutter-macos-smoke` passes and proves the Flutter macOS app can build,
   launch briefly, stay alive, and terminate cleanly.
 - macOS non-web now selects the native MethodChannel backend by default, while
@@ -1134,6 +1177,148 @@ Exit criteria:
 - ASCII input reaches Emacs.
 - A marker proves command-loop insertion.
 - Existing native Xcode verification still works.
+
+### Phase 4A: Flutter iOS Parity And Device Readiness
+
+Goal: turn the current Flutter iOS launch proof into an existing-native-app
+equivalent proof, then make the same app ordinary to run on a physical iPad or
+iPhone.
+
+Simulator runtime-smoke TODO:
+
+- [x] Add `make flutter-ios-native-smoke` as a dedicated Flutter iOS runtime
+  smoke that builds with terminal-output mirroring and startup smoke flags,
+  installs on a booted simulator, captures Runner logs, and checks native
+  backend markers.
+- [x] Require the Flutter iOS native smoke to report
+  `iosmacs-capabilities-smoke: id=platform-native-channel`.
+- [x] Require Flutter iOS terminal output to include linked GNU Emacs startup
+  evidence rather than only diagnostic fallback text.
+- [x] Add a Flutter iOS `*scratch*` smoke mode that waits for terminal output
+  containing `*scratch*` and Lisp Interaction mode.
+- [x] Add a Flutter iOS command-input smoke mode that injects ASCII through the
+  Flutter terminal input bridge and verifies command-loop insertion into
+  `*scratch*` with a marker.
+- [x] Add a Flutter iOS file-ops smoke mode that creates, saves, reopens, and
+  Dired-lists a file under `/home/user`, matching the existing
+  `IOSMACS_NW_EXPECT_FILE_OPS=1` native smoke.
+- [x] Add a Flutter iOS relaunch-persistence smoke that launches, writes a
+  workspace file, terminates, relaunches, and verifies the saved file is still
+  visible through both Emacs and the Flutter workspace bridge.
+- [x] Include the Flutter iOS native smoke in `make flutter-verify` only after
+  it is stable on a clean booted simulator.
+
+Bridge/workspace implementation TODO:
+
+- [x] Add native bridge support for smoke-only evaluated Lisp markers without
+  moving editor semantics into Dart.
+- [x] Keep all command semantics inside Emacs: Flutter may submit terminal
+  bytes and observe logs/diagnostics, but must not implement Emacs commands in
+  Dart.
+- [x] Reuse the existing fake TTY input/output facade for Flutter iOS input,
+  resize, and terminal output proof.
+- [x] Align Flutter iOS workspace root behavior with the native app's
+  `/home/user` app-container mapping.
+- [x] Prefer the native app's iCloud ubiquity `Documents/home/user` location
+  for the default Flutter iOS workspace when available, with app Documents as
+  the fallback.
+- [x] Add a Flutter Workspace dialog action that lets the user select an
+  arbitrary folder for `/home/user`.
+- [x] Persist the selected `/home/user` folder as an iOS security-scoped
+  bookmark and make reset-to-default available from Flutter.
+- [x] Add explicit diagnostics when the Flutter iOS bridge falls back to the
+  diagnostic backend so the smoke cannot silently pass on fallback output.
+
+Network implementation TODO:
+
+- [x] Add the existing native iOS `IOSMacsURLSessionBridge.swift` source to the
+  Flutter iOS Runner target.
+- [x] Resolve the Swift URLSession bridge from the shared C host facade so
+  Flutter iOS and native iOS use the same Emacs `url.el` transport path.
+- [x] Verify `url-retrieve-synchronously` from the Flutter iOS app can fetch
+  HTTPS content and write an Emacs-side success marker.
+
+Paste/input parity TODO:
+
+- [x] Inspect the root native iOS terminal input implementation before adding
+  more Flutter-specific paste behavior.
+- [x] Replace the Flutter iOS paste-first path with a root-native-style hidden
+  `UITextView` first responder that forwards committed text directly to the
+  native terminal input ring.
+- [x] Route the Flutter iOS Paste button through native `UITextView.paste(nil)`
+  before falling back to Dart clipboard handling on non-native backends.
+- [x] Stop intercepting `Cmd+V` in Flutter shortcuts so hardware paste can
+  reach the native first responder.
+- [x] Verify small paste reaches native input as one `push-input`.
+- [x] Verify a 30KB paste reaches native input as one `push-input` and record
+  the remaining Emacs-side read timing.
+- [x] Normalize native `UITextView` committed/pasted line feeds to terminal
+  carriage returns so multiline paste into `*scratch*` inserts text instead of
+  triggering `C-j` / `eval-print-last-sexp`.
+- [x] Wrap native `UITextView` paste bytes in terminal bracketed-paste markers
+  so long multiline paste is inserted as paste instead of processed as many
+  individual RET commands.
+- [x] Add a structure guard for the native line-ending normalization.
+- [x] Add a structure guard for native bracketed-paste routing.
+- [x] Revert direct `UIPasteboard.general.string` reads after Simulator paste
+  could hang before any bytes reached the fake tty.
+- [x] Add an iOS runtime override for `xterm--pasted-text` that suppresses
+  redisplay/message work while Emacs slurps bracketed paste bytes.
+- [x] Instrument native iOS paste stages so the remaining 20s delay can be
+  attributed to UIKit paste, native forward, fake tty read, or Emacs output.
+- [x] Inspect the latest Simulator paste logs and identify that a 20s Japanese
+  Cmd+V paste can bypass the native hidden `UITextView` paste markers and
+  arrive through Flutter terminal text input instead.
+- [x] Route Flutter app-level `Cmd+V` through the same clipboard/bracketed-paste
+  path as the Paste toolbar button before `TerminalView` can process it as
+  ordinary terminal input.
+- [x] Add widget and structure-check coverage for the `Cmd+V` bracketed-paste
+  route.
+- [x] Re-test the Flutter Clipboard path and confirm native input accepts the
+  paste bytes in milliseconds, while bracketed paste can leave Emacs waiting
+  without redisplay in the current fake tty path.
+- [x] Switch Flutter Paste/Cmd+V and native paste fallback from bracketed paste
+  markers to normalized raw UTF-8 text with LF/CRLF converted to terminal CR.
+- [x] Update paste tests and structure guards to assert normalized raw paste
+  bytes instead of bracketed paste bytes.
+- [x] Add unified timing markers for native `sendBytes`, fake tty
+  `read-available`, Emacs `tty-read`, terminal `write-output`, native
+  `drainOutput`, and Dart output-stream emission.
+- [x] Rebuild and measure the unified trace: 342 bytes reached Emacs
+  `tty-read` in the same monotonic millisecond as the fake tty push/read, while
+  first terminal output came about 6245ms later.
+- [ ] Instrument and reduce the Emacs post-tty-read/pre-write-output section;
+  this is now the measured owner of the remaining roughly 6 second Japanese
+  paste delay.
+
+Physical-device TODO:
+
+- [ ] Add `make flutter-ios-device-build` for a generic/device iOS build that
+  uses the Flutter Runner and linked iosmacs native sources without simulator
+  assumptions.
+- [ ] Document required signing inputs for local physical-device runs:
+  development team, bundle identifier override, provisioning profile, and
+  trusted developer mode.
+- [ ] Add `make flutter-ios-device-launch` or documented `flutter run -d`
+  workflow for a connected iPad/iPhone.
+- [ ] Verify the physical device app starts the linked native backend and shows
+  terminal output without relying on simulator-only build products.
+- [ ] Verify physical-device workspace create/save/reopen behavior under the
+  app container.
+- [ ] Verify physical-device relaunch persistence.
+- [ ] Keep App Store distribution explicitly out of scope until local physical
+  device smoke is repeatable.
+
+Completion criteria:
+
+- `make flutter-ios-native-smoke` proves Flutter iOS startup reaches real
+  Emacs terminal output and `*scratch*`.
+- A Flutter iOS smoke proves terminal input reaches the Emacs command loop.
+- A Flutter iOS smoke proves save/reopen/Dired behavior and relaunch
+  persistence under `/home/user`.
+- A connected physical iPad/iPhone can build, install, launch, edit, save,
+  relaunch, and reopen a file using documented commands.
+- Existing native `make verify` remains green while Flutter iOS parity grows.
 
 ## Phase 5: macOS Backend
 

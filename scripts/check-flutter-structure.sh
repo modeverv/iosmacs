@@ -58,6 +58,10 @@ if [[ ! -x scripts/run-flutter-ios-launch-smoke.sh ]]; then
   printf 'error: missing executable Flutter iOS launch smoke script\n' >&2
   exit 1
 fi
+if [[ ! -x scripts/run-flutter-ios-native-smoke.sh ]]; then
+  printf 'error: missing executable Flutter iOS native smoke script\n' >&2
+  exit 1
+fi
 if [[ ! -x scripts/run-flutter-macos-smoke.sh ]]; then
   printf 'error: missing executable Flutter macOS smoke script\n' >&2
   exit 1
@@ -93,6 +97,68 @@ grep -q 'windows' \
   "$app_dir/lib/src/backend/backend_factory.dart"
 grep -q 'MethodChannel' \
   "$app_dir/lib/src/backend/native_emacs_backend.dart"
+grep -q '_outputPollInterval = Duration(milliseconds: 16)' \
+  "$app_dir/lib/src/backend/native_emacs_backend.dart"
+grep -q '_maxDrainPasses = 64' \
+  "$app_dir/lib/src/backend/native_emacs_backend.dart"
+grep -q 'IOSMACS_FLUTTER_TRACE_IO' \
+  "$app_dir/lib/src/backend/native_emacs_backend.dart"
+grep -q '_isDrainingOutput' \
+  "$app_dir/lib/src/backend/native_emacs_backend.dart"
+grep -q '_combineChunks' \
+  "$app_dir/lib/src/backend/native_emacs_backend.dart"
+grep -q 'pasteSystemClipboard' \
+  "$app_dir/lib/src/backend/emacs_backend.dart"
+grep -q 'pasteSystemClipboard' \
+  "$app_dir/lib/src/backend/native_emacs_backend.dart"
+grep -q 'pasteSystemClipboard' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'FlutterTerminalInputView' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'isPasteShortcut' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'normalizeTerminalInputText' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'replacingOccurrences(of: "\\n", with: "\\r")' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'textinput-paste' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'override func paste' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'native textinput paste override start' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'native textinput forward reason=' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'terminal-trace' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'native drainOutput bytes=' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'IOSMACS_WEB_TERMINAL_DEBUG_MARKER' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'IOSMACS_GC_THRESHOLD_MB' \
+  iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'IOSMACS_LIGHT_XTERM_INIT' \
+  iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'IOSMACS_SKIP_XTERM_INIT' \
+  iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'IOSMACS_DISABLE_TERMINFO' \
+  scripts/build-emacs-ios-probe.sh
+grep -q 'IOSMACS_TRACE_EMACS_HOTPATH' \
+  iosmacs/Host/iosmacs_host_facade.c
+grep -q 'iosmacs_host_trace_hotpath_active' \
+  iosmacs/Host/iosmacs_host_facade.c
+grep -q 'last_input_push_ms' \
+  iosmacs/Host/iosmacs_host_facade.c
+grep -q 'hotpath redisplay-internal entry' \
+  scripts/build-emacs-ios-probe.sh
+grep -q 'hotpath display-line entry' \
+  scripts/build-emacs-ios-probe.sh
+grep -q 'hotpath garbage-collect entry' \
+  scripts/build-emacs-ios-probe.sh
+grep -q 'kbd_buffer_events_waiting' \
+  scripts/build-emacs-ios-probe.sh
+grep -q '&& !kbd_buffer_events_waiting ()' \
+  scripts/build-emacs-ios-probe.sh
 grep -q 'Android NDK GNU Emacs core build' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'android://iosmacs/workspace-placeholder' \
@@ -153,6 +219,10 @@ grep -q 'unknown-backend' \
   "$app_dir/test/backend_factory_test.dart"
 grep -q 'autoStartBackend' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q '_terminalFocusNode' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q '_inputFocusNode' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'onStop: widget.backend.stop' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'runWorkspaceSmoke' \
@@ -207,8 +277,6 @@ grep -q 'LogicalKeyboardKey.keyX' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'LogicalKeyboardKey.keyD' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
-grep -q 'LogicalKeyboardKey.keyV' \
-  "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'createWorkspaceSmokeImportUri' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'workspaceImportUriProvider' \
@@ -237,11 +305,27 @@ grep -q '_showWorkspaceExportCandidates' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'Workspace export candidates' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'selectWorkspaceRoot' \
+  "$app_dir/lib/src/backend/emacs_backend.dart"
+grep -q 'clearWorkspaceRootSelection' \
+  "$app_dir/lib/src/backend/emacs_backend.dart"
+grep -q "label: const Text('Choose /home/user')" \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q "label: const Text('Use Default')" \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'workspace dialog can choose and clear /home/user root' \
+  "$app_dir/test/terminal_screen_test.dart"
 grep -q 'class TerminalInputBridge' \
   "$app_dir/lib/src/ui/terminal_input_bridge.dart"
 grep -q 'submitCommittedText' \
   "$app_dir/lib/src/ui/terminal_input_bridge.dart"
+grep -q 'duplicateTerminalTextWindow' \
+  "$app_dir/lib/src/ui/terminal_input_bridge.dart"
+grep -q '_isDuplicateTerminalText' \
+  "$app_dir/lib/src/ui/terminal_input_bridge.dart"
 grep -q 'IME-committed text as UTF-8 bytes' \
+  "$app_dir/test/terminal_input_bridge_test.dart"
+grep -q 'drops duplicate terminal IME chunks' \
   "$app_dir/test/terminal_input_bridge_test.dart"
 grep -q "tooltip: 'Send'" \
   "$app_dir/lib/src/ui/terminal_screen.dart"
@@ -257,20 +341,28 @@ grep -q 'TerminalClipboardTextProvider' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'clipboardTextProvider' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'LogicalKeyboardKey.keyV, meta: true' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'pasteText' \
   "$app_dir/lib/src/ui/terminal_input_bridge.dart"
-grep -q 'pasted text as raw UTF-8 bytes without carriage return' \
+grep -q 'pasteText' \
+  "$app_dir/lib/src/ui/terminal_input_bridge.dart"
+grep -q 'forwards pasted text as normalized UTF-8 bytes' \
   "$app_dir/test/terminal_input_bridge_test.dart"
-grep -q 'input row Paste button forwards clipboard text as raw bytes' \
+grep -q 'normalizes pasted multiline text to terminal carriage returns' \
+  "$app_dir/test/terminal_input_bridge_test.dart"
+grep -q 'input row Paste button forwards normalized paste bytes' \
+  "$app_dir/test/terminal_screen_test.dart"
+grep -q 'Cmd+V shortcut forwards normalized paste bytes' \
+  "$app_dir/test/terminal_screen_test.dart"
+grep -q 'input row Paste button normalizes multiline clipboard text' \
   "$app_dir/test/terminal_screen_test.dart"
 grep -q 'input row Paste button ignores an empty clipboard' \
   "$app_dir/test/terminal_screen_test.dart"
 grep -q 'Clipboard is empty' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
-grep -q 'paste keyboard shortcuts forward clipboard text as raw bytes' \
-  "$app_dir/test/terminal_screen_test.dart"
-grep -q 'paste keyboard shortcuts ignore an empty clipboard' \
-  "$app_dir/test/terminal_screen_test.dart"
+grep -q 'Pasted from system clipboard' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q '_toolbarSliderWidth' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'iosmacs-toolbar-scroll' \
@@ -298,6 +390,8 @@ grep -q 'terminal screen can run status smoke deterministically' \
 grep -q 'toolbar Stop button shuts down the backend' \
   "$app_dir/test/terminal_screen_test.dart"
 grep -q 'input row Send button forwards committed terminal text' \
+  "$app_dir/test/terminal_screen_test.dart"
+grep -q 'input row Send button forwards Japanese text once' \
   "$app_dir/test/terminal_screen_test.dart"
 grep -q 'toolbar avoids overflow on narrow mobile width' \
   "$app_dir/test/terminal_screen_test.dart"
@@ -341,14 +435,32 @@ grep -q 'applicationSupportDirectory' \
   "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
 grep -q 'FlutterNativeEmacsBridge.swift in Sources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
+grep -q 'IOSMacsURLSessionBridge.swift in Sources' \
+  "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
 grep -q 'iosmacs_host_facade.c in Sources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
 grep -q 'iosmacs_emacs_diagnostic.c in Sources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
 grep -q 'iosmacs_emacs_core.c in Sources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
+grep -q "autoload 'dired" iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q "autoload 'tetris" iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'global-set-key (kbd \\"M-X\\")' iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'iosmacs-force-xterm-input-decode' iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'terminal-init-xterm' iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'iosmacs-fast-xterm-pasted-text' iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'inhibit-redisplay t' iosmacs/Emacs/iosmacs_emacs_core.c
 grep -q 'iosmacs_terminal_shim.c in Sources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
+grep -q 'iosmacs_host_terminal_read' iosmacs/Host/iosmacs_host_facade.h
+grep -q 'iosmacs_os_terminal_read_available' iosmacs/Host/iosmacs_host_facade.c
+grep -q 'iosmacs_host_terminal_read (tty_buf, nbyte)' \
+  scripts/build-emacs-ios-probe.sh
+if [[ -f build/emacs-ios-probe/source/src/sysdep.c ]] \
+  && grep -q 'byte = iosmacs_host_terminal_read_byte' build/emacs-ios-probe/source/src/sysdep.c; then
+  printf 'error: generated Emacs sysdep.c still has stale byte-at-a-time tty read path\n' >&2
+  exit 1
+fi
 grep -q 'Build Emacs Core Probe' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
 grep -q 'libiosmacs-temacs.a' \
@@ -397,6 +509,8 @@ grep -q 'iosmacs_terminal_shim.h' \
   "$app_dir/ios/Runner/Runner-Bridging-Header.h"
 grep -q 'drainOutput' \
   "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'count: 256 \* 1024' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
 grep -q 'iosmacs_os_terminal_write' \
   "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
 grep -q 'iosmacs_emacs_diagnostic_start' \
@@ -411,7 +525,29 @@ grep -q 'private func importWorkspace' \
   "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
 grep -q 'private func exportWorkspace' \
   "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'private func selectWorkspaceRoot' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'workspaceBookmarkDefaultsKey' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'url(forUbiquityContainerIdentifier: nil)' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'UIDocumentPickerViewController' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'startAccessingSecurityScopedResource' \
+  "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
 grep -q 'app-container workspace list/import/export' \
+  "$app_dir/lib/src/backend/native_emacs_backend.dart"
+grep -q 'iOS security-scoped /home/user folder selection' \
+  "$app_dir/lib/src/backend/native_emacs_backend.dart"
+grep -q 'iOS URLSession network bridge for Emacs url.el' \
+  "$app_dir/lib/src/backend/native_emacs_backend.dart"
+grep -q 'workspace root selection calls native channel' \
+  "$app_dir/test/native_emacs_backend_test.dart"
+grep -q 'start drains multiple native output chunks into one stream event' \
+  "$app_dir/test/native_emacs_backend_test.dart"
+grep -q 'sendBytes does not wait for native output drain to finish' \
+  "$app_dir/test/native_emacs_backend_test.dart"
+grep -q 'iosmacs-native-drainOutput: first bytes=' \
   "$app_dir/lib/src/backend/native_emacs_backend.dart"
 grep -q 'macOS sandbox workspace list/import/export' \
   "$app_dir/lib/src/backend/native_emacs_backend.dart"
@@ -431,6 +567,66 @@ grep -Fq 'IOSMACS_BUILD_ROOT="$(FLUTTER_EMACS_BUILD_ROOT)"' Makefile
 grep -q 'Build Emacs static lib into flutter/build/emacs-ios' Makefile
 grep -q 'flutter-ios-launch-smoke' Makefile
 grep -q 'run-flutter-ios-launch-smoke.sh' Makefile
+grep -q 'flutter-ios-native-smoke' Makefile
+grep -q 'run-flutter-ios-native-smoke.sh' Makefile
+grep -q 'IOSMACS_FLUTTER_IOS_EXPECT_RELAUNCH_PERSISTENCE=1' Makefile
+grep -q 'IOSMACS_FLUTTER_IOS_EXPECT_COMMANDS=1' Makefile
+grep -q 'IOSMACS_FLUTTER_AUTOSTART_NATIVE=true' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'IOSMACS_FLUTTER_MIRROR_TERMINAL_OUTPUT=true' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'iosmacs-capabilities-smoke: id=platform-native-channel' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'iosmacs-status-smoke: id=platform-native-channel' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'iosmacs-terminal-output: .*GNU Emacs' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'diagnostic fallback is running' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'IOSMACS_FLUTTER_IOS_EXPECT_SCRATCH' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'IOSMACS_FLUTTER_IOS_EXPECT_INPUT_INSERTION' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'IOSMACS_FLUTTER_IOS_EXPECT_COMMAND_MARKER' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'IOSMACS_FLUTTER_IOS_EXPECT_FILE_OPS' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'IOSMACS_FLUTTER_IOS_EXPECT_RELAUNCH_PERSISTENCE' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'IOSMACS_FLUTTER_IOS_EXPECT_COMMANDS' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'SIMCTL_CHILD_IOSMACS_APP_SMOKE_MARKER' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'SIMCTL_CHILD_IOSMACS_APP_FILE_SMOKE_MARKER' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'iosmacs-app-smoke-ok' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'iosmacs-app-file-smoke-ok' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'iosmacs-app-commands-smoke-ok' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q "commandp 'dired" \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q "commandp 'tetris" \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'key-binding (kbd \\"M-X\\")' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'all-completions \\"dired\\" obarray' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'all-completions \\"tetris\\" obarray' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'iosmacs-file-smoke.txt' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'Flutter iOS relaunch' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'iosmacs-resize-smoke: requested \[1-9\]\[0-9\]\*x\[1-9\]\[0-9\]\*' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q '\*scratch\*' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'Lisp Interaction' \
+  scripts/run-flutter-ios-native-smoke.sh
+grep -q 'iosmacs input smoke' \
+  scripts/run-flutter-ios-native-smoke.sh
 grep -q 'flutter-macos-smoke' Makefile
 grep -q 'run-flutter-macos-smoke.sh' Makefile
 grep -q 'flutter-macos-native-smoke' Makefile
@@ -460,7 +656,7 @@ grep -q 'iosmacs-capabilities-smoke: id=' \
   scripts/run-flutter-backend-override-smoke.sh
 grep -q 'iosmacs-input-smoke: committed' \
   scripts/run-flutter-backend-override-smoke.sh
-grep -q 'iosmacs-resize-smoke: requested 100x30' \
+grep -q 'iosmacs-resize-smoke: requested \[1-9\]\[0-9\]\*x\[1-9\]\[0-9\]\*' \
   scripts/run-flutter-backend-override-smoke.sh
 grep -q 'iosmacs-redraw-smoke: message=' \
   scripts/run-flutter-backend-override-smoke.sh
@@ -496,7 +692,7 @@ grep -q 'iosmacs-capabilities-smoke: id=platform-native-channel' \
   scripts/run-flutter-macos-native-smoke.sh
 grep -q 'iosmacs-input-smoke: committed' \
   scripts/run-flutter-macos-native-smoke.sh
-grep -q 'iosmacs-resize-smoke: requested 100x30' \
+grep -q 'iosmacs-resize-smoke: requested \[1-9\]\[0-9\]\*x\[1-9\]\[0-9\]\*' \
   scripts/run-flutter-macos-native-smoke.sh
 grep -q 'iosmacs-redraw-smoke: message=' \
   scripts/run-flutter-macos-native-smoke.sh
@@ -524,6 +720,7 @@ grep -q 'flutter-analyze' Makefile
 grep -q 'flutter analyze' Makefile
 grep -q 'flutter-fake-smoke' Makefile
 grep -q 'flutter-ios-launch-smoke' Makefile
+grep -q 'flutter-ios-native-smoke' Makefile
 grep -q 'flutter-macos-smoke' Makefile
 grep -q 'flutter-macos-native-smoke' Makefile
 

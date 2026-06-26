@@ -82,6 +82,9 @@ class WebWasmEmacsBackend implements EmacsBackend {
   }
 
   @override
+  Future<bool> pasteSystemClipboard() async => false;
+
+  @override
   Future<void> resize({required int cols, required int rows}) async {
     _diagnostics.value = _diagnostics.value.copyWith(
       message: 'web wasm resize recorded',
@@ -122,6 +125,24 @@ class WebWasmEmacsBackend implements EmacsBackend {
       workspaceActions: _diagnostics.value.workspaceActions + 1,
     );
     return const <Uri>[];
+  }
+
+  @override
+  Future<String> selectWorkspaceRoot() async {
+    _diagnostics.value = _diagnostics.value.copyWith(
+      message: 'web workspace root selection pending',
+      workspaceActions: _diagnostics.value.workspaceActions + 1,
+    );
+    return 'Web workspace root selection pending';
+  }
+
+  @override
+  Future<String> clearWorkspaceRootSelection() async {
+    _diagnostics.value = _diagnostics.value.copyWith(
+      message: 'web default workspace pending',
+      workspaceActions: _diagnostics.value.workspaceActions + 1,
+    );
+    return 'Web default workspace pending';
   }
 
   @override

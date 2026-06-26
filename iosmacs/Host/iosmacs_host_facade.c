@@ -1,5 +1,6 @@
 #include "iosmacs_host_facade.h"
 
+#include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -16,36 +17,21 @@
 #define IOSMACS_TERMINAL_BUFFER_SIZE (1024 * 1024)
 #define IOSMACS_LIFECYCLE_STATE_SIZE 128
 
-__attribute__((weak)) int iosmacs_swift_url_retrieve(const char *url,
-                                                     int32_t timeout_ms,
-                                                     int32_t *status_code,
-                                                     unsigned char **body,
-                                                     size_t *body_length,
-                                                     char **headers,
-                                                     char **error_message,
-                                                     char **final_url) {
-    (void)url;
-    (void)timeout_ms;
-    if (status_code != NULL) {
-        *status_code = 0;
+typedef int (*iosmacs_swift_url_retrieve_fn)(const char *url,
+                                             int32_t timeout_ms,
+                                             int32_t *status_code,
+                                             unsigned char **body,
+                                             size_t *body_length,
+                                             char **headers,
+                                             char **error_message,
+                                             char **final_url);
+
+static iosmacs_swift_url_retrieve_fn resolve_swift_url_retrieve(void) {
+    void *symbol = dlsym(RTLD_DEFAULT, "iosmacs_swift_url_retrieve");
+    if (symbol != NULL) {
+        return (iosmacs_swift_url_retrieve_fn)symbol;
     }
-    if (body != NULL) {
-        *body = NULL;
-    }
-    if (body_length != NULL) {
-        *body_length = 0;
-    }
-    if (headers != NULL) {
-        *headers = NULL;
-    }
-    if (error_message != NULL) {
-        *error_message = strdup("iosmacs Swift URLSession bridge is unavailable");
-    }
-    if (final_url != NULL) {
-        *final_url = NULL;
-    }
-    errno = ENOSYS;
-    return -1;
+    return NULL;
 }
 
 typedef struct iosmacs_ring_buffer {
@@ -69,6 +55,7 @@ static int direct_tty_mode;
 static int stdio_redirected_to_terminal;
 static int noted_tty_fds[16];
 static size_t noted_tty_fd_count;
+static long long last_input_push_ms = -1;
 static int auto_xterm_replies = -1;
 static char csi_query[64];
 static size_t csi_query_len;
@@ -92,8 +79,11 @@ static void terminal_debug_log_bytes(const char *label, const uint8_t *bytes, si
     if (fd < 0) {
         return;
     }
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    long long now_ms = (long long)now.tv_sec * 1000LL + now.tv_nsec / 1000000LL;
     char line[512];
-    int offset = snprintf(line, sizeof(line), "terminal %s count=%zu bytes=", label, count);
+    int offset = snprintf(line, sizeof(line), "t=%lld terminal %s count=%zu bytes=", now_ms, label, count);
     size_t limit = count < 32 ? count : 32;
     for (size_t i = 0; i < limit && offset > 0 && (size_t)offset < sizeof(line); i++) {
         offset += snprintf(line + offset, sizeof(line) - (size_t)offset, "%s%02x", i == 0 ? "" : " ", bytes[i]);
@@ -120,8 +110,11 @@ static void terminal_debug_log_message(const char *prefix, const char *message) 
     if (fd < 0) {
         return;
     }
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    long long now_ms = (long long)now.tv_sec * 1000LL + now.tv_nsec / 1000000LL;
     char line[512];
-    int length = snprintf(line, sizeof(line), "%s %s\n", prefix, message);
+    int length = snprintf(line, sizeof(line), "t=%lld %s %s\n", now_ms, prefix, message);
     if (length > 0) {
         syscall(SYS_write, fd, line, (size_t)length < sizeof(line) ? (size_t)length : sizeof(line));
     }
@@ -135,6 +128,12 @@ static void terminal_debug_log_format(const char *prefix, const char *format, ..
     vsnprintf(message, sizeof(message), format, args);
     va_end(args);
     terminal_debug_log_message(prefix, message);
+}
+
+static long long terminal_monotonic_ms(void) {
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (long long)now.tv_sec * 1000LL + now.tv_nsec / 1000000LL;
 }
 
 static void ring_reset(iosmacs_ring_buffer *ring) {
@@ -420,6 +419,9 @@ ssize_t iosmacs_os_terminal_push_input(const uint8_t *bytes, size_t count) {
     pthread_mutex_lock(&terminal_mutex);
     ssize_t written = (ssize_t)ring_write(&input_ring, bytes, count);
     if (written > 0 || count == 0) {
+        if (written > 0) {
+            last_input_push_ms = terminal_monotonic_ms();
+        }
         input_generation++;
         pthread_cond_broadcast(&terminal_cond);
     }
@@ -534,14 +536,24 @@ int iosmacs_os_terminal_read_byte(void) {
     pthread_mutex_lock(&terminal_mutex);
     terminal_enable_direct_mode_locked();
     size_t count = ring_read(&input_ring, &byte, 1);
+    pthread_mutex_unlock(&terminal_mutex);
+    return count == 1 ? (int)byte : -1;
+}
+
+ssize_t iosmacs_os_terminal_read_available(uint8_t *buffer, size_t capacity) {
+    if (buffer == NULL && capacity > 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    pthread_mutex_lock(&terminal_mutex);
+    terminal_enable_direct_mode_locked();
+    ssize_t count = (ssize_t)ring_read(&input_ring, buffer, capacity);
     size_t remaining = input_ring.count;
     pthread_mutex_unlock(&terminal_mutex);
-    if (count == 1) {
-        terminal_debug_log_format("terminal", "read-byte byte=%02x remaining=%zu", byte, remaining);
-    } else {
-        terminal_debug_log_message("terminal", "read-byte empty");
+    if (count > 0) {
+        terminal_debug_log_format("terminal", "read-available bytes=%zd remaining=%zu", count, remaining);
     }
-    return count == 1 ? (int)byte : -1;
+    return count;
 }
 
 int iosmacs_os_terminal_input_available(void) {
@@ -604,6 +616,10 @@ int iosmacs_host_wait_for_input(int timeout_ms) {
     return result;
 }
 
+ssize_t iosmacs_host_terminal_read(uint8_t *buffer, size_t capacity) {
+    return iosmacs_os_terminal_read_available(buffer, capacity);
+}
+
 int iosmacs_host_terminal_read_byte(void) {
     return iosmacs_os_terminal_read_byte();
 }
@@ -622,6 +638,19 @@ int iosmacs_host_is_tty_fd(int fd) {
 
 void iosmacs_host_trace_event(const char *message) {
     terminal_debug_log_message("emacs", message);
+}
+
+int iosmacs_host_trace_hotpath_active(void) {
+    if (getenv("IOSMACS_TRACE_EMACS_HOTPATH") == NULL) {
+        return 0;
+    }
+    pthread_mutex_lock(&terminal_mutex);
+    long long started_ms = last_input_push_ms;
+    pthread_mutex_unlock(&terminal_mutex);
+    if (started_ms < 0) {
+        return 0;
+    }
+    return terminal_monotonic_ms() - started_ms <= 30000;
 }
 
 int iosmacs_host_url_retrieve(const char *url,
@@ -643,14 +672,15 @@ int iosmacs_host_url_retrieve(const char *url,
     *body_length = 0;
     *error_message = NULL;
     *final_url = NULL;
-    if (iosmacs_swift_url_retrieve == NULL) {
+    iosmacs_swift_url_retrieve_fn retrieve = resolve_swift_url_retrieve();
+    if (retrieve == NULL) {
         *error_message = strdup("iosmacs Swift URLSession bridge is unavailable");
         errno = ENOSYS;
         return -1;
     }
 
     int32_t swift_status_code = 0;
-    int result = iosmacs_swift_url_retrieve(
+    int result = retrieve(
         url,
         (int32_t)timeout_ms,
         &swift_status_code,

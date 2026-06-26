@@ -14,6 +14,9 @@ class NativeEmacsBackend implements EmacsBackend {
       : _channel = channel ?? const MethodChannel(channelName);
 
   static const String channelName = 'iosmacs/native_emacs';
+  static const Duration _outputPollInterval = Duration(milliseconds: 16);
+  static const int _maxDrainPasses = 64;
+  static const bool _traceIo = bool.fromEnvironment('IOSMACS_FLUTTER_TRACE_IO');
 
   final MethodChannel _channel;
   final StreamController<List<int>> _outputController =
@@ -31,6 +34,8 @@ class NativeEmacsBackend implements EmacsBackend {
     ),
   );
   Timer? _pollTimer;
+  bool _isDrainingOutput = false;
+  bool _drainAgain = false;
 
   @override
   BackendCapabilities get capabilities => const BackendCapabilities(
@@ -46,6 +51,8 @@ class NativeEmacsBackend implements EmacsBackend {
           'terminal byte stream from native Emacs',
           'terminal input and resize channel calls',
           'app-container workspace list/import/export',
+          'iOS security-scoped /home/user folder selection',
+          'iOS URLSession network bridge for Emacs url.el',
           'macOS sandbox workspace list/import/export',
           'diagnostic native channel fallback',
           'explicit unsupported diagnostics',
@@ -100,18 +107,63 @@ class NativeEmacsBackend implements EmacsBackend {
 
   @override
   Future<void> sendBytes(List<int> bytes) async {
+    final startedAt = DateTime.now();
+    if (_traceIo) {
+      debugPrint(
+        'iosmacs-native-sendBytes: start bytes=${bytes.length} '
+        'at=${startedAt.toIso8601String()}',
+      );
+    }
     final ok = await _invokeNative(
       'sendBytes',
       <String, Object>{'bytes': Uint8List.fromList(bytes)},
     );
     if (ok != null) {
+      final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
+      if (_traceIo) {
+        debugPrint(
+          'iosmacs-native-sendBytes: accepted bytes=${bytes.length} '
+          'elapsedMs=$elapsedMs',
+        );
+      }
       _applyNativeStatus(ok);
       _diagnostics.value = _diagnostics.value.copyWith(
         message: 'sent input bytes to native backend',
         inputBytes: _diagnostics.value.inputBytes + bytes.length,
       );
-      await _drainOutput();
+      unawaited(_drainOutput());
     }
+  }
+
+  @override
+  Future<bool> pasteSystemClipboard() async {
+    if (_traceIo) {
+      debugPrint('iosmacs-native-pasteSystemClipboard: start');
+    }
+    final result = await _invokeNative<Map<Object?, Object?>>(
+      'pasteSystemClipboard',
+    );
+    if (result == null) {
+      if (_traceIo) {
+        debugPrint('iosmacs-native-pasteSystemClipboard: unavailable');
+      }
+      return false;
+    }
+    final accepted = result['accepted'] as bool? ?? false;
+    final byteCount = result['byteCount'] as int? ?? 0;
+    if (_traceIo) {
+      debugPrint(
+        'iosmacs-native-pasteSystemClipboard: accepted=$accepted '
+        'byteCount=$byteCount',
+      );
+    }
+    if (accepted) {
+      _diagnostics.value = _diagnostics.value.copyWith(
+        message: 'pasted system clipboard through native text input',
+        inputBytes: _diagnostics.value.inputBytes + byteCount,
+      );
+    }
+    return accepted;
   }
 
   @override
@@ -176,6 +228,40 @@ class NativeEmacsBackend implements EmacsBackend {
   }
 
   @override
+  Future<String> selectWorkspaceRoot() async {
+    final result = await _invokeNative<Map<Object?, Object?>>(
+      'selectWorkspaceRoot',
+    );
+    if (result != null) {
+      final message =
+          result['message'] as String? ?? 'native workspace root selected';
+      _diagnostics.value = _diagnostics.value.copyWith(
+        message: message,
+        workspaceActions: _diagnostics.value.workspaceActions + 1,
+      );
+      return message;
+    }
+    return 'Workspace selection unavailable';
+  }
+
+  @override
+  Future<String> clearWorkspaceRootSelection() async {
+    final result = await _invokeNative<Map<Object?, Object?>>(
+      'clearWorkspaceRoot',
+    );
+    if (result != null) {
+      final message =
+          result['message'] as String? ?? 'native workspace root cleared';
+      _diagnostics.value = _diagnostics.value.copyWith(
+        message: message,
+        workspaceActions: _diagnostics.value.workspaceActions + 1,
+      );
+      return message;
+    }
+    return 'Default workspace selection unavailable';
+  }
+
+  @override
   void dispose() {
     _stopOutputPolling();
     _lifecycleState.dispose();
@@ -185,7 +271,7 @@ class NativeEmacsBackend implements EmacsBackend {
 
   void _startOutputPolling() {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
+    _pollTimer = Timer.periodic(_outputPollInterval, (_) {
       unawaited(_drainOutput());
     });
   }
@@ -196,20 +282,67 @@ class NativeEmacsBackend implements EmacsBackend {
   }
 
   Future<void> _drainOutput() async {
+    if (_isDrainingOutput) {
+      _drainAgain = true;
+      return;
+    }
+    _isDrainingOutput = true;
+    var reachedPassLimit = false;
     try {
-      final bytes = await _channel.invokeMethod<Uint8List>('drainOutput');
-      if (bytes == null || bytes.isEmpty) {
+      final chunks = <Uint8List>[];
+      var totalBytes = 0;
+      for (var pass = 0; pass < _maxDrainPasses; pass++) {
+        final bytes = await _channel.invokeMethod<Uint8List>('drainOutput');
+        if (bytes == null || bytes.isEmpty) {
+          break;
+        }
+        if (totalBytes == 0 && _traceIo) {
+          debugPrint(
+            'iosmacs-native-drainOutput: first bytes=${bytes.length} '
+            'pass=$pass at=${DateTime.now().toIso8601String()}',
+          );
+        }
+        chunks.add(bytes);
+        totalBytes += bytes.length;
+        reachedPassLimit = pass == _maxDrainPasses - 1;
+      }
+      if (totalBytes == 0) {
         return;
       }
-      _outputController.add(bytes);
+      if (_traceIo) {
+        debugPrint(
+          'iosmacs-native-drainOutput: chunks=${chunks.length} '
+          'bytes=$totalBytes at=${DateTime.now().toIso8601String()}',
+        );
+      }
+      _outputController.add(_combineChunks(chunks, totalBytes));
       _diagnostics.value = _diagnostics.value.copyWith(
-        outputBytes: _diagnostics.value.outputBytes + bytes.length,
+        outputBytes: _diagnostics.value.outputBytes + totalBytes,
       );
     } on MissingPluginException {
       _recordUnsupported('drainOutput missing native channel handler');
     } on PlatformException catch (error) {
       _recordUnsupported('drainOutput ${error.message ?? error.code}');
+    } finally {
+      _isDrainingOutput = false;
+      if (_drainAgain || reachedPassLimit) {
+        _drainAgain = false;
+        scheduleMicrotask(() => unawaited(_drainOutput()));
+      }
     }
+  }
+
+  Uint8List _combineChunks(List<Uint8List> chunks, int totalBytes) {
+    if (chunks.length == 1) {
+      return chunks.single;
+    }
+    final combined = Uint8List(totalBytes);
+    var offset = 0;
+    for (final chunk in chunks) {
+      combined.setRange(offset, offset + chunk.length, chunk);
+      offset += chunk.length;
+    }
+    return combined;
   }
 
   Future<T?> _invokeNative<T extends Object>(String method,

@@ -39,11 +39,13 @@ int iosmacs_os_terminal_is_tty_fd(int fd);
 int iosmacs_os_terminal_direct_mode_enabled(void);
 
 int iosmacs_host_wait_for_input(int timeout_ms);
+ssize_t iosmacs_host_terminal_read(uint8_t *buffer, size_t capacity);
 int iosmacs_host_terminal_read_byte(void);
 int iosmacs_host_terminal_input_available(void);
 int iosmacs_host_flush_terminal_output(void);
 int iosmacs_host_is_tty_fd(int fd);
 void iosmacs_host_trace_event(const char *message);
+int iosmacs_host_trace_hotpath_active(void);
 int iosmacs_host_url_retrieve(const char *url,
                               int timeout_ms,
                               int *status_code,
