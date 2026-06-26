@@ -579,6 +579,28 @@ void main() {
     expect(terminalView.keyboardType, TextInputType.text);
   });
 
+  testWidgets('terminal body forwards all pointer input for mouse reporting', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    final terminalView = tester.widget<TerminalView>(find.byType(TerminalView));
+    expect(
+      terminalView.controller?.pointerInput.inputs,
+      <PointerInput>{
+        PointerInput.tap,
+        PointerInput.scroll,
+        PointerInput.drag,
+        PointerInput.move,
+      },
+    );
+  });
+
   testWidgets('terminal key repeat is boosted for held hardware keys', (
     WidgetTester tester,
   ) async {

@@ -413,6 +413,10 @@ Current TODO:
   repeat event sends multiple terminal input units.
 - [x] Verify boosted key repeat with Flutter widget tests, structure check, and
   an iOS Simulator build.
+- [x] Enable full Flutter terminal pointer forwarding so Emacs xterm mouse
+  reporting can receive taps, drags, moves, and scrolls.
+- [x] Verify mouse-reporting configuration with Flutter widget tests,
+  structure check, and an iOS Simulator build.
 - [ ] Make Flutter iOS build, install, and run on a physical iPad/iPhone with
   documented signing and device smoke evidence.
 

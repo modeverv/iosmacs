@@ -65,6 +65,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
   final FocusNode _terminalFocusNode = FocusNode();
   final FocusNode _inputFocusNode = FocusNode();
   final TextEditingController _inputController = TextEditingController();
+  final TerminalController _terminalController = TerminalController(
+    pointerInputs: const PointerInputs.all(),
+  );
   late final Terminal _terminal;
   late final TerminalInputBridge _inputBridge;
 
@@ -105,6 +108,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
     _terminalFocusNode.dispose();
     _inputFocusNode.dispose();
     _inputController.dispose();
+    _terminalController.dispose();
     super.dispose();
   }
 
@@ -132,6 +136,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                     child: TerminalView(
                       _terminal,
                       autofocus: true,
+                      controller: _terminalController,
                       focusNode: _terminalFocusNode,
                       keyboardType: TextInputType.text,
                       onKeyEvent: _handleTerminalKeyEvent,

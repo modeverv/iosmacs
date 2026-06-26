@@ -2385,3 +2385,24 @@ Flutter iOS key repeat boost:
   `git diff --check`, and `flutter build ios --simulator --debug`.
 - Installed and launched the rebuilt app on the booted iPad Simulator with
   process id `26809`.
+
+Flutter iOS mouse reporting:
+
+- Checked the current Flutter terminal mouse state after the user asked
+  whether mouse support is already enabled.
+- `xterm.dart` supports terminal mouse reporting through `TerminalController`
+  pointer inputs, but the app was relying on the default controller, which only
+  forwards tap events.
+- Added an explicit `TerminalController(pointerInputs:
+  const PointerInputs.all())` to the terminal body so tap, scroll, drag, and
+  move events can be converted into xterm mouse-reporting sequences when Emacs
+  enables mouse reporting.
+- Added widget coverage that asserts the terminal body controller forwards all
+  pointer input types.
+- Added structure-check guards for `PointerInputs.all` and the mouse-reporting
+  widget coverage.
+- Verified with `flutter test test/terminal_screen_test.dart
+  test/terminal_input_bridge_test.dart`, `make flutter-structure-check`,
+  `git diff --check`, and `flutter build ios --simulator --debug`.
+- Installed and launched the rebuilt app on the booted iPad Simulator with
+  process id `60217`.

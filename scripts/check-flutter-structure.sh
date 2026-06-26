@@ -356,6 +356,8 @@ grep -q 'LogicalKeyboardKey.keyV, meta: true' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'keyboardType: TextInputType.text' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'PointerInputs.all' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q '_keyRepeatMultiplier = 3' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'KeyRepeatEvent' \
@@ -413,6 +415,8 @@ grep -q 'input row Send button forwards Japanese text once' \
 grep -q 'terminal body keeps Japanese IME composing text inline until commit' \
   "$app_dir/test/terminal_screen_test.dart"
 grep -q 'terminal body uses normal text keyboard for IME candidates' \
+  "$app_dir/test/terminal_screen_test.dart"
+grep -q 'terminal body forwards all pointer input for mouse reporting' \
   "$app_dir/test/terminal_screen_test.dart"
 grep -q 'terminal key repeat is boosted for held hardware keys' \
   "$app_dir/test/terminal_screen_test.dart"
