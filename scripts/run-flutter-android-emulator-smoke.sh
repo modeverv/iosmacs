@@ -86,7 +86,8 @@ flutter build apk --debug \
   --dart-define=IOSMACS_FLUTTER_STATUS_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_INPUT_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_RESIZE_SMOKE=true \
-  --dart-define=IOSMACS_FLUTTER_REDRAW_SMOKE=true
+  --dart-define=IOSMACS_FLUTTER_REDRAW_SMOKE=true \
+  --dart-define=IOSMACS_FLUTTER_WORKSPACE_SMOKE=true
 
 "$adb_bin" -s "$device_id" logcat -c
 "$adb_bin" -s "$device_id" install -r "$app_dir/build/app/outputs/flutter-apk/app-debug.apk"
@@ -212,6 +213,27 @@ grep -Eq 'iosmacs-resize-smoke: requested [1-9][0-9]*x[1-9][0-9]*; backend geome
 grep -q 'iosmacs-redraw-smoke: message="iosmacs Android native bridge: redrew Emacs terminal frame"' \
   "$out_dir/logcat.txt" || {
   printf 'error: did not observe Android redraw smoke evidence\n' >&2
+  exit 1
+}
+grep -q 'iosmacs-workspace-smoke: workspace listed' "$out_dir/logcat.txt" || {
+  printf 'error: did not observe Android workspace list smoke evidence\n' >&2
+  exit 1
+}
+grep -q 'iosmacs-workspace-smoke: workspace imported 1 item(s)' "$out_dir/logcat.txt" || {
+  printf 'error: did not observe Android workspace import smoke evidence\n' >&2
+  exit 1
+}
+grep -q 'iosmacs-workspace-smoke: workspace listed after import' "$out_dir/logcat.txt" || {
+  printf 'error: did not observe Android workspace list-after-import smoke evidence\n' >&2
+  exit 1
+}
+grep -Eq 'iosmacs-workspace-smoke: workspace open requested: .+ \([1-9][0-9]* byte\(s\)\); backend input total [1-9][0-9]*' \
+  "$out_dir/logcat.txt" || {
+  printf 'error: did not observe Android workspace open smoke evidence\n' >&2
+  exit 1
+}
+grep -q 'iosmacs-workspace-smoke: workspace export candidate(s):' "$out_dir/logcat.txt" || {
+  printf 'error: did not observe Android workspace export smoke evidence\n' >&2
   exit 1
 }
 

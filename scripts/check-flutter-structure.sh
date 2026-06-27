@@ -389,6 +389,8 @@ grep -Fq 'Buffer: \*scratch\*' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_FLUTTER_INPUT_SMOKE=true' \
   scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'IOSMACS_FLUTTER_WORKSPACE_SMOKE=true' \
+  scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_ANDROID_REQUIRE_NW:-1' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'requires NW Emacs' \
@@ -422,6 +424,12 @@ grep -q 'official Android Emacs text-terminal boundary evidence' \
 grep -q 'iosmacs-resize-smoke: requested' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs-redraw-smoke: message="iosmacs Android native bridge: redrew Emacs terminal frame"' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-workspace-smoke: workspace imported 1 item(s)' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-workspace-smoke: workspace open requested:' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-workspace-smoke: workspace export candidate(s):' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs/workspace' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"

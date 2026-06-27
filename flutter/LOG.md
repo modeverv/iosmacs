@@ -29,6 +29,8 @@ Flutter Android fallback surface reduction:
 - Tightened `make flutter-android-emulator-smoke` so it requires the packaged NW
   route by default; `IOSMACS_ANDROID_REQUIRE_NW=0` is now the explicit fallback
   diagnostics mode.
+- Extended the Android emulator smoke to enable workspace smoke and require
+  list/import/open/export evidence while the NW route is active.
 
 Flutter Android GNU Emacs NW text-terminal display:
 

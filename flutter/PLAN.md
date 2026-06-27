@@ -1204,6 +1204,9 @@ Flutter Android GNU Emacs NDK runtime status:
 - The Android capability surface now advertises `Android GNU Emacs NW PTY
   terminal route` as supported and demotes the old stateful frame renderer to an
   explicit fallback diagnostic surface.
+- The Android emulator smoke now also exercises workspace list/import/open/export
+  while the NW route is active, so app-private workspace behavior is checked
+  against the real Android terminal runtime rather than only placeholder output.
 - Current remaining Android work: keep the official `--with-android` runtime as
   packaged evidence/fallback, speed up NW startup packaging, and prove
   keyboard/IME plus document-provider export behavior against the real NW
