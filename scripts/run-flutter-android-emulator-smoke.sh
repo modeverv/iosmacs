@@ -6,6 +6,7 @@ app_dir="$repo_root/flutter/iosmacs_flutter"
 sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}}"
 avd_name="${IOSMACS_FLUTTER_ANDROID_AVD:-iosmacs_flutter_pixel}"
 device_id="${IOSMACS_FLUTTER_ANDROID_DEVICE:-}"
+require_nw="${IOSMACS_ANDROID_REQUIRE_NW:-1}"
 out_dir="$repo_root/flutter/build/android-emulator-smoke"
 screenshot="$out_dir/scratch.png"
 
@@ -92,8 +93,8 @@ flutter build apk --debug \
 "$adb_bin" -s "$device_id" shell input keyevent 82 >/dev/null 2>&1 || true
 "$adb_bin" -s "$device_id" shell am start -n com.example.iosmacs_flutter/.MainActivity
 
-# Wait for either the NW PTY session (real Emacs) or the JNI frame renderer.
-# NW mode takes priority: if libemacs_nw.so is in the APK, Emacs starts via PTY.
+# Wait for the NW PTY session by default.  Set IOSMACS_ANDROID_REQUIRE_NW=0
+# only when deliberately exercising the legacy fallback diagnostics.
 scratch_seen=0
 nw_session_seen=0
 for _ in {1..180}; do
@@ -108,8 +109,9 @@ for _ in {1..180}; do
       break
     fi
   fi
-  # Fallback: check for JNI frame renderer output
-  if grep -q 'GNU Emacs 30.2 Android terminal frame' <<<"$logcat_snapshot" &&
+  # Fallback: check for JNI frame renderer output only when explicitly allowed.
+  if [[ "$require_nw" != "1" ]] &&
+    grep -q 'GNU Emacs 30.2 Android terminal frame' <<<"$logcat_snapshot" &&
     grep -q 'Buffer: \*scratch\*' <<<"$logcat_snapshot"; then
     scratch_seen=1
     break
@@ -119,6 +121,11 @@ done
 
 "$adb_bin" -s "$device_id" logcat -d > "$out_dir/logcat.txt"
 
+if [[ "$require_nw" == "1" && "$nw_session_seen" != "1" ]]; then
+  printf 'error: Android emulator smoke requires NW Emacs; set IOSMACS_ANDROID_REQUIRE_NW=0 to allow fallback diagnostics\n' >&2
+  printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2
+  exit 1
+fi
 if [[ "$scratch_seen" != "1" ]]; then
   printf 'error: did not observe Android Emacs terminal output in logcat\n' >&2
   printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2

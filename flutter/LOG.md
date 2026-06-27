@@ -26,6 +26,9 @@ Flutter Android fallback surface reduction:
 - Updated Android native fallback lifecycle messages so they no longer read like
   the primary terminal path when `libemacs_nw.so` is absent.
 - Updated tests and structure guards around the new NW-first/fallback wording.
+- Tightened `make flutter-android-emulator-smoke` so it requires the packaged NW
+  route by default; `IOSMACS_ANDROID_REQUIRE_NW=0` is now the explicit fallback
+  diagnostics mode.
 
 Flutter Android GNU Emacs NW text-terminal display:
 

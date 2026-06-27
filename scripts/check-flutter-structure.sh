@@ -389,6 +389,10 @@ grep -Fq 'Buffer: \*scratch\*' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_FLUTTER_INPUT_SMOKE=true' \
   scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'IOSMACS_ANDROID_REQUIRE_NW:-1' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'requires NW Emacs' \
+  scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs-input-smoke: committed' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'text="iosmacs input smoke"' \

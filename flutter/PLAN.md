@@ -1199,6 +1199,8 @@ Flutter Android GNU Emacs NDK runtime status:
 - The emulator smoke now treats the NW path as the active success path and
   requires the NW PTY marker, `*scratch*` evidence, and the named
   `iosmacs input smoke` committed-text marker before accepting the run.
+- The Android emulator smoke requires the packaged NW route by default; the old
+  fallback diagnostic checks only run when `IOSMACS_ANDROID_REQUIRE_NW=0` is set.
 - The Android capability surface now advertises `Android GNU Emacs NW PTY
   terminal route` as supported and demotes the old stateful frame renderer to an
   explicit fallback diagnostic surface.

@@ -370,6 +370,8 @@ Focused targets are available when iterating:
 - `make flutter-android-emulator-smoke` builds, installs, and launches the
   Android APK on `iosmacs_flutter_pixel`, then checks capability, status,
   input, resize, redraw, terminal output, and `*scratch*` screenshot evidence.
+  By default it requires the packaged `libemacs_nw.so` route; set
+  `IOSMACS_ANDROID_REQUIRE_NW=0` only to exercise fallback diagnostics.
 - `make flutter-android-emacs-configure` configures the vendored GNU Emacs
   Android port with the local Android SDK/NDK into
   `flutter/build/emacs-android/<abi>`.
