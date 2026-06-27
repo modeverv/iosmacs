@@ -32,6 +32,10 @@ Flutter Android NW follow-up:
   `content://com.example.iosmacs_flutter.workspace_export/...` URIs.
 - Extended the Android emulator smoke so the NW route must now prove returned
   document-provider export URIs and native byte-count evidence in logcat.
+- Added Android NW startup-output filtering in the JNI PTY bridge: Emacs'
+  no-pdump load chatter is buffered until the first menu-bar `*scratch*` frame
+  appears, then the smoke requires `interactive frame ready` evidence with a
+  suppressed startup byte count.
 
 Flutter Android fallback surface reduction:
 

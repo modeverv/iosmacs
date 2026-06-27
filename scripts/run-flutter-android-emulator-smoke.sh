@@ -172,6 +172,15 @@ if [[ "$nw_session_seen" == "1" ]]; then
     printf 'error: NW Emacs did not report *scratch* evidence\n' >&2
     exit 1
   }
+  grep -Eq 'iosmacs Android GNU Emacs NW interactive frame ready: terminal frame detected; suppressed [1-9][0-9]* startup byte\(s\)' \
+    "$out_dir/logcat.txt" || {
+    printf 'error: NW Emacs startup chatter was not suppressed before the interactive frame\n' >&2
+    exit 1
+  }
+  if grep -Eq 'I flutter : .*Loading emacs-lisp/' "$out_dir/logcat.txt"; then
+    printf 'error: NW Emacs startup load chatter leaked into Flutter logs\n' >&2
+    exit 1
+  fi
   grep -q 'text="iosmacs input smoke"' "$out_dir/logcat.txt" || {
     printf 'error: NW Emacs smoke did not identify the committed input text\n' >&2
     exit 1

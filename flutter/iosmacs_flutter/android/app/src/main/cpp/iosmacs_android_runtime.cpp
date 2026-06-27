@@ -21,6 +21,8 @@ int terminal_cols = 80;
 int terminal_rows = 24;
 pid_t official_emacs_pid = -1;
 int official_emacs_master_fd = -1;
+bool official_emacs_suppress_startup_output = false;
+std::string official_emacs_startup_buffer;
 
 jbyteArray to_byte_array(JNIEnv *env, const std::string &text) {
   auto bytes = env->NewByteArray(static_cast<jsize>(text.size()));
@@ -174,6 +176,69 @@ void update_pty_size_locked() {
   ioctl(official_emacs_master_fd, TIOCSWINSZ, &size);
 }
 
+bool contains_nw_interactive_frame(const std::string &text) {
+  return text.find("File Edit Options Buffers Tools Help") != std::string::npos
+      && text.find("*scratch*") != std::string::npos;
+}
+
+std::string tail_from_nw_interactive_frame(const std::string &text) {
+  const size_t ready_pos = text.find("File Edit Options Buffers Tools Help");
+  if (ready_pos == std::string::npos) {
+    return text;
+  }
+
+  const std::string clear_home = "\x1B[H\x1B[2J";
+  const std::string clear_home_alt = "\x1B[2J\x1B[H";
+  size_t frame_start = text.rfind(clear_home, ready_pos);
+  if (frame_start == std::string::npos) {
+    frame_start = text.rfind(clear_home_alt, ready_pos);
+  }
+  if (frame_start == std::string::npos) {
+    frame_start = ready_pos;
+  }
+  const size_t loading_between = text.find("Loading ", frame_start);
+  if (loading_between != std::string::npos && loading_between < ready_pos) {
+    return clear_home + text.substr(ready_pos);
+  }
+  return text.substr(frame_start);
+}
+
+std::string release_nw_startup_buffer_locked(const char *reason) {
+  const size_t suppressed_bytes = official_emacs_startup_buffer.size();
+  std::string output = "\r\niosmacs Android GNU Emacs NW interactive frame ready: ";
+  output += reason;
+  output += "; suppressed ";
+  output += std::to_string(static_cast<unsigned long long>(suppressed_bytes));
+  output += " startup byte(s)\r\n";
+  output += tail_from_nw_interactive_frame(official_emacs_startup_buffer);
+  official_emacs_startup_buffer.clear();
+  official_emacs_suppress_startup_output = false;
+  return output;
+}
+
+std::string filter_nw_startup_output_locked(const std::string &chunk) {
+  if (!official_emacs_suppress_startup_output) {
+    return chunk;
+  }
+  official_emacs_startup_buffer += chunk;
+  if (official_emacs_startup_buffer.size() > 262144) {
+    official_emacs_startup_buffer.erase(
+        0,
+        official_emacs_startup_buffer.size() - 262144);
+  }
+  if (!contains_nw_interactive_frame(official_emacs_startup_buffer)) {
+    return "";
+  }
+  return release_nw_startup_buffer_locked("terminal frame detected");
+}
+
+std::string flush_nw_startup_output_locked() {
+  if (!official_emacs_suppress_startup_output) {
+    return "";
+  }
+  return release_nw_startup_buffer_locked("startup drain timeout");
+}
+
 void reap_official_emacs_locked() {
   if (official_emacs_pid <= 0) {
     return;
@@ -186,6 +251,8 @@ void reap_official_emacs_locked() {
       close(official_emacs_master_fd);
       official_emacs_master_fd = -1;
     }
+    official_emacs_suppress_startup_output = false;
+    official_emacs_startup_buffer.clear();
   }
 }
 
@@ -215,7 +282,7 @@ std::string drain_official_emacs_locked() {
     output += "\r\n";
     break;
   }
-  return output;
+  return filter_nw_startup_output_locked(output);
 }
 
 void stop_official_emacs_locked() {
@@ -240,6 +307,8 @@ void stop_official_emacs_locked() {
     close(official_emacs_master_fd);
     official_emacs_master_fd = -1;
   }
+  official_emacs_suppress_startup_output = false;
+  official_emacs_startup_buffer.clear();
 }
 
 }  // namespace
@@ -499,6 +568,8 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_startNwEmacs(
 
   official_emacs_pid = pid;
   official_emacs_master_fd = master_fd;
+  official_emacs_suppress_startup_output = true;
+  official_emacs_startup_buffer.clear();
   set_nonblocking(official_emacs_master_fd);
 
   std::string output = "\r\niosmacs Android GNU Emacs NW PTY session started: pid=";
@@ -506,8 +577,9 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_startNwEmacs(
   output += "\r\n";
 
   // Drain PTY output for up to 8 seconds, checking whether the process
-  // is still alive. Emacs without pdmp loads ~5000 Lisp functions before
-  // displaying anything; each 100ms slice picks up whatever arrived.
+  // is still alive.  Emacs without pdmp emits a long stream of Lisp-loading
+  // chatter before the first interactive frame; keep that buffered so Flutter
+  // starts rendering at the usable *scratch* frame instead of at loadup noise.
   for (int i = 0; i < 80; i++) {
     usleep(100000);  // 100ms
     std::string chunk = drain_official_emacs_locked();
@@ -520,11 +592,14 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_startNwEmacs(
       output += "\r\niosmacs Android GNU Emacs NW process exited early\r\n";
       break;
     }
-    // If we have seen substantial output, return early so the Flutter
-    // terminal can start rendering while Emacs continues initializing.
-    if (output.size() > 512) {
+    // Once the startup filter has released the interactive frame, return early
+    // so Flutter can render the usable terminal while Emacs remains alive.
+    if (!official_emacs_suppress_startup_output && output.size() > 512) {
       break;
     }
+  }
+  if (official_emacs_suppress_startup_output) {
+    output += flush_nw_startup_output_locked();
   }
 
   return to_byte_array(env, output);

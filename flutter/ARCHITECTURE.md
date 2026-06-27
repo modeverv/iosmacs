@@ -291,9 +291,11 @@ fallback diagnostic surface when the NW binary is absent. The official
 bridge evidence, and comparison probes, but it is not the active interactive
 Flutter-terminal path. The Android smoke now proves keyboard/IME input and
 document-provider-style `content://` workspace export against the NW route.
-The likely hard parts are improving NW startup/runtime packaging, adding the
-user-facing document export picker flow, and shrinking the fallback diagnostic
-surface.
+The JNI PTY bridge buffers no-pdump startup chatter until the first menu-bar
+`*scratch*` frame is ready, so users see the usable terminal frame instead of
+loadup noise. The likely hard parts are improving NW startup/runtime packaging
+with a real dumped/cache path, adding the user-facing document export picker
+flow, and shrinking the fallback diagnostic surface.
 
 The Android backend should reuse the same facade ideas as iOS where practical,
 but it should not block the Flutter shell or desktop backend work.
@@ -375,8 +377,9 @@ Focused targets are available when iterating:
 - `make flutter-android-emulator-smoke` builds, installs, and launches the
   Android APK on `iosmacs_flutter_pixel`, then checks capability, status,
   input, keyboard, resize, redraw, terminal output, workspace import/open,
-  document-provider content export, and `*scratch*` screenshot evidence. By
-  default it requires the packaged `libemacs_nw.so` route; set
+  document-provider content export, startup-chatter suppression, and
+  `*scratch*` screenshot evidence. By default it requires the packaged
+  `libemacs_nw.so` route; set
   `IOSMACS_ANDROID_REQUIRE_NW=0` only to exercise fallback diagnostics.
 - `make flutter-android-emacs-configure` configures the vendored GNU Emacs
   Android port with the local Android SDK/NDK into

@@ -405,6 +405,14 @@ grep -q 'text="\$text"' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'iosmacs-terminal-input-buffer' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'release_nw_startup_buffer_locked("terminal frame detected")' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'iosmacs Android GNU Emacs NW interactive frame ready:' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'NW Emacs startup chatter was not suppressed before the interactive frame' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'NW Emacs startup load chatter leaked into Flutter logs' \
+  scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'androidadbinput' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'did not observe Android adb keyboard input evidence' \
@@ -1120,6 +1128,8 @@ grep -q 'status smoke output' \
 grep -q 'make flutter-android-emulator-smoke' \
   flutter/ARCHITECTURE.md
 grep -q 'document-provider content export' \
+  flutter/ARCHITECTURE.md
+grep -q 'startup-chatter suppression' \
   flutter/ARCHITECTURE.md
 
 if grep -q 'FakeEmacsBackend()' "$app_dir/lib/main.dart"; then
