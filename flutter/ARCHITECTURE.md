@@ -318,6 +318,10 @@ Emacs-level HTTP connection marker with `IOSMACS_ANDROID_EXPECT_NETWORK=1`.
 The emulator smoke also force-stops and relaunches the app by default to prove
 that the Emacs-created workspace file remains in app-private storage and that
 workspace list/open smoke evidence still appears after relaunch.
+Android NW startup passes the same command-discovery init used by the bundled
+iOS/macOS paths: clear `read-extended-command-predicate`, bind `M-X` to
+ordinary `execute-extended-command`, and autoload `dired`/`tetris`; the emulator
+smoke requires `iosmacs-android-commands-ok` from Emacs-side checks.
 The active NW startup path also defers the official `--with-android`
 subprocess comparison probe so diagnostic evidence does not block first
 terminal output. The emulator smoke now proves both cold pdmp generation and

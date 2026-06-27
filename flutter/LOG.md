@@ -172,6 +172,17 @@ Flutter Android fallback surface reduction:
   run exported `workspace-export.zip`, relaunched into NW `*scratch*` in
   `elapsed_ms=304`, preserved `iosmacs-android-file-smoke`, listed 7 workspace
   item(s), and reopened the workspace smoke file after relaunch.
+- Aligned Android NW command discovery with the bundled iOS/macOS paths. The
+  JNI PTY startup now passes an Emacs `--eval` form that clears
+  `read-extended-command-predicate`, binds `M-X` to
+  `execute-extended-command`, and autoloads `dired` and `tetris`.
+- Extended the Android emulator smoke to write and require
+  `iosmacs-android-commands-ok`, proving inside Android Emacs that `M-X` is
+  bound correctly and that `dired`/`tetris` are both `commandp` and visible via
+  `all-completions`. The verified run reached the first NW `*scratch*` frame in
+  `elapsed_ms=301` and produced `iosmacs-android-commands-ok`; the relaunch
+  leg also reached `*scratch*` in `elapsed_ms=301` and reopened the workspace
+  smoke file.
 
 Flutter Android GNU Emacs NW text-terminal display:
 

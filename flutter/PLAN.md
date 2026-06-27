@@ -1000,6 +1000,10 @@ Flutter Android native channel TODO:
 - [x] Verify the Android emulator Emacs network smoke through the packaged NW
   route.
 - [x] Add a default Android emulator workspace relaunch-persistence smoke.
+- [x] Apply the same bundled `M-X`/`M-x` command-discovery init to Android NW
+  Emacs as iOS/macOS.
+- [x] Verify Android NW `M-X`, `dired`, and `tetris` command discovery in the
+  emulator smoke.
 - [x] Autostart Android by default now that a native channel route exists.
 - [x] Verify Android native-channel tests, structure check, and debug APK
   build.
@@ -1051,6 +1055,11 @@ Flutter Android native channel status:
   relaunch. The current verified relaunch reached the NW `*scratch*` frame in
   `elapsed_ms=304`, preserved `iosmacs-android-file-smoke`, listed 7 workspace
   item(s), and reopened `/data/user/0/com.example.iosmacs_flutter/files/iosmacs/workspace/workspace-smoke.txt`.
+- Android NW startup now passes the same `M-X`/command-discovery init used by
+  iOS/macOS: clear `read-extended-command-predicate`, bind `M-X` to
+  `execute-extended-command`, and autoload `dired`/`tetris`. The current
+  emulator smoke wrote `iosmacs-android-commands-ok`, proving the binding,
+  `commandp`, and `all-completions` checks inside Android Emacs.
 
 Flutter Android emulator scratch smoke TODO:
 

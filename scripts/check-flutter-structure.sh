@@ -447,6 +447,10 @@ grep -q -- '--android-nw-pdump-output' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q -- '--dump-file' \
   "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'global-set-key (kbd \\"M-X\\")' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q "autoload 'tetris" \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
 grep -q 'File.pathSeparator' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -Fq 'Buffer: \*scratch\*' \
@@ -493,9 +497,17 @@ grep -q 'iosmacs-android-file-ops-smoke.el' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'iosmacs-android-file-ops.marker' \
   scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-android-commands.marker' \
+  scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs-android-file-ops-smoke.el' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs-android-file-ops-ok' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-android-commands-ok' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'M-X is not bound to execute-extended-command' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'all-completions "tetris" obarray' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'android-file-smoke-relaunch.txt' \
   scripts/run-flutter-android-emulator-smoke.sh

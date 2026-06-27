@@ -19,6 +19,7 @@ package_id="com.example.iosmacs_flutter"
 android_file_elisp_path="files/iosmacs/workspace/iosmacs-android-file-ops-smoke.el"
 android_file_marker_path="files/iosmacs/workspace/iosmacs-android-file-ops.marker"
 android_file_smoke_path="files/iosmacs/workspace/notes/iosmacs-android-file-smoke.txt"
+android_commands_marker_path="files/iosmacs/workspace/iosmacs-android-commands.marker"
 android_network_marker_path="files/iosmacs/workspace/iosmacs-android-network.marker"
 android_pdump_status_path="files/iosmacs/emacs-pdmp/emacs.pdmp.status"
 android_pdump_path="files/iosmacs/emacs-pdmp/emacs.pdmp"
@@ -153,7 +154,7 @@ if [[ "$expect_pdump" == "1" ]]; then
     "run-as '$package_id' sh -c 'rm -rf files/iosmacs/emacs-pdmp files/iosmacs/etc'"
 fi
 "$adb_bin" -s "$device_id" shell \
-  "run-as '$package_id' sh -c 'rm -f \"$android_file_marker_path\" \"$android_file_smoke_path\" \"$android_network_marker_path\" \"$android_file_elisp_path\"'"
+  "run-as '$package_id' sh -c 'rm -f \"$android_file_marker_path\" \"$android_file_smoke_path\" \"$android_commands_marker_path\" \"$android_network_marker_path\" \"$android_file_elisp_path\"'"
 cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
   "run-as '$package_id' sh -c 'cat > \"$android_file_elisp_path\"'"
 (let ((marker (expand-file-name "iosmacs-android-file-ops.marker" "~")))
@@ -190,6 +191,30 @@ cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
       (format "iosmacs-android-file-ops-error:%S\n" err)
       nil marker nil nil)
      (message "iosmacs-android-file-ops-error:%S" err))))
+ELISP
+cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
+  "run-as '$package_id' sh -c 'cat >> \"$android_file_elisp_path\"'"
+
+(let ((marker (expand-file-name "iosmacs-android-commands.marker" "~")))
+  (condition-case err
+      (let ((read-extended-command-predicate nil))
+        (unless (eq (key-binding (kbd "M-X")) 'execute-extended-command)
+          (error "M-X is not bound to execute-extended-command"))
+        (unless (commandp 'dired)
+          (error "dired is not commandp"))
+        (unless (commandp 'tetris)
+          (error "tetris is not commandp"))
+        (unless (member "dired" (all-completions "dired" obarray #'commandp))
+          (error "dired is not in M-x completions"))
+        (unless (member "tetris" (all-completions "tetris" obarray #'commandp))
+          (error "tetris is not in M-x completions"))
+        (write-region "iosmacs-android-commands-ok\n" nil marker nil nil)
+        (message "iosmacs-android-commands-ok"))
+    (error
+     (write-region
+      (format "iosmacs-android-commands-error:%S\n" err)
+      nil marker nil nil)
+     (message "iosmacs-android-commands-error:%S" err))))
 ELISP
 if [[ "$expect_network" == "1" ]]; then
   cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
@@ -293,6 +318,7 @@ done
 file_ops_seen=0
 file_ops_marker_text=""
 file_ops_saved_text=""
+commands_marker_text=""
 network_marker_text=""
 pdump_status_text=""
 pdump_size=""
@@ -302,6 +328,13 @@ for _ in {1..60}; do
   if grep -q 'iosmacs-android-file-ops-ok' <<<"$file_ops_marker_text" &&
     grep -q 'iosmacs-android-file-smoke' <<<"$file_ops_saved_text"; then
     file_ops_seen=1
+    break
+  fi
+  sleep 1
+done
+for _ in {1..30}; do
+  commands_marker_text="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_commands_marker_path" 2>/dev/null | tr -d '\r' || true)"
+  if grep -q 'iosmacs-android-commands-ok' <<<"$commands_marker_text"; then
     break
   fi
   sleep 1
@@ -319,6 +352,7 @@ if [[ "$expect_network" == "1" ]]; then
 fi
 printf '%s\n' "$file_ops_marker_text" > "$out_dir/android-file-ops.marker"
 printf '%s\n' "$file_ops_saved_text" > "$out_dir/android-file-smoke.txt"
+printf '%s\n' "$commands_marker_text" > "$out_dir/android-commands.marker"
 printf '%s\n' "$network_marker_text" > "$out_dir/android-network.marker"
 printf '%s\n' "$pdump_status_text" > "$out_dir/android-pdump.status"
 
@@ -343,6 +377,12 @@ if [[ "$file_ops_seen" != "1" ]]; then
   printf 'error: did not observe Android Emacs file save/reopen/Dired evidence\n' >&2
   printf 'marker file: %s\n' "$out_dir/android-file-ops.marker" >&2
   printf 'saved file: %s\n' "$out_dir/android-file-smoke.txt" >&2
+  printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2
+  exit 1
+fi
+if ! grep -q 'iosmacs-android-commands-ok' "$out_dir/android-commands.marker"; then
+  printf 'error: Android Emacs command discovery smoke marker did not report ok\n' >&2
+  cat "$out_dir/android-commands.marker" >&2 || true
   printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2
   exit 1
 fi
@@ -511,6 +551,15 @@ grep -q 'iosmacs-android-file-ops-ok' "$out_dir/android-file-ops.marker" || {
 grep -q 'iosmacs-android-file-smoke' "$out_dir/android-file-smoke.txt" || {
   printf 'error: Android Emacs saved file had unexpected contents\n' >&2
   cat "$out_dir/android-file-smoke.txt" >&2 || true
+  exit 1
+}
+grep -q 'iosmacs-android-commands-ok' "$out_dir/android-commands.marker" || {
+  printf 'error: Android Emacs command discovery smoke marker did not report ok\n' >&2
+  cat "$out_dir/android-commands.marker" >&2 || true
+  exit 1
+}
+grep -q 'iosmacs-android-commands-ok' "$out_dir/logcat.txt" || {
+  printf 'error: did not observe Android Emacs command discovery log evidence\n' >&2
   exit 1
 }
 if [[ "$expect_network" == "1" ]]; then

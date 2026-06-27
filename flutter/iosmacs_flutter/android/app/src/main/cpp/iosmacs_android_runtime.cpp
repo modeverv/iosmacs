@@ -582,6 +582,15 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_startNwEmacs(
     args.push_back("--no-window-system");
     args.push_back("--quick");
     args.push_back("--no-splash");
+    args.push_back("--eval");
+    args.push_back(
+        "(progn "
+        "(when (boundp 'read-extended-command-predicate) "
+        "(setq read-extended-command-predicate nil)) "
+        "(when (fboundp 'execute-extended-command) "
+        "(global-set-key (kbd \"M-X\") #'execute-extended-command)) "
+        "(autoload 'dired \"dired\" nil t) "
+        "(autoload 'tetris \"tetris\" nil t))");
     std::vector<char *> argv;
     argv.reserve(args.size() + 1);
     for (std::string &arg : args) {
