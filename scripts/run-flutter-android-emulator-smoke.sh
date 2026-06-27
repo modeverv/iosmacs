@@ -9,11 +9,13 @@ device_id="${IOSMACS_FLUTTER_ANDROID_DEVICE:-}"
 require_nw="${IOSMACS_ANDROID_REQUIRE_NW:-1}"
 expect_pdump="${IOSMACS_ANDROID_EXPECT_PDUMP:-0}"
 expect_pdump_reuse="${IOSMACS_ANDROID_EXPECT_PDUMP_REUSE:-0}"
+expect_pdump_recovery="${IOSMACS_ANDROID_EXPECT_PDUMP_RECOVERY:-0}"
 expect_network="${IOSMACS_ANDROID_EXPECT_NETWORK:-0}"
 expect_workspace_relaunch="${IOSMACS_ANDROID_EXPECT_WORKSPACE_RELAUNCH:-1}"
 out_dir="$repo_root/flutter/build/android-emulator-smoke"
 screenshot="$out_dir/scratch.png"
 warm_logcat="$out_dir/logcat-warm-relaunch.txt"
+pdump_recovery_logcat="$out_dir/logcat-pdump-recovery.txt"
 workspace_relaunch_logcat="$out_dir/logcat-workspace-relaunch.txt"
 package_id="com.example.iosmacs_flutter"
 android_file_elisp_path="files/iosmacs/workspace/iosmacs-android-file-ops-smoke.el"
@@ -462,6 +464,51 @@ if [[ "$nw_session_seen" == "1" ]]; then
     grep -Eq 'iosmacs Android GNU Emacs NW interactive frame ready: terminal frame detected; elapsed_ms=[1-9][0-9]*; suppressed [0-9]+ startup byte\(s\)' \
       "$warm_logcat" || {
       printf 'error: Android warm relaunch startup timing marker missing\n' >&2
+      exit 1
+    }
+  fi
+  if [[ "$expect_pdump_recovery" == "1" ]]; then
+    if [[ "$expect_pdump" != "1" ]]; then
+      printf 'error: IOSMACS_ANDROID_EXPECT_PDUMP_RECOVERY=1 requires IOSMACS_ANDROID_EXPECT_PDUMP=1\n' >&2
+      exit 1
+    fi
+    "$adb_bin" -s "$device_id" shell \
+      "run-as '$package_id' sh -c 'printf corrupt-pdmp-for-iosmacs-smoke > \"$android_pdump_path\"'"
+    "$adb_bin" -s "$device_id" logcat -c
+    "$adb_bin" -s "$device_id" shell am force-stop "$package_id"
+    "$adb_bin" -s "$device_id" shell am start -n "$package_id/.MainActivity"
+    read -r recovery_nw_session_seen recovery_scratch_seen < <(wait_for_nw_startup)
+    "$adb_bin" -s "$device_id" logcat -d > "$pdump_recovery_logcat"
+    pdump_recovery_status="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_pdump_status_path" 2>/dev/null | tr -d '\r' || true)"
+    printf '%s\n' "$pdump_recovery_status" > "$out_dir/android-pdump-recovery.status"
+    if [[ "$recovery_nw_session_seen" != "1" || "$recovery_scratch_seen" != "1" ]]; then
+      printf 'error: Android corrupt-pdump recovery did not reach NW *scratch*\n' >&2
+      printf 'saved recovery logcat: %s\n' "$pdump_recovery_logcat" >&2
+      exit 1
+    fi
+    grep -q 'iosmacs Android GNU Emacs NW pdump reused:' "$pdump_recovery_logcat" || {
+      printf 'error: Android corrupt-pdump recovery did not attempt cached pdump reuse\n' >&2
+      printf 'saved recovery logcat: %s\n' "$pdump_recovery_logcat" >&2
+      exit 1
+    }
+    grep -q 'iosmacs Android GNU Emacs NW pdump invalidated: reason=startup_failed' "$pdump_recovery_logcat" || {
+      printf 'error: Android corrupt-pdump recovery did not invalidate the cached pdump\n' >&2
+      printf 'saved recovery logcat: %s\n' "$pdump_recovery_logcat" >&2
+      exit 1
+    }
+    grep -q 'iosmacs Android GNU Emacs NW pdump retry without dump file' "$pdump_recovery_logcat" || {
+      printf 'error: Android corrupt-pdump recovery did not retry without pdump\n' >&2
+      printf 'saved recovery logcat: %s\n' "$pdump_recovery_logcat" >&2
+      exit 1
+    }
+    grep -q 'status=invalidated' "$out_dir/android-pdump-recovery.status" || {
+      printf 'error: Android corrupt-pdump recovery status was not invalidated\n' >&2
+      cat "$out_dir/android-pdump-recovery.status" >&2 || true
+      exit 1
+    }
+    grep -q 'reason=startup_failed' "$out_dir/android-pdump-recovery.status" || {
+      printf 'error: Android corrupt-pdump recovery status did not record startup_failed\n' >&2
+      cat "$out_dir/android-pdump-recovery.status" >&2 || true
       exit 1
     }
   fi

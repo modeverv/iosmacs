@@ -467,17 +467,27 @@ grep -q 'IOSMACS_ANDROID_EXPECT_PDUMP' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_ANDROID_EXPECT_PDUMP_REUSE' \
   scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'IOSMACS_ANDROID_EXPECT_PDUMP_RECOVERY' \
+  scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_ANDROID_EXPECT_NETWORK' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_ANDROID_EXPECT_WORKSPACE_RELAUNCH:-1' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'logcat-warm-relaunch.txt' \
   scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'logcat-pdump-recovery.txt' \
+  scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'logcat-workspace-relaunch.txt' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'pdump reused' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'android-pdump.status' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'android-pdump-recovery.status' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'pdump invalidated: reason=startup_failed' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'pdump retry without dump file' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_ANDROID_REQUIRE_NW:-1' \
   scripts/run-flutter-android-emulator-smoke.sh
@@ -1297,6 +1307,8 @@ grep -q 'status smoke output' \
   flutter/ARCHITECTURE.md
 grep -q 'make flutter-android-emulator-smoke' \
   flutter/ARCHITECTURE.md
+grep -q 'flutter-android-parity-smoke' Makefile
+grep -q 'IOSMACS_ANDROID_EXPECT_PDUMP_RECOVERY=1' Makefile
 grep -q 'document-provider content export' \
   flutter/ARCHITECTURE.md
 grep -q 'ACTION_CREATE_DOCUMENT' \

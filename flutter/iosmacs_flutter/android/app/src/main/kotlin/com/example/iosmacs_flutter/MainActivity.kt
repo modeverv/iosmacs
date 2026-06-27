@@ -70,6 +70,13 @@ private class AndroidNativeEmacsBridge(
   private var pendingExportFile: File? = null
   private var pendingWorkspaceTreeResult: MethodChannel.Result? = null
 
+  private fun isNwTerminalUsable(bytes: ByteArray): Boolean {
+    val text = bytes.toString(Charsets.UTF_8)
+    return text.contains("iosmacs Android GNU Emacs NW interactive frame ready") &&
+      text.contains("*scratch*") &&
+      !text.contains("iosmacs Android GNU Emacs NW process exited early")
+  }
+
   fun handle(call: MethodCall, result: MethodChannel.Result) {
     when (call.method) {
       "start" -> start(result)
@@ -180,10 +187,11 @@ private class AndroidNativeEmacsBridge(
     if (nwBinary != null && !officialTerminalStarted) {
       val dataDir = NwEmacsRuntime.ensureDataExtracted(context)
       val workspaceRoot = prepareWorkspaceRoot()
+      val nwExecutable = File(nwBinary)
       val pdumpFile = dataDir?.let {
         NwEmacsRuntime.ensurePdump(
           context,
-          File(nwBinary),
+          nwExecutable,
           it,
           workspaceRoot,
           context.cacheDir,
@@ -200,12 +208,38 @@ private class AndroidNativeEmacsBridge(
         cols,
         rows,
       )
-      officialTerminalStarted =
-        nwOutput.toString(Charsets.UTF_8).contains("iosmacs Android GNU Emacs NW PTY session started")
+      var terminalUsable = isNwTerminalUsable(nwOutput)
+      val outputForStatus = if (!terminalUsable && pdumpFile != null) {
+        NwEmacsRuntime.invalidatePdump(context, nwExecutable, "startup_failed")
+        Log.w(
+          "AndroidNativeEmacsBridge",
+          "iosmacs Android GNU Emacs NW pdump startup failed; retrying without pdmp",
+        )
+        lifecycleState = "iosmacs Android native bridge: GNU Emacs NW PTY terminal retrying without pdmp"
+        val retryOutput = nativeRuntime.startNwEmacs(
+          nwBinary,
+          dataDir?.let { NwEmacsRuntime.loadPath(it) } ?: "",
+          dataDir?.let { File(it, "etc").absolutePath } ?: "",
+          workspaceRoot.absolutePath,
+          context.cacheDir.absolutePath,
+          "",
+          cols,
+          rows,
+        )
+        terminalUsable = isNwTerminalUsable(retryOutput)
+        ByteArrayOutputStream().apply {
+          write(nwOutput)
+          write("\r\niosmacs Android GNU Emacs NW pdump retry without dump file\r\n".toByteArray())
+          write(retryOutput)
+        }.toByteArray()
+      } else {
+        nwOutput
+      }
+      officialTerminalStarted = terminalUsable
       if (officialTerminalStarted) {
         lifecycleState = "iosmacs Android native bridge: GNU Emacs NW PTY terminal running"
       }
-      appendOutput(nwOutput)
+      appendOutput(outputForStatus)
       result.success(status())
       return
     }
@@ -920,7 +954,7 @@ private object NwEmacsRuntime {
     val dumpDir = File(context.filesDir, "iosmacs/emacs-pdmp").apply { mkdirs() }
     val dumpFile = File(dumpDir, "emacs.pdmp")
     val statusFile = File(dumpDir, PDUMP_STATUS_FILE)
-    val key = "${executable.length()}:${executable.lastModified()}:$DATA_VERSION"
+    val key = pdumpKey(executable)
     val oldStatus = statusFile.takeIf { it.isFile }?.readText().orEmpty()
     if (dumpFile.isFile && oldStatus.contains("key=$key") && oldStatus.contains("status=ok")) {
       Log.i(
@@ -1014,6 +1048,19 @@ private object NwEmacsRuntime {
       null
     }
   }
+
+  fun invalidatePdump(context: Context, executable: File, reason: String) {
+    val dumpDir = File(context.filesDir, "iosmacs/emacs-pdmp").apply { mkdirs() }
+    val statusFile = File(dumpDir, PDUMP_STATUS_FILE)
+    dumpDir.listFiles()
+      ?.filter { it.name.endsWith(".pdmp") }
+      ?.forEach { it.delete() }
+    statusFile.writeText("status=invalidated\nkey=${pdumpKey(executable)}\nreason=$reason\n")
+    Log.w(TAG, "iosmacs Android GNU Emacs NW pdump invalidated: reason=$reason path=${dumpDir.absolutePath}")
+  }
+
+  private fun pdumpKey(executable: File): String =
+    "${executable.length()}:${executable.lastModified()}:$DATA_VERSION"
 
   private fun pdumperEnabled(context: Context): Boolean =
     try {

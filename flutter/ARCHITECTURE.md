@@ -325,9 +325,15 @@ smoke requires `iosmacs-android-commands-ok` from Emacs-side checks.
 The active NW startup path also defers the official `--with-android`
 subprocess comparison probe so diagnostic evidence does not block first
 terminal output. The emulator smoke now proves both cold pdmp generation and
-warm relaunch reuse of the cached pdmp without regeneration. The Android
-capability surface now presents the NW PTY route as the supported interactive
-path and keeps the stateful frame renderer on the diagnostic-only side. The
+warm relaunch reuse of the cached pdmp without regeneration. Android startup
+success is the first usable `*scratch*` terminal frame, not merely successful
+`forkpty`; if a cached pdmp prevents that frame from arriving, the app
+invalidates the cached pdmp, records `reason=startup_failed`, and retries the
+same startup without `--dump-file`. `make flutter-android-parity-smoke`
+requires pdump generation, warm reuse, corrupt-pdump recovery, network, command
+discovery, workspace, and relaunch evidence. The Android capability surface now
+presents the NW PTY route as the supported interactive path and keeps the
+stateful frame renderer on the diagnostic-only side. The
 likely remaining hard part is continuing to audit and shrink fallback
 diagnostic surface that can still leak into normal workflows.
 

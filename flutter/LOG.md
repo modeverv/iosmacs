@@ -90,6 +90,26 @@ Flutter Android NW follow-up:
   status unchanged. The verified run generated the 11,564,416 byte pdmp in
   2432 ms, reached `*scratch*` in 302 ms on the cold pdmp launch, then reused
   the same pdmp and reached `*scratch*` in 315 ms on warm relaunch.
+- Tightened Android NW startup success so the native bridge requires the first
+  usable `*scratch*` frame instead of treating the `forkpty` start marker as
+  enough. If a cached pdmp was used but the frame does not arrive, the bridge
+  invalidates `files/iosmacs/emacs-pdmp/emacs.pdmp`, records
+  `status=invalidated` with `reason=startup_failed`, and retries immediately
+  without `--dump-file`.
+- Added `IOSMACS_ANDROID_EXPECT_PDUMP_RECOVERY=1` to
+  `make flutter-android-emulator-smoke`. The recovery path corrupts a valid
+  cached pdmp, relaunches Android, and requires pdmp reuse, invalidation,
+  retry-without-pdump, invalidated status, and live `*scratch*` evidence.
+- Added `make flutter-android-parity-smoke`, which runs the Android emulator
+  smoke with pdump generation, warm reuse, corrupt-pdump recovery, network, and
+  the default workspace relaunch evidence enabled.
+- Verified the pdump self-healing path with `make flutter-structure-check`,
+  `make flutter-android-smoke`, and `make flutter-android-parity-smoke`. The
+  parity run generated an 11,564,408 byte pdmp in 2425 ms, reached `*scratch*`
+  in 317 ms on the cold pdmp launch, reused the pdmp and reached `*scratch*` in
+  301 ms on warm relaunch, then recovered from a deliberately corrupted 30 byte
+  cached pdmp by invalidating it and reaching `*scratch*` without pdmp in
+  803 ms.
 
 Flutter Android fallback surface reduction:
 

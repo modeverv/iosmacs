@@ -1230,6 +1230,8 @@ Flutter Android GNU Emacs NDK runtime TODO:
   so the interactive binary reaches `*scratch*` faster internally.
 - [x] Add a dedicated Android warm-relaunch smoke that proves an existing
   app-private `emacs.pdmp` is reused without regenerating it.
+- [x] Add Android pdump startup self-healing so a corrupt cached pdmp is
+  invalidated and the app retries the same startup without pdump.
 
 Flutter Android GNU Emacs NDK runtime status:
 
@@ -1344,6 +1346,23 @@ Flutter Android GNU Emacs NDK runtime status:
   current run generated the 11,564,416 byte pdmp in 2432 ms, reached
   `*scratch*` in 302 ms on the cold pdmp launch, and reached `*scratch*` in
   315 ms on warm relaunch while reusing the same pdmp.
+- Android NW startup now treats the first usable `*scratch*` terminal frame as
+  the success boundary rather than treating `forkpty` alone as success. If a
+  cached pdmp was passed but the usable frame does not arrive, the app
+  invalidates `files/iosmacs/emacs-pdmp/emacs.pdmp`, records
+  `status=invalidated` with `reason=startup_failed`, and retries the same
+  startup without `--dump-file` so the terminal remains usable.
+- `IOSMACS_ANDROID_EXPECT_PDUMP_RECOVERY=1 make
+  flutter-android-emulator-smoke` corrupts an otherwise valid cached pdmp,
+  relaunches the app, and requires `pdump invalidated`, `pdump retry without
+  dump file`, `status=invalidated`, and live `*scratch*` evidence. `make
+  flutter-android-parity-smoke` packages pdump generation, warm reuse, corrupt
+  pdmp recovery, network, workspace relaunch, command discovery, input, and
+  workspace file/export evidence into one Android emulator verification target.
+  The current parity run generated an 11,564,408 byte pdmp in 2425 ms, reached
+  `*scratch*` in 317 ms on cold pdmp startup, reached `*scratch*` in 301 ms on
+  warm pdmp reuse, then recovered from a deliberately corrupted 30 byte cached
+  pdmp by invalidating it and reaching `*scratch*` without pdmp in 803 ms.
 - Current remaining Android work: keep the official `--with-android` runtime as
   packaged evidence/fallback and continue shrinking diagnostic/fallback surface.
 

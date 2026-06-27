@@ -21,7 +21,7 @@ JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || printf '4')
 	app-installl smoke verify verify-iphone flutter-doctor flutter-structure-check flutter-bootstrap \
 	flutter-format-check flutter-analyze flutter-fake-smoke flutter-ios-smoke flutter-ios-launch-smoke flutter-macos-smoke \
 	flutter-ios-native-smoke flutter-macos-native-smoke flutter-backend-override-smoke flutter-web-smoke flutter-android-smoke \
-	flutter-android-emulator-smoke flutter-android-emacs-configure flutter-android-emacs-runtime \
+	flutter-android-emulator-smoke flutter-android-parity-smoke flutter-android-emacs-configure flutter-android-emacs-runtime \
 	flutter-android-emacs-nw-configure flutter-android-emacs-nw-build flutter-android-emacs-nw-pdumper-build \
 	flutter-emacs-static flutter-emacs-pdmp flutter-macos-emacs-runtime flutter-ipad-launch \
 	flutter-verify check clean distclean
@@ -59,6 +59,7 @@ help:
 	  '  make flutter-web-smoke   Build Flutter Web debug output' \
 	  '  make flutter-android-smoke Build Flutter Android debug APK' \
 	  '  make flutter-android-emulator-smoke Build, install, launch, and screenshot Android emulator app' \
+	  '  make flutter-android-parity-smoke Require Android NW pdump, recovery, network, and relaunch evidence' \
 	  '  make flutter-android-emacs-configure Configure GNU Emacs for Android NDK runtime work' \
 	  '  make flutter-android-emacs-runtime Attempt GNU Emacs Android NDK native library build' \
 	  '  make flutter-android-emacs-nw-configure Configure GNU Emacs NW text-terminal for Android' \
@@ -213,6 +214,13 @@ flutter-android-smoke:
 
 flutter-android-emulator-smoke:
 	scripts/run-flutter-android-emulator-smoke.sh
+
+flutter-android-parity-smoke:
+	IOSMACS_ANDROID_EXPECT_PDUMP=1 \
+	  IOSMACS_ANDROID_EXPECT_PDUMP_REUSE=1 \
+	  IOSMACS_ANDROID_EXPECT_PDUMP_RECOVERY=1 \
+	  IOSMACS_ANDROID_EXPECT_NETWORK=1 \
+	  scripts/run-flutter-android-emulator-smoke.sh
 
 flutter-android-emacs-configure:
 	scripts/build-flutter-android-emacs-runtime.sh
