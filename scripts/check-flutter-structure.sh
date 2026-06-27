@@ -38,7 +38,10 @@ required_files=(
   "$app_dir/macos/Runner.xcodeproj/project.pbxproj"
   "$app_dir/macos/Runner/AppDelegate.swift"
   "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
   "$app_dir/android/app/build.gradle.kts"
+  "$app_dir/android/app/src/main/cpp/CMakeLists.txt"
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
   "$app_dir/web/index.html"
   "$app_dir/linux/CMakeLists.txt"
   "$app_dir/windows/CMakeLists.txt"
@@ -65,6 +68,14 @@ if [[ ! -x scripts/run-flutter-ios-native-smoke.sh ]]; then
 fi
 if [[ ! -x scripts/run-flutter-macos-smoke.sh ]]; then
   printf 'error: missing executable Flutter macOS smoke script\n' >&2
+  exit 1
+fi
+if [[ ! -x scripts/run-flutter-android-emulator-smoke.sh ]]; then
+  printf 'error: missing executable Flutter Android emulator smoke script\n' >&2
+  exit 1
+fi
+if [[ ! -x scripts/build-flutter-android-emacs-runtime.sh ]]; then
+  printf 'error: missing executable Flutter Android Emacs runtime build script\n' >&2
   exit 1
 fi
 if [[ ! -x scripts/run-flutter-macos-native-smoke.sh ]]; then
@@ -226,10 +237,182 @@ grep -q 'kbd_buffer_events_waiting' \
   scripts/build-emacs-ios-probe.sh
 grep -q '&& !kbd_buffer_events_waiting ()' \
   scripts/build-emacs-ios-probe.sh
-grep -q 'Android NDK GNU Emacs core build' \
+grep -q 'Android NDK GNU Emacs runtime artifact packaging' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
-grep -q 'android://iosmacs/workspace-placeholder' \
+grep -q 'Android NDK GNU Emacs terminal bridge' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
+grep -q 'android-native-channel' \
+  "$app_dir/lib/src/backend/android_emacs_backend.dart"
+grep -q 'Android app-private workspace list/import/export' \
+  "$app_dir/lib/src/backend/android_emacs_backend.dart"
+grep -q 'Android terminal Emacs frame renderer' \
+  "$app_dir/lib/src/backend/android_emacs_backend.dart"
+grep -q 'NativeEmacsBackend' \
+  "$app_dir/lib/src/backend/android_emacs_backend.dart"
+grep -q 'externalNativeBuild' \
+  "$app_dir/android/app/build.gradle.kts"
+grep -q 'jniLibs.srcDir' \
+  "$app_dir/android/app/build.gradle.kts"
+grep -q 'iosmacs/jniLibs' \
+  "$app_dir/android/app/build.gradle.kts"
+grep -q 'assets.srcDir' \
+  "$app_dir/android/app/build.gradle.kts"
+grep -q 'install_temp/assets' \
+  "$app_dir/android/app/build.gradle.kts"
+grep -q 'emacs-android-java.jar' \
+  "$app_dir/android/app/build.gradle.kts"
+grep -q 'implementation(files(androidEmacsJavaBridgeJar))' \
+  "$app_dir/android/app/build.gradle.kts"
+grep -q 'iosmacs_android_runtime' \
+  "$app_dir/android/app/src/main/cpp/CMakeLists.txt"
+grep -q 'System.loadLibrary("iosmacs_android_runtime")' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'AndroidNativeEmacsRuntime' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'OfficialAndroidEmacsRuntime' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'System.loadLibrary("emacs")' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'System.loadLibrary("android-emacs")' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'androidEmacsRuntimeAvailable' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'androidEmacsJavaBridgeAvailable' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'Class.forName("org.gnu.emacs.EmacsNative")' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'getFingerprint' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'libandroid-emacs.so").absolutePath' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'androidEmacsWrapperExecutableAvailable' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'EMACS_CLASS_PATH' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'process.waitFor(8, TimeUnit.SECONDS)' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'iosmacs Android GNU Emacs process probe:' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'probeMarkerStatus' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'startOfficialEmacs' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'sendOfficialBytes' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'drainOfficialOutput' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'useLegacyPackaging = true' \
+  "$app_dir/android/app/build.gradle.kts"
+grep -q 'forkpty(&master_fd' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'EMACS_CLASS_PATH' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'iosmacs Android GNU Emacs PTY session started:' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'AndroidNativeEmacsBridge.channelName' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'Buffer: \*scratch\*' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'GNU Emacs 30.2 Android terminal frame' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q -- '-UUU:----F1  \*scratch\*   Lisp Interaction' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'render_terminal_input' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'scratch_buffer' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'GNU Emacs 30.2 Android terminal frame' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'IOSMACS_ANDROID_ABI' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'IOSMACS_ANDROID_APP_ID' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'EmacsNoninteractive.java' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'EmacsApplication.java' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'IOSMACS_ANDROID_EMACS_BUILD_ROOT' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q -- '--with-android=' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q -- '--with-gnutls=ifavailable' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q -- '--without-native-compilation' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'llvm-ar' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'llvm-ranlib' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'AR=${android_ar}' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'RANLIB=${android_ranlib}' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q '"AR=${android_ar}"' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'prebuilt/darwin-x86_64/bin/make' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q -- '--release 8' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'IOSMACS_ANDROID_EMACS_BUILD_LIBS' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'IOSMACS_ANDROID_HOST_EMACS' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'host-emacs-for-android' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'admin/charsets' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'Android API 35 exposes SIG2STR_MAX' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'IOSMACS_ANDROID_EMACS_INSTALL_JOBS' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q '"${build_root}/exec"/\*.o' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'undeclared mktime_z on Android' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'libemacs.so' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'libandroid-emacs.so' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'packaged_jni_lib_dir' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'classes.dex' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'emacs-android-java.jar' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'java_bridge_jar' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -Fq 'Buffer: \*scratch\*' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'IOSMACS_FLUTTER_INPUT_SMOKE=true' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-input-smoke: committed' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs input smoke' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'Android Emacs terminal frame evidence' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'GNU Emacs NDK runtime load evidence' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'Java bridge fingerprint evidence' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'wrapper executable evidence' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'libandroid-emacs\\.so' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'subprocess probe success evidence' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'PTY session start evidence' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'official Android Emacs text-terminal boundary evidence' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-resize-smoke: requested' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-redraw-smoke: message="iosmacs Android native bridge: redrew Emacs terminal frame"' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs/workspace' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'contentResolver.openInputStream' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'DesktopEmacsPlatform.linux' \
   "$app_dir/lib/src/backend/desktop_emacs_backend.dart"
 grep -q 'DesktopEmacsPlatform.windows' \
@@ -256,7 +439,7 @@ grep -q 'defaultAutoStartBackend' \
   "$app_dir/lib/main.dart"
 grep -q 'native platforms autostart backend by default' \
   "$app_dir/test/widget_test.dart"
-grep -q 'web and placeholder platforms do not autostart by default' \
+grep -q 'web and desktop placeholder platforms do not autostart by default' \
   "$app_dir/test/widget_test.dart"
 grep -q 'autostart environment override wins over platform default' \
   "$app_dir/test/widget_test.dart"
@@ -830,6 +1013,8 @@ grep -q 'flutter-web-smoke' Makefile
 grep -q 'flutter build web --debug' Makefile
 grep -q 'flutter-android-smoke' Makefile
 grep -q 'flutter build apk --debug' Makefile
+grep -q 'flutter-android-emacs-configure' Makefile
+grep -q 'flutter-android-emacs-runtime' Makefile
 grep -q 'flutter-verify' Makefile
 grep -q 'flutter-doctor' Makefile
 grep -q 'flutter-format-check' Makefile

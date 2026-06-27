@@ -21,7 +21,10 @@ JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || printf '4')
 	app-installl smoke verify verify-iphone flutter-doctor flutter-structure-check flutter-bootstrap \
 	flutter-format-check flutter-analyze flutter-fake-smoke flutter-ios-smoke flutter-ios-launch-smoke flutter-macos-smoke \
 	flutter-ios-native-smoke flutter-macos-native-smoke flutter-backend-override-smoke flutter-web-smoke flutter-android-smoke \
-	flutter-emacs-static flutter-emacs-pdmp flutter-macos-emacs-runtime flutter-ipad-launch flutter-verify check clean distclean
+	flutter-android-emulator-smoke flutter-android-emacs-configure flutter-android-emacs-runtime \
+	flutter-android-emacs-nw-configure flutter-android-emacs-nw-build \
+	flutter-emacs-static flutter-emacs-pdmp flutter-macos-emacs-runtime flutter-ipad-launch \
+	flutter-verify check clean distclean
 
 help:
 	@printf '%s\n' \
@@ -55,6 +58,11 @@ help:
 	  '  make flutter-backend-override-smoke Verify forced Flutter backend selection on macOS' \
 	  '  make flutter-web-smoke   Build Flutter Web debug output' \
 	  '  make flutter-android-smoke Build Flutter Android debug APK' \
+	  '  make flutter-android-emulator-smoke Build, install, launch, and screenshot Android emulator app' \
+	  '  make flutter-android-emacs-configure Configure GNU Emacs for Android NDK runtime work' \
+	  '  make flutter-android-emacs-runtime Attempt GNU Emacs Android NDK native library build' \
+	  '  make flutter-android-emacs-nw-configure Configure GNU Emacs NW text-terminal for Android' \
+	  '  make flutter-android-emacs-nw-build Build GNU Emacs NW binary for Android (libemacs_nw.so)' \
 	  '  make flutter-verify      Run the Flutter workstream verification checks' \
 	  '  make emacs-nw-smoke    Run the terminal -nw smoke check' \
 	  '  make clean             Remove repo-local generated build outputs' \
@@ -201,6 +209,21 @@ flutter-web-smoke:
 
 flutter-android-smoke:
 	cd flutter/iosmacs_flutter && PATH="$(FLUTTER_PATH)" flutter build apk --debug
+
+flutter-android-emulator-smoke:
+	scripts/run-flutter-android-emulator-smoke.sh
+
+flutter-android-emacs-configure:
+	scripts/build-flutter-android-emacs-runtime.sh
+
+flutter-android-emacs-runtime:
+	IOSMACS_ANDROID_EMACS_BUILD_LIBS=1 scripts/build-flutter-android-emacs-runtime.sh
+
+flutter-android-emacs-nw-configure:
+	scripts/build-flutter-android-emacs-nw.sh
+
+flutter-android-emacs-nw-build:
+	IOSMACS_ANDROID_EMACS_NW_BUILD=1 scripts/build-flutter-android-emacs-nw.sh
 
 flutter-verify:
 	$(MAKE) flutter-structure-check

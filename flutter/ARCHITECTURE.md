@@ -54,9 +54,14 @@ Implemented pieces:
   UI-test behavior without native runtime dependencies.
 - `NativeEmacsBackend` routes through the `iosmacs/native_emacs`
   MethodChannel. It is the default backend on iOS and macOS.
-- `AndroidEmacsBackend`, `DesktopEmacsBackend`, and `WebWasmEmacsBackend`
-  make non-iOS backend boundaries explicit while unsupported runtime features
-  are still being built.
+- `AndroidEmacsBackend` uses the shared native MethodChannel through an
+  Android Runner bridge. Kotlin owns Android app APIs and the MethodChannel,
+  while a JNI shared library owns the diagnostic terminal transport until the
+  loaded GNU Emacs NDK runtime and packaged `org.gnu.emacs` Java bridge replace
+  it.
+- `DesktopEmacsBackend` and `WebWasmEmacsBackend` make the remaining
+  non-iOS backend boundaries explicit while unsupported runtime features are
+  still being built.
 
 Default backend selection is centralized in `backend_factory.dart`.
 `IOSMACS_FLUTTER_BACKEND` can force a backend for smoke testing. Supported
@@ -271,10 +276,17 @@ workspace mapping must be explicit backend responsibilities.
 
 ### Android
 
-The Android backend is represented by `AndroidEmacsBackend`. It is a
-native-runtime project, not just a Flutter UI task. The likely hard parts are
-NDK compilation, sandboxed storage, document access, keyboard/IME behavior, and
-terminal transport.
+The Android backend is represented by `AndroidEmacsBackend`. It now uses the
+shared `iosmacs/native_emacs` MethodChannel shape and an Android Runner native
+bridge for lifecycle, resize status, clipboard paste, and app-private workspace
+list/import/export. The terminal renderer is behind a JNI shared library
+(`libiosmacs_android_runtime.so`), which now presents a stateful Android
+terminal Emacs frame with `Buffer: *scratch*`, a Lisp Interaction mode line,
+input insertion, paste insertion, and redraw behavior. The GNU Emacs runtime
+itself is still an Android native-runtime project, not just a Flutter UI task.
+The likely hard parts are NDK compilation, replacing the JNI frame renderer
+with actual Emacs terminal output, document-provider export UX, keyboard/IME
+behavior, and packaging.
 
 The Android backend should reuse the same facade ideas as iOS where practical,
 but it should not block the Flutter shell or desktop backend work.
@@ -350,6 +362,41 @@ Focused targets are available when iterating:
   list/import/open/export output, and stop smoke output.
 - `make flutter-web-smoke` builds the Web target.
 - `make flutter-android-smoke` builds the Android APK target.
+- `make flutter-android-emulator-smoke` builds, installs, and launches the
+  Android APK on `iosmacs_flutter_pixel`, then checks capability, status,
+  input, resize, redraw, terminal output, and `*scratch*` screenshot evidence.
+- `make flutter-android-emacs-configure` configures the vendored GNU Emacs
+  Android port with the local Android SDK/NDK into
+  `flutter/build/emacs-android/<abi>`.
+- `make flutter-android-emacs-runtime` attempts the Android GNU Emacs native
+  library build and stages the full GNU Emacs Android install tree under
+  `flutter/build/emacs-android/<abi>/java/install_temp`.
+- APK native-library packaging uses the filtered
+  `flutter/build/emacs-android/<abi>/iosmacs/jniLibs` directory, which carries
+  only `libemacs.so` and `libandroid-emacs.so`; assets still come from
+  `java/install_temp/assets`.
+- The same runtime target packages upstream Android Java classes into
+  `flutter/build/emacs-android/<abi>/iosmacs/emacs-android-java.jar`. Gradle
+  consumes this jar when present, and the Kotlin bridge verifies it by calling
+  `org.gnu.emacs.EmacsNative.getFingerprint()` through reflection.
+- During the isolated Android runtime build, the upstream Java bridge's package
+  lookups are patched to the Flutter application id
+  (`com.example.iosmacs_flutter` by default) so official Emacs Java code
+  resolves this APK instead of requiring a separately installed
+  `org.gnu.emacs` package.
+- Android Gradle uses extracted JNI packaging for this target so the official
+  `libandroid-emacs.so` wrapper is present at an app-private executable path.
+  The emulator smoke checks that path and runs the wrapper as a bounded
+  noninteractive GNU Emacs subprocess probe.
+- The Android runtime build generates charset maps before asset staging. The
+  official wrapper depends on those maps during early `loadup.el` startup, so
+  `make flutter-android-emacs-runtime` treats them as part of the packaged
+  runtime contract rather than a source-tree convenience.
+- A native PTY probe can launch the extracted upstream wrapper, but the
+  official Android Emacs port rejects text-terminal mode for application
+  packages. The Flutter terminal cannot become a plain `-nw` stdio client; it
+  must adapt the official Android application/service event and rendering path
+  into the Flutter terminal channel.
 
 ## Compatibility Principles
 
@@ -365,3 +412,13 @@ Focused targets are available when iterating:
 - Keep Web separate because its runtime constraints differ from native Flutter.
 - Promote a backend only after there is smoke evidence for startup, rendering,
   input, resize, and workspace behavior.
+- The Android GNU Emacs build entrypoint is
+  `scripts/build-flutter-android-emacs-runtime.sh`. Its default mode is
+  configure-only; setting `IOSMACS_ANDROID_EMACS_BUILD_LIBS=1` turns on the
+  native library build probe.
+- The official GNU Emacs Android port is APK/JNI-oriented. Flutter Android
+  consumes generated native libraries and assets as optional Gradle source
+  directories plus the generated Java bridge jar after
+  `make flutter-android-emacs-runtime`. The terminal bridge still flows through
+  `AndroidNativeEmacsBridge` until the official Emacs event/output path is
+  adapted to the Flutter terminal channel.

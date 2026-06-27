@@ -175,9 +175,9 @@ Current TODO:
 - [x] Add an explicit Flutter Web WASM-route placeholder backend.
 - [x] Select the Web placeholder backend by default on Flutter Web.
 - [x] Verify Web placeholder capabilities and Web debug build.
-- [x] Add an explicit Flutter Android backend placeholder.
-- [x] Select the Android placeholder backend by default on Android.
-- [x] Verify Android placeholder capabilities and Android debug APK build.
+- [x] Add an explicit Flutter Android backend.
+- [x] Select the Android backend by default on Android.
+- [x] Verify Android native-channel capabilities and Android debug APK build.
 - [x] Add explicit Flutter Linux and Windows desktop backend placeholders.
 - [x] Select Linux and Windows placeholders by default on those platforms.
 - [x] Verify desktop placeholder capabilities without regressing
@@ -474,9 +474,11 @@ Current verification status:
 - `make flutter-verify` passes and runs the Flutter structure, doctor, fake
   backend, iOS launch, macOS smoke, macOS native workspace smoke, Web debug,
   and Android debug APK checks sequentially.
-- Android non-web now selects an explicit Android backend placeholder by
-  default, with unsupported native/NDK Emacs surfaces reported through backend
-  capabilities and diagnostics.
+- Android non-web now selects an explicit Android native-channel backend by
+  default. The Android Runner registers `iosmacs/native_emacs`, supports
+  lifecycle/input/resize/output drain plus app-private workspace
+  list/import/export, and still reports the Android NDK GNU Emacs terminal
+  bridge as the next unsupported surface.
 - Linux and Windows non-web now select explicit desktop backend placeholders by
   default, with unsupported process/PTY, file picker, byte-stream, and packaged
   runtime surfaces reported through backend capabilities and diagnostics.
@@ -969,6 +971,220 @@ Flutter macOS Japanese input source and M-X status:
 - `scripts/run-flutter-macos-native-smoke.sh` now checks the app-bundled Emacs
   executable for the same `M-X` binding and `tetris` command availability
   before launching the app.
+
+Flutter Android native channel TODO:
+
+- [x] Register `iosmacs/native_emacs` in the Android Runner.
+- [x] Replace the Android placeholder backend with a Dart adapter over the
+  shared native MethodChannel backend.
+- [x] Add Android Runner native bridge methods for start, stop, redraw, input,
+  resize, output drain, clipboard paste, workspace list/import/export, and
+  workspace root status.
+- [x] Store Android workspace files under app-private
+  `filesDir/iosmacs/workspace`.
+- [x] Support importing Android content URIs into the app-private workspace.
+- [x] Autostart Android by default now that a native channel route exists.
+- [x] Verify Android native-channel tests, structure check, and debug APK
+  build.
+
+Flutter Android native channel status:
+
+- `AndroidEmacsBackend` now reports `android-native-channel` and delegates
+  backend operations to `NativeEmacsBackend`, preserving Android-specific
+  capability text while using the shared MethodChannel transport.
+- `MainActivity.kt` registers `AndroidNativeEmacsBridge` on
+  `iosmacs/native_emacs`.
+- The Android bridge returns real native status payloads and app-private
+  workspace entries. It still reports the GNU Emacs NDK runtime and actual
+  native Emacs terminal stream as pending.
+
+Flutter Android emulator scratch smoke TODO:
+
+- [x] Install the Android Emulator SDK package.
+- [x] Install an Android 36 Google APIs ARM64 system image.
+- [x] Create a repeatable local AVD named `iosmacs_flutter_pixel`.
+- [x] Boot the AVD and wait for ADB `sys.boot_completed=1`.
+- [x] Make the Android native-channel start output land on a `*scratch*`
+  terminal screen.
+- [x] Install and launch the Flutter Android app on the booted emulator.
+- [x] Capture emulator evidence that the app reaches the `*scratch*` screen.
+- [x] Keep Android resize diagnostics out of the terminal body so the
+  `*scratch*` screen stays clean after layout settles.
+- [x] Verify Android emulator scratch changes with format, analyze, tests,
+  structure check, Android APK build, and diff check.
+
+Flutter Android emulator scratch smoke status:
+
+- Android Studio's JDK is available under
+  `/Users/seijiro/Applications/Android Studio.app`.
+- Flutter's Android SDK path is
+  `/opt/homebrew/share/android-commandlinetools`.
+- The local AVD `iosmacs_flutter_pixel` targets Android 36 Google APIs
+  `arm64-v8a` and boots as `emulator-5554`.
+- `AndroidNativeEmacsBridge.start` now emits a terminal clear sequence,
+  `GNU Emacs 30.2 Android terminal frame`,
+  `Buffer: *scratch*   Mode: Lisp Interaction`, and a mode line before the
+  prompt.
+- `AndroidNativeEmacsBridge.resize` updates native status without appending
+  resize chatter to the terminal stream.
+
+Flutter Android terminal transport TODO:
+
+- [x] Render Android native-channel `sendBytes` input back into the diagnostic
+  terminal stream while the GNU Emacs NDK runtime is pending.
+- [x] Route Android native clipboard paste through the same diagnostic terminal
+  input renderer.
+- [x] Make Android native redraw rebuild the clean `*scratch*` terminal screen.
+- [x] Extend Dart Android backend tests so `sendBytes` drains Android terminal
+  echo output.
+- [x] Extend `make flutter-android-emulator-smoke` with Android capability,
+  status, input, resize, and redraw smoke flags.
+- [x] Guard Android terminal transport markers in the Flutter structure check.
+- [x] Verify Android terminal transport with format, analyze, tests, structure
+  check, APK build, emulator smoke, screenshot inspection, and diff check.
+
+Flutter Android terminal transport status:
+
+- The Android native bridge now has a diagnostic terminal transport for
+  lifecycle, input, paste, redraw, resize status, output drain, and workspace
+  operations.
+- This still does not claim a real Android GNU Emacs runtime. The next
+  connection step is replacing the diagnostic renderer behind
+  `AndroidNativeEmacsBridge` with an NDK/JNI Emacs terminal source.
+
+Flutter Android JNI runtime boundary TODO:
+
+- [x] Add an Android app CMake build for a native shared library.
+- [x] Add `iosmacs_android_runtime.cpp` as the Android JNI diagnostic terminal
+  runtime.
+- [x] Load `libiosmacs_android_runtime.so` from the Android Runner.
+- [x] Route Android native-channel start, redraw, input, and paste rendering
+  through JNI instead of Kotlin-only string rendering.
+- [x] Update Android backend capabilities and structure checks for the JNI
+  runtime boundary.
+- [x] Verify Android JNI runtime boundary with format, analyze, tests,
+  structure check, APK build, emulator smoke, screenshot inspection, and diff
+  check.
+
+Flutter Android JNI runtime boundary status:
+
+- The Android Runner now builds `libiosmacs_android_runtime.so` through CMake.
+- `AndroidNativeEmacsBridge` still owns MethodChannel calls and Android file
+  APIs, but terminal rendering now crosses the JNI boundary.
+- This creates the replacement point for a future NDK GNU Emacs runtime without
+  changing the Flutter/Dart backend contract.
+
+Flutter Android terminal Emacs frame TODO:
+
+- [x] Move the Android JNI renderer from one-shot diagnostic text to a
+  stateful `*scratch*` terminal frame.
+- [x] Render a GNU Emacs-style header, `*scratch*` buffer label, Lisp
+  Interaction mode line, minibuffer/status row, and prompt.
+- [x] Insert Android terminal input and paste bytes into the JNI-side scratch
+  buffer before redrawing the terminal frame.
+- [x] Keep redraw reconstructing the current frame instead of appending a
+  placeholder line.
+- [x] Verify Android terminal Emacs frame with format, analyze, tests,
+  structure check, APK build, emulator smoke, screenshot inspection, and diff
+  check.
+
+Flutter Android terminal Emacs frame status:
+
+- `libiosmacs_android_runtime.so` now owns a small stateful terminal frame
+  renderer for Android. It presents the Android app's Emacs terminal surface as
+  `GNU Emacs 30.2 Android terminal frame` with `Buffer: *scratch*` and a Lisp
+  Interaction mode line.
+- This still preserves the larger boundary: replacing the frame renderer with
+  real GNU Emacs NDK terminal output should not require changing the Dart
+  `EmacsBackend` contract.
+
+Flutter Android GNU Emacs NDK runtime TODO:
+
+- [x] Add a repeatable Android GNU Emacs configure/build entrypoint under
+  `scripts/build-flutter-android-emacs-runtime.sh`.
+- [x] Isolate Android GNU Emacs build state under
+  `flutter/build/emacs-android/<abi>`.
+- [x] Detect the local Android SDK, NDK clang, Android platform jar, build
+  tools, and NDK GNU Make.
+- [x] Add a Java 21-compatible `javac` wrapper that rewrites Emacs Android
+  `-source/-target 1.7` checks to `--release 8`.
+- [x] Force Android NDK `llvm-ar`, `llvm-ranlib`, and `llvm-nm` through the
+  configure/build probe so Android objects are not archived by macOS tools.
+- [x] Use Android API 35 for the NDK build so `mktime_z` is declared by the
+  Android sysroot.
+- [x] Generate Android cross-build Lisp inputs with the repo-built macOS Emacs
+  runtime: loaddefs, Unicode data, and portable `.elc` files.
+- [x] Generate Android runtime charset maps under `etc/charsets` before APK
+  asset staging.
+- [x] Patch the Android API 35 `SIG2STR_MAX`/`sig2str` declaration gap inside
+  the isolated build tree.
+- [x] Configure the vendored GNU Emacs Android port for arm64-v8a with minimal
+  optional dependencies.
+- [x] Add Makefile targets for configure-only and full runtime-library probes.
+- [x] Guard the Android GNU Emacs runtime entrypoint in the Flutter structure
+  check.
+- [x] Produce `libemacs.so` and `libandroid-emacs.so` from the Android NDK
+  build.
+- [x] Add optional Flutter Android packaging inputs for the generated GNU
+  Emacs NDK libraries and assets.
+- [x] Package the generated GNU Emacs Android Java bridge classes into a
+  Gradle-consumed jar.
+- [x] Patch the generated Android Java bridge package-id lookups for the
+  Flutter application id instead of the upstream `org.gnu.emacs` app id.
+- [x] Verify `org.gnu.emacs.EmacsNative` loads in the Flutter APK by reading
+  the GNU Emacs native fingerprint on the emulator.
+- [x] Force APK native libraries to be extracted so the upstream
+  `libandroid-emacs.so` wrapper is available as an app-private executable.
+- [x] Prove the extracted upstream wrapper can run a bounded noninteractive
+  GNU Emacs subprocess through `app_process64`.
+- [x] Add a native Android PTY probe for the extracted upstream wrapper and
+  record the official Android port's text-terminal refusal.
+- [ ] Replace the Android JNI diagnostic frame renderer through the official
+  Android Emacs application/service event path now that the text-terminal path
+  is proven unsupported upstream.
+
+Flutter Android GNU Emacs NDK runtime status:
+
+- `make flutter-android-emacs-configure` now configures GNU Emacs Android for
+  the local SDK/NDK and writes
+  `flutter/build/emacs-android/<abi>/iosmacs/android-emacs-runtime.status`.
+- `make flutter-android-emacs-runtime` now produces
+  `java/install_temp/lib/arm64-v8a/libemacs.so` and
+  `java/install_temp/lib/arm64-v8a/libandroid-emacs.so`.
+- The runtime target filters `libemacs.so` and `libandroid-emacs.so` into
+  `iosmacs/jniLibs/<abi>` for APK packaging, while keeping the full
+  `java/install_temp` tree as the GNU Emacs Android staging area.
+- The Flutter Android Gradle project now treats generated `iosmacs/jniLibs`
+  and `java/install_temp/assets` as optional packaging sources. If the runtime
+  target has been run, the APK can include those GNU Emacs NDK artifacts
+  without committing binaries.
+- The runtime target also builds `classes.dex`, packages the generated
+  `org.gnu.emacs` classes into `iosmacs/emacs-android-java.jar`, and Gradle
+  consumes that jar when it exists.
+- The runtime build patches upstream Android Java package-id constants for the
+  Flutter app id (`com.example.iosmacs_flutter` by default) so the official
+  bridge code resolves this APK instead of searching for `org.gnu.emacs` as the
+  installed package.
+- The runtime build now also generates charset maps such as `8859-2.map`
+  before staging Android assets. Without those maps, the official
+  noninteractive Emacs process reached `loadup.el` but exited while loading
+  `international/mule-conf`.
+- `make flutter-android-emulator-smoke` now verifies an APK that contains the
+  filtered GNU Emacs Android libraries and assets; logcat shows both
+  `libemacs.so` and `libandroid-emacs.so` loading successfully, reads the
+  `EmacsNative.getFingerprint()` value through the packaged Java bridge,
+  verifies the extracted app-private `libandroid-emacs.so` wrapper executable
+  path, proves a bounded `libandroid-emacs.so --batch --eval ...` subprocess
+  exits with `marker=ok`, proves an Android PTY can launch the wrapper, records
+  the upstream refusal of text-terminal operation for Android application
+  packages, and writes the smoke screenshot to
+  `flutter/build/android-emulator-smoke/scratch.png`.
+- Current remaining bridge blocker: the Android app can package/load the GNU
+  Emacs NDK libraries, Java bridge, noninteractive wrapper process, and PTY
+  wrapper launch. The official Android port rejects text terminals, so
+  interactive terminal bytes still come from `libiosmacs_android_runtime.so`
+  until the official Android Emacs application/service event/output path is
+  adapted to the Flutter terminal channel.
 
 Flutter macOS workspace TODO:
 

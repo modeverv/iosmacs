@@ -10,8 +10,20 @@ import 'emacs_backend.dart';
 import 'workspace_entry.dart';
 
 class NativeEmacsBackend implements EmacsBackend {
-  NativeEmacsBackend({MethodChannel? channel})
-      : _channel = channel ?? const MethodChannel(channelName);
+  NativeEmacsBackend({
+    MethodChannel? channel,
+    String initialDiagnosticsMessage = 'native backend channel ready',
+  })  : _channel = channel ?? const MethodChannel(channelName),
+        _diagnostics = ValueNotifier<BackendDiagnostics>(
+          BackendDiagnostics(
+            message: initialDiagnosticsMessage,
+            cols: 80,
+            rows: 24,
+            inputBytes: 0,
+            outputBytes: 0,
+            workspaceActions: 0,
+          ),
+        );
 
   static const String channelName = 'iosmacs/native_emacs';
   static const Duration _outputPollInterval = Duration(milliseconds: 16);
@@ -22,17 +34,7 @@ class NativeEmacsBackend implements EmacsBackend {
   final StreamController<List<int>> _outputController =
       StreamController<List<int>>.broadcast();
   final ValueNotifier<String> _lifecycleState = ValueNotifier<String>('idle');
-  final ValueNotifier<BackendDiagnostics> _diagnostics =
-      ValueNotifier<BackendDiagnostics>(
-    const BackendDiagnostics(
-      message: 'native backend channel ready',
-      cols: 80,
-      rows: 24,
-      inputBytes: 0,
-      outputBytes: 0,
-      workspaceActions: 0,
-    ),
-  );
+  final ValueNotifier<BackendDiagnostics> _diagnostics;
   Timer? _pollTimer;
   bool _isDrainingOutput = false;
   bool _drainAgain = false;
@@ -163,6 +165,7 @@ class NativeEmacsBackend implements EmacsBackend {
         message: 'pasted system clipboard through native text input',
         inputBytes: _diagnostics.value.inputBytes + byteCount,
       );
+      unawaited(_drainOutput());
     }
     return accepted;
   }

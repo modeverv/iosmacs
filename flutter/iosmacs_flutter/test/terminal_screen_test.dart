@@ -54,8 +54,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Backend android-placeholder'), findsOneWidget);
-    expect(find.text('Android backend placeholder'), findsNothing);
+    expect(find.text('Backend android-native-channel'), findsOneWidget);
+    expect(find.text('Android native channel backend'), findsNothing);
   });
 
   testWidgets('capabilities dialog shows Android backend identity', (
@@ -66,10 +66,10 @@ void main() {
 
     await _pumpCapabilitiesDialog(tester, backend);
 
-    expect(find.text('Android backend placeholder'), findsOneWidget);
-    expect(find.text('Backend id: android-placeholder'), findsOneWidget);
+    expect(find.text('Android native channel backend'), findsOneWidget);
+    expect(find.text('Backend id: android-native-channel'), findsOneWidget);
     expect(find.text('Android backend selection'), findsOneWidget);
-    expect(find.text('Android NDK GNU Emacs core build'), findsOneWidget);
+    expect(find.text('Android NDK GNU Emacs terminal bridge'), findsOneWidget);
   });
 
   testWidgets('capabilities dialog shows desktop backend identity', (

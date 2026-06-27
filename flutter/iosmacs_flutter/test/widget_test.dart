@@ -16,15 +16,15 @@ void main() {
       defaultAutoStartBackend(platform: TargetPlatform.macOS, isWeb: false),
       isTrue,
     );
-  });
-
-  test('web and placeholder platforms do not autostart by default', () {
-    expect(
-      defaultAutoStartBackend(platform: TargetPlatform.iOS, isWeb: true),
-      isFalse,
-    );
     expect(
       defaultAutoStartBackend(platform: TargetPlatform.android, isWeb: false),
+      isTrue,
+    );
+  });
+
+  test('web and desktop placeholder platforms do not autostart by default', () {
+    expect(
+      defaultAutoStartBackend(platform: TargetPlatform.iOS, isWeb: true),
       isFalse,
     );
     expect(
@@ -62,15 +62,18 @@ void main() {
 
     expect(find.text('idle'), findsOneWidget);
     expect(find.byType(TerminalView), findsOneWidget);
-    expect(find.text('Backend android-placeholder'), findsOneWidget);
-    expect(find.textContaining('android backend pending'), findsOneWidget);
+    expect(find.text('Backend android-native-channel'), findsOneWidget);
+    expect(
+      find.textContaining('android native backend channel ready'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();
 
     expect(find.byType(TerminalView), findsOneWidget);
-    expect(find.text('unsupported'), findsOneWidget);
-    expect(find.text('Backend android-placeholder'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    expect(find.text('Backend android-native-channel'), findsOneWidget);
   });
 
   testWidgets('app can force fake backend for runtime smoke builds', (

@@ -20,7 +20,8 @@ bool defaultAutoStartBackend({
   final targetPlatform = platform ?? defaultTargetPlatform;
   return !isWeb &&
       (targetPlatform == TargetPlatform.iOS ||
-          targetPlatform == TargetPlatform.macOS);
+          targetPlatform == TargetPlatform.macOS ||
+          targetPlatform == TargetPlatform.android);
 }
 
 void main() {

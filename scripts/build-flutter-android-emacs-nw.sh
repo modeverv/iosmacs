@@ -1,0 +1,465 @@
+#!/usr/bin/env bash
+# build-flutter-android-emacs-nw.sh — cross-compile GNU Emacs in NW
+# (no-window-system, text-terminal) mode for Android ARM64.
+#
+# This build uses the Android NDK toolchain WITHOUT --with-android so the
+# resulting binary has no HAVE_ANDROID restrictions and can run as a normal
+# text-terminal process via forkpty on Android.
+#
+# Usage:
+#   scripts/build-flutter-android-emacs-nw.sh          # configure only
+#   IOSMACS_ANDROID_EMACS_NW_BUILD=1 \
+#     scripts/build-flutter-android-emacs-nw.sh        # full build
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source_root="${IOSMACS_EMACS_SOURCE:-${repo_root}/wasmacs/vendor/emacs}"
+sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}}"
+abi="${IOSMACS_ANDROID_ABI:-arm64-v8a}"
+api="${IOSMACS_ANDROID_API:-35}"
+build_root="${repo_root}/flutter/build/emacs-android-nw/${abi}"
+source_copy="${build_root}/source"
+tool_dir="${build_root}/tools"
+out_dir="${build_root}/iosmacs"
+stub_dir="${build_root}/ncurses-stub"
+status_file="${out_dir}/nw-build.status"
+configure_log="${out_dir}/configure.log"
+build_log="${out_dir}/build.log"
+jobs="${JOBS:-$(sysctl -n hw.ncpu 2>/dev/null || printf '4')}"
+
+if [[ ! -d "${source_root}/src" ]]; then
+  printf 'error: missing Emacs source at %s\n' "${source_root}" >&2
+  exit 1
+fi
+if [[ ! -d "${sdk_root}" ]]; then
+  printf 'error: missing Android SDK root at %s\n' "${sdk_root}" >&2
+  exit 1
+fi
+
+newest_match() {
+  local pattern="$1"
+  compgen -G "${pattern}" | sort -V | tail -1
+}
+
+ndk_root="${ANDROID_NDK_ROOT:-$(newest_match "${sdk_root}/ndk/*")}"
+if [[ -z "${ndk_root}" || ! -d "${ndk_root}" ]]; then
+  printf 'error: missing Android NDK under %s/ndk\n' "${sdk_root}" >&2
+  exit 1
+fi
+
+toolchain_root="${ndk_root}/toolchains/llvm/prebuilt/darwin-x86_64"
+if [[ ! -d "${toolchain_root}" ]]; then
+  toolchain_root="${ndk_root}/toolchains/llvm/prebuilt/darwin-arm64"
+fi
+if [[ ! -d "${toolchain_root}" ]]; then
+  printf 'error: missing NDK LLVM toolchain\n' >&2
+  exit 1
+fi
+
+case "${abi}" in
+  arm64-v8a)
+    clang_target="aarch64-linux-android${api}-clang"
+    host_triple="aarch64-linux-android"
+    ;;
+  *)
+    printf 'error: unsupported IOSMACS_ANDROID_ABI: %s\n' "${abi}" >&2
+    exit 1
+    ;;
+esac
+
+android_cc="${ANDROID_CC:-${toolchain_root}/bin/${clang_target}}"
+if [[ ! -x "${android_cc}" ]]; then
+  printf 'error: missing Android clang at %s\n' "${android_cc}" >&2
+  exit 1
+fi
+android_ar="${toolchain_root}/bin/llvm-ar"
+android_ranlib="${toolchain_root}/bin/llvm-ranlib"
+android_nm="${toolchain_root}/bin/llvm-nm"
+android_strip="${toolchain_root}/bin/llvm-strip"
+
+mkdir -p "${build_root}" "${tool_dir}" "${out_dir}" "${stub_dir}/include" "${stub_dir}/lib"
+
+# ------------------------------------------------------------------ #
+# Step 1: Build the minimal ncurses stub                              #
+# ------------------------------------------------------------------ #
+
+stub_header="${stub_dir}/include/curses.h"
+if [[ ! -f "${stub_header}" ]]; then
+  cat >"${stub_header}" <<'CURSES_H'
+/* Minimal curses.h stub for GNU Emacs NW cross-build on Android.
+   Provides just enough declarations for Emacs to compile without a real
+   ncurses installation.  The implementation lives in iosmacs_ncurses_stub.c. */
+#ifndef _CURSES_H
+#define _CURSES_H 1
+
+typedef struct { int dummy; } TERMINAL;
+extern TERMINAL *cur_term;
+
+/* termcap API */
+extern int    tgetent  (char *bp, const char *name);
+extern char  *tgetstr  (const char *id, char **area);
+extern int    tgetnum  (const char *id);
+extern int    tgetflag (const char *id);
+extern int    tputs    (const char *str, int affcnt, int (*putcf)(int));
+
+/* terminfo API */
+extern int    setupterm  (const char *term, int fd, int *errret);
+extern char  *tigetstr   (const char *capname);
+extern int    tigetflag  (const char *capname);
+extern int    tigetnum   (const char *capname);
+extern int    putp       (const char *str);
+extern TERMINAL *set_curterm (TERMINAL *nterm);
+extern int    del_curterm (TERMINAL *oterm);
+
+/* Global termcap variables */
+extern char  PC;
+extern char *BC;
+extern char *UP;
+extern short ospeed;
+
+/* Convenience for code that includes <ncurses.h> or <term.h>.  */
+#define NCURSES_EXPORT(type) type
+#define HAVE_CURSES_H 1
+#define NCURSES_CONST const
+
+#endif /* _CURSES_H */
+CURSES_H
+  # ncurses.h → curses.h alias
+  cp "${stub_header}" "${stub_dir}/include/ncurses.h"
+  # term.h stub (Emacs includes this for TERMINAL type and ospeed)
+  cat >"${stub_dir}/include/term.h" <<'TERM_H'
+#ifndef _TERM_H
+#define _TERM_H 1
+#include "curses.h"
+#endif
+TERM_H
+fi
+
+stub_lib="${stub_dir}/lib/libncurses.a"
+if [[ ! -f "${stub_lib}" ]]; then
+  stub_obj="${stub_dir}/iosmacs_ncurses_stub.o"
+  "${android_cc}" -c \
+    -O2 -fPIC \
+    -o "${stub_obj}" \
+    "${repo_root}/scripts/iosmacs_ncurses_stub.c"
+  "${android_ar}" rcs "${stub_lib}" "${stub_obj}"
+  printf 'ncurses stub built: %s\n' "${stub_lib}"
+fi
+# Provide libtinfo.a as an alias (configure sometimes looks for tinfo)
+if [[ ! -f "${stub_dir}/lib/libtinfo.a" ]]; then
+  cp "${stub_lib}" "${stub_dir}/lib/libtinfo.a"
+fi
+
+# ------------------------------------------------------------------ #
+# Step 2: Prepare source copy                                         #
+# ------------------------------------------------------------------ #
+
+rsync -a --delete --exclude .git "${source_root}/" "${source_copy}/"
+
+# Apply SIG2STR_MAX patch (same as in the Android HAVE_ANDROID build).
+for sig2str_header in "${source_copy}/lib/sig2str.h" "${build_root}/cross/lib/sig2str.h"; do
+  if [[ -f "${sig2str_header}" ]] \
+    && ! grep -q 'Android API 35 exposes SIG2STR_MAX' "${sig2str_header}"; then
+    perl -0pi -e 's|/\* Don.*?\n#ifndef SIG2STR_MAX\n\n# include "intprops.h"\n\n/\* Size of a buffer needed to hold a signal name like "HUP"\.  \*/\n# define SIG2STR_MAX \(sizeof "SIGRTMAX" \+ INT_STRLEN_BOUND \(int\) - 1\)\n\n#ifdef __cplusplus\nextern "C" \{\n#endif\n\nint sig2str \(int, char \*\);\nint str2sig \(char const \*, int \*\);\n\n#ifdef __cplusplus\n\}\n#endif\n\n#endif|/* Android API 35 exposes SIG2STR_MAX without sig2str/str2sig.  */\n#ifndef SIG2STR_MAX\n# include "intprops.h"\n# define SIG2STR_MAX (sizeof "SIGRTMAX" + INT_STRLEN_BOUND (int) - 1)\n#endif\n\n#if !HAVE_SIG2STR\n# ifdef __cplusplus\nextern "C" {\n# endif\nint sig2str (int, char *);\nint str2sig (char const *, int *);\n# ifdef __cplusplus\n}\n# endif\n#endif|s' "${sig2str_header}"
+  fi
+done
+
+if [[ ! -x "${source_copy}/configure" ]]; then
+  (cd "${source_copy}" && ./autogen.sh)
+fi
+
+# Patch sys_faccessat in sysdep.c: Android's system faccessat returns EINVAL
+# for AT_EACCESS inside the app sandbox.  The gnulib rpl_faccessat wrapper
+# has #if 0 guarding its redefinition of faccessat→rpl_faccessat, so sys_faccessat
+# in sysdep.c calls the system faccessat directly.  Add an EINVAL fallback.
+sysdep_c="${source_copy}/src/sysdep.c"
+if [[ -f "${sysdep_c}" ]] && ! grep -q 'iosmacs: AT_EACCESS returns EINVAL' "${sysdep_c}"; then
+  perl -0pi -e '
+s|(int\nsys_faccessat \(int fd, const char \*pathname, int mode, int flags\)\n\{.*?)(  return faccessat \(fd, pathname, mode, flags\);)|$1  int result = faccessat (fd, pathname, mode, flags);\n  \/* iosmacs: AT_EACCESS returns EINVAL on Android; retry without the flag.  *\/\n  if (result == -1 \&\& errno == EINVAL \&\& flags == AT_EACCESS \&\& fd == AT_FDCWD)\n    result = faccessat (fd, pathname, mode, 0);\n  return result;|s
+' "${sysdep_c}"
+  if grep -q 'iosmacs: AT_EACCESS returns EINVAL' "${sysdep_c}"; then
+    printf 'patched src/sysdep.c: sys_faccessat AT_EACCESS EINVAL fallback added\n'
+  else
+    printf 'warning: sysdep.c patch not applied (pattern may have changed)\n'
+  fi
+fi
+
+# ------------------------------------------------------------------ #
+# Step 3: Configure (without --with-android)                          #
+# ------------------------------------------------------------------ #
+
+configure_needs_run=0
+if [[ ! -f "${build_root}/config.status" ]]; then
+  configure_needs_run=1
+elif ! grep -q "nw-for-android" "${build_root}/config.log" 2>/dev/null; then
+  configure_needs_run=1
+fi
+
+if [[ "${configure_needs_run}" == "1" ]]; then
+  printf 'configuring GNU Emacs NW for %s Android (no HAVE_ANDROID)...\n' "${host_triple}"
+  (
+    cd "${build_root}"
+    # NOTE: We intentionally omit --with-android so HAVE_ANDROID is not defined.
+    # The host triple aarch64-linux-android gives opsys=android for MB_CUR_MAX
+    # compatibility only; the full Android GUI restrictions are not activated.
+    PATH="${tool_dir}:${toolchain_root}/bin:${PATH}" \
+      "${source_copy}/configure" \
+        --host="${host_triple}" \
+        --build=x86_64-apple-darwin \
+        --without-x \
+        --without-gconf \
+        --without-gsettings \
+        --without-dbus \
+        --without-sound \
+        --without-xaw3d \
+        --without-gpm \
+        --without-jpeg \
+        --without-png \
+        --without-gif \
+        --without-tiff \
+        --without-xpm \
+        --without-xml2 \
+        --without-imagemagick \
+        --without-lcms2 \
+        --without-rsvg \
+        --without-webp \
+        --without-native-compilation \
+        --without-tree-sitter \
+        --without-sqlite3 \
+        --without-mailutils \
+        --with-gnutls=no \
+        --without-zlib \
+        --without-toolkit-scroll-bars \
+        --without-xft \
+        --without-harfbuzz \
+        --without-otf \
+        --without-m17n-flt \
+        --with-dumping=none \
+        "CC=${android_cc}" \
+        "AR=${android_ar}" \
+        "RANLIB=${android_ranlib}" \
+        "NM=${android_nm}" \
+        "CFLAGS=-O2 -fPIE -fstack-protector-strong -DHAVE_PTY_H=1" \
+        "LDFLAGS=-fPIE -pie -L${stub_dir}/lib" \
+        "CPPFLAGS=-I${stub_dir}/include -Dtermcap=1" \
+        "LIBS=-lncurses" \
+        >"${configure_log}" 2>&1 || {
+          printf 'error: configure failed; see %s\n' "${configure_log}" >&2
+          tail -30 "${configure_log}" >&2
+          exit 1
+        }
+    # Verify HAVE_ANDROID is NOT defined in config.h
+    if grep -q "define HAVE_ANDROID" "${build_root}/src/config.h" 2>/dev/null; then
+      printf 'error: HAVE_ANDROID is defined; configure picked up Android build mode unexpectedly\n' >&2
+      exit 1
+    fi
+    printf '# nw-for-android configure marker\n' >> "${build_root}/config.log"
+  )
+
+  # Patch the generated src/Makefile so LIBS_TERMCAP links our ncurses stub.
+  # The Emacs Makefile intentionally ignores LIBS in the link step and uses
+  # LIBS_TERMCAP instead. Configure sets LIBS_TERMCAP="" when tputs is found
+  # via the pre-set LIBS variable, so we must restore it here.
+  nw_src_makefile="${build_root}/src/Makefile"
+  if [[ -f "${nw_src_makefile}" ]] && grep -q '^LIBS_TERMCAP=$' "${nw_src_makefile}"; then
+    sed -i '' 's|^LIBS_TERMCAP=$|LIBS_TERMCAP=-lncurses|' "${nw_src_makefile}"
+    printf 'patched src/Makefile: LIBS_TERMCAP=-lncurses\n'
+  fi
+fi
+
+{
+  printf 'configure=ok\n'
+  printf 'android_abi=%s\n' "${abi}"
+  printf 'android_api=%s\n' "${api}"
+  printf 'android_cc=%s\n' "${android_cc}"
+  printf 'ncurses_stub=%s\n' "${stub_lib}"
+  printf 'nw_emacs_binary=%s\n' "${build_root}/src/emacs"
+  printf 'nw_jni_lib=%s\n' "${out_dir}/jniLibs/${abi}/libemacs_nw.so"
+} >"${status_file}"
+
+printf 'flutter Android Emacs NW configure ok: %s\n' "${build_root}"
+printf 'status: %s\n' "${status_file}"
+
+if [[ "${IOSMACS_ANDROID_EMACS_NW_BUILD:-0}" != "1" ]]; then
+  exit 0
+fi
+
+# ------------------------------------------------------------------ #
+# Step 4: Reuse .elc files from macOS or Android host build           #
+# ------------------------------------------------------------------ #
+
+android_lisp="${repo_root}/flutter/build/emacs-android/${abi}/java/install_temp/assets/lisp"
+macos_lisp="${repo_root}/flutter/build/emacs-macos/runtime/lisp"
+
+if [[ -d "${macos_lisp}" ]]; then
+  rsync -a --include='*/' --include='*.elc' --exclude='*' \
+    "${macos_lisp}/" "${source_copy}/lisp/"
+  printf 'synced .elc files from macOS Emacs runtime\n'
+elif [[ -d "${android_lisp}" ]]; then
+  rsync -a --include='*/' --include='*.elc' --exclude='*' \
+    "${android_lisp}/" "${source_copy}/lisp/"
+  printf 'synced .elc files from Android Emacs assets\n'
+fi
+
+# Make sure info dir exists (make install_temp expects it)
+mkdir -p "${source_copy}/info"
+
+# ------------------------------------------------------------------ #
+# Step 5: Build the emacs binary                                      #
+# ------------------------------------------------------------------ #
+
+printf 'building GNU Emacs NW binary for Android %s...\n' "${abi}"
+
+# ------------------------------------------------------------------ #
+# Find host (macOS) Emacs tools for the cross-compilation bootstrap   #
+# ------------------------------------------------------------------ #
+# GNU Emacs build requires running `bootstrap-emacs` and `make-docfile`
+# on the BUILD HOST (macOS) even when cross-compiling for Android.
+# We substitute them with native macOS Emacs / build-time helpers.
+
+host_emacs="${IOSMACS_ANDROID_HOST_EMACS:-${repo_root}/flutter/build/emacs-macos/runtime/bin/emacs}"
+host_lisp="${IOSMACS_ANDROID_HOST_EMACS_LISP:-${repo_root}/flutter/build/emacs-macos/runtime/lisp}"
+if [[ ! -x "${host_emacs}" ]]; then
+  printf 'error: no host Emacs at %s; run make flutter-macos-emacs-runtime first\n' "${host_emacs}" >&2
+  exit 1
+fi
+
+# Create a bootstrap-emacs wrapper that invokes the macOS Emacs with the
+# source Lisp directory on the load path.  This replaces the ARM64 binary
+# that the build would otherwise produce and attempt to run on macOS.
+bootstrap_wrapper="${tool_dir}/bootstrap-emacs"
+cat >"${bootstrap_wrapper}" <<BOOTSTRAP_EOF
+#!/usr/bin/env bash
+set -euo pipefail
+host_emacs="${host_emacs}"
+host_lisp="${host_lisp}"
+source_lisp="${source_copy}/lisp"
+source_etc="${source_copy}/etc"
+load_args=()
+while IFS= read -r d; do
+  load_args+=("-L" "\$d")
+done < <(find "\$host_lisp" -type d | sort)
+while IFS= read -r d; do
+  load_args+=("-L" "\$d")
+done < <(find "\$source_lisp" -type d | sort)
+exec "\$host_emacs" \\
+  "\${load_args[@]}" \\
+  --eval "(setq lisp-directory \"\$source_lisp/\" data-directory \"\$source_etc/\")" \\
+  "\$@"
+BOOTSTRAP_EOF
+chmod +x "${bootstrap_wrapper}"
+
+# Find a host (macOS) make-docfile to use during cross-compilation.
+# The cross-compiler produces an ARM64 make-docfile that cannot run on macOS,
+# so we must substitute the native binary before the src/ build runs it.
+host_make_docfile=""
+for candidate in \
+  "${repo_root}/flutter/build/emacs-macos/build/lib-src/make-docfile" \
+  "${repo_root}/build/emacs-native-helpers/build/lib-src/make-docfile" \
+  "${repo_root}/build/emacs-ios-probe/lib-src/make-docfile"; do
+  if [[ -x "${candidate}" ]]; then
+    host_make_docfile="${candidate}"
+    break
+  fi
+done
+if [[ -z "${host_make_docfile}" ]]; then
+  printf 'error: no host (macOS) make-docfile found; run make flutter-macos-emacs-runtime first\n' >&2
+  exit 1
+fi
+printf 'using host make-docfile: %s\n' "${host_make_docfile}"
+
+if ! "${MAKE:-make}" -C "${build_root}/lib" libgnu.a \
+  "AR=${android_ar}" "RANLIB=${android_ranlib}" "NM=${android_nm}" \
+  -j"${jobs}" >"${out_dir}/libgnu.log" 2>&1; then
+  printf 'error: libgnu.a build failed; see %s\n' "${out_dir}/libgnu.log" >&2
+  tail -20 "${out_dir}/libgnu.log" >&2
+  exit 1
+fi
+
+# Create a shell-script wrapper for make-docfile that delegates to the macOS
+# native binary.  This wrapper will be placed in lib-src/make-docfile so the
+# Emacs src/ Makefile can run it on macOS even though it was cross-compiled.
+make_docfile_wrapper="${build_root}/lib-src/make-docfile"
+cat >"${make_docfile_wrapper}" <<MDFEOF
+#!/usr/bin/env bash
+exec "${host_make_docfile}" "\$@"
+MDFEOF
+chmod +x "${make_docfile_wrapper}"
+
+# Similarly wrap make-fingerprint.
+host_make_fingerprint="${host_make_docfile%make-docfile}make-fingerprint"
+if [[ -x "${host_make_fingerprint}" ]]; then
+  make_fingerprint_wrapper="${build_root}/lib-src/make-fingerprint"
+  cat >"${make_fingerprint_wrapper}" <<MDFEOF
+#!/usr/bin/env bash
+exec "${host_make_fingerprint}" "\$@"
+MDFEOF
+  chmod +x "${make_fingerprint_wrapper}"
+fi
+printf 'installed make-docfile / make-fingerprint wrappers\n'
+
+# Build bootstrap-emacs (the lisp sub-make needs it to byte-compile .el files).
+# We first let make produce the ARM64 binary, then replace with the macOS wrapper.
+"${MAKE:-make}" -C "${build_root}/src" bootstrap-emacs \
+  "AR=${android_ar}" "RANLIB=${android_ranlib}" "NM=${android_nm}" \
+  --old-file="${make_docfile_wrapper}" \
+  -j"${jobs}" >>"${out_dir}/lib-src.log" 2>&1 || true
+cp -f "${bootstrap_wrapper}" "${build_root}/src/bootstrap-emacs"
+chmod +x "${build_root}/src/bootstrap-emacs"
+printf 'installed bootstrap-emacs wrapper\n'
+
+# Build src/emacs — with DUMPING=none, this just copies temacs to emacs.
+# Use --old-file so make doesn't rebuild our shell-script wrappers.
+if ! "${MAKE:-make}" -C "${build_root}/src" emacs \
+  "AR=${android_ar}" "RANLIB=${android_ranlib}" "NM=${android_nm}" \
+  --old-file="${make_docfile_wrapper}" \
+  --old-file="${build_root}/src/bootstrap-emacs" \
+  -j"${jobs}" >"${build_log}" 2>&1; then
+  printf 'error: Emacs NW build failed; see %s\n' "${build_log}" >&2
+  grep -E 'error:|undefined|No such' "${build_log}" | tail -30 >&2
+  # If temacs build failed, show the actual error lines
+  grep -v "^  " "${build_log}" | grep -E "error:|undefined|cannot" | head -30 >&2 || true
+  tail -40 "${build_log}" >&2
+  printf 'build=failed\nbuild_log=%s\n' "${build_log}" >>"${status_file}"
+  exit 1
+fi
+
+# With --with-dumping=none, temacs IS the emacs binary.
+nw_binary="${build_root}/src/emacs"
+if [[ ! -f "${nw_binary}" ]]; then
+  nw_binary="${build_root}/src/temacs"
+fi
+if [[ ! -f "${nw_binary}" ]]; then
+  printf 'error: emacs/temacs binary not produced under %s/src/\n' "${build_root}" >&2
+  exit 1
+fi
+printf 'using NW binary: %s\n' "${nw_binary}"
+
+# ------------------------------------------------------------------ #
+# Step 6: Package as libemacs_nw.so for APK jniLibs                  #
+# ------------------------------------------------------------------ #
+# Name it .so so Android's jniLibs mechanism extracts it to
+# nativeLibraryDir where it can be executed by the JNI code.
+# We use useLegacyPackaging=true in Gradle to ensure extraction.
+
+jni_lib_dir="${out_dir}/jniLibs/${abi}"
+mkdir -p "${jni_lib_dir}"
+cp -p "${nw_binary}" "${jni_lib_dir}/libemacs_nw.so"
+
+# Copy to the SHARED jniLibs directory used by Gradle (same as the Android
+# HAVE_ANDROID build) so no Gradle source-set changes are needed.
+shared_jni_dir="${repo_root}/flutter/build/emacs-android/${abi}/iosmacs/jniLibs/${abi}"
+if [[ -d "${shared_jni_dir}" ]]; then
+  cp -p "${jni_lib_dir}/libemacs_nw.so" "${shared_jni_dir}/libemacs_nw.so"
+  printf 'copied libemacs_nw.so to shared jniLibs: %s\n' "${shared_jni_dir}"
+fi
+
+{
+  printf 'build=ok\n'
+  printf 'build_log=%s\n' "${build_log}"
+  printf 'nw_binary=%s\n' "${nw_binary}"
+  printf 'nw_jni_lib=%s\n' "${jni_lib_dir}/libemacs_nw.so"
+} >>"${status_file}"
+
+printf 'flutter Android Emacs NW binary ready: %s\n' "${nw_binary}"
+printf 'flutter Android Emacs NW JNI lib ready: %s\n' "${jni_lib_dir}/libemacs_nw.so"
