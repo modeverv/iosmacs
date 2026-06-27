@@ -10,9 +10,11 @@ require_nw="${IOSMACS_ANDROID_REQUIRE_NW:-1}"
 expect_pdump="${IOSMACS_ANDROID_EXPECT_PDUMP:-0}"
 expect_pdump_reuse="${IOSMACS_ANDROID_EXPECT_PDUMP_REUSE:-0}"
 expect_network="${IOSMACS_ANDROID_EXPECT_NETWORK:-0}"
+expect_workspace_relaunch="${IOSMACS_ANDROID_EXPECT_WORKSPACE_RELAUNCH:-1}"
 out_dir="$repo_root/flutter/build/android-emulator-smoke"
 screenshot="$out_dir/scratch.png"
 warm_logcat="$out_dir/logcat-warm-relaunch.txt"
+workspace_relaunch_logcat="$out_dir/logcat-workspace-relaunch.txt"
 package_id="com.example.iosmacs_flutter"
 android_file_elisp_path="files/iosmacs/workspace/iosmacs-android-file-ops-smoke.el"
 android_file_marker_path="files/iosmacs/workspace/iosmacs-android-file-ops.marker"
@@ -65,6 +67,26 @@ wait_for_nw_startup() {
     sleep 1
   done
   printf '%s %s\n' "$started" "$ready"
+}
+
+wait_for_workspace_smoke() {
+  local listed=0
+  local opened=0
+  local snapshot=""
+  for _ in {1..60}; do
+    snapshot="$("$adb_bin" -s "$device_id" logcat -d)"
+    if grep -q 'iosmacs-workspace-smoke: workspace listed' <<<"$snapshot"; then
+      listed=1
+    fi
+    if grep -Eq 'iosmacs-workspace-smoke: workspace open requested: .+ \([1-9][0-9]* byte\(s\)\); backend input total [1-9][0-9]*' <<<"$snapshot"; then
+      opened=1
+    fi
+    if [[ "$listed" == "1" && "$opened" == "1" ]]; then
+      break
+    fi
+    sleep 1
+  done
+  printf '%s %s\n' "$listed" "$opened"
 }
 
 if [[ -z "$device_id" ]]; then
@@ -543,6 +565,35 @@ grep -Eq 'iosmacs Android document-provider export: uri=content://com\.example\.
   printf 'error: did not observe Android document-provider export byte evidence\n' >&2
   exit 1
 }
+
+if [[ "$expect_workspace_relaunch" == "1" ]]; then
+  "$adb_bin" -s "$device_id" logcat -c
+  "$adb_bin" -s "$device_id" shell am force-stop "$package_id"
+  "$adb_bin" -s "$device_id" shell am start -n "$package_id/.MainActivity"
+  read -r relaunch_nw_session_seen relaunch_scratch_seen < <(wait_for_nw_startup)
+  read -r relaunch_workspace_listed relaunch_workspace_opened < <(wait_for_workspace_smoke)
+  "$adb_bin" -s "$device_id" logcat -d > "$workspace_relaunch_logcat"
+  relaunch_saved_text="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_file_smoke_path" 2>/dev/null | tr -d '\r' || true)"
+  printf '%s\n' "$relaunch_saved_text" > "$out_dir/android-file-smoke-relaunch.txt"
+  if [[ "$relaunch_nw_session_seen" != "1" || "$relaunch_scratch_seen" != "1" ]]; then
+    printf 'error: Android workspace relaunch did not reach NW *scratch*\n' >&2
+    printf 'saved relaunch logcat: %s\n' "$workspace_relaunch_logcat" >&2
+    exit 1
+  fi
+  grep -q 'iosmacs-android-file-smoke' "$out_dir/android-file-smoke-relaunch.txt" || {
+    printf 'error: Android workspace file did not persist across relaunch\n' >&2
+    cat "$out_dir/android-file-smoke-relaunch.txt" >&2 || true
+    exit 1
+  }
+  if [[ "$relaunch_workspace_listed" != "1" ]]; then
+    printf 'error: did not observe Android workspace list evidence after relaunch\n' >&2
+    exit 1
+  fi
+  if [[ "$relaunch_workspace_opened" != "1" ]]; then
+    printf 'error: did not observe Android workspace open evidence after relaunch\n' >&2
+    exit 1
+  fi
+fi
 
 "$adb_bin" -s "$device_id" exec-out screencap -p > "$screenshot"
 focused="$("$adb_bin" -s "$device_id" shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' || true)"

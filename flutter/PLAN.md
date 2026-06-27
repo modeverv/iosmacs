@@ -991,12 +991,15 @@ Flutter Android native channel TODO:
   during Workspace Refresh/list without overwriting existing app-private files.
 - [x] Use the persisted Android workspace exchange folder as the normal
   Workspace Export destination when it is available.
+- [x] Skip Emacs lock artifacts and missing entries during Android workspace
+  zip export so Dired/file-ops side files do not abort export.
 - [x] Add Android `INTERNET` permission to the main manifest so packaged NW
   Emacs can open network connections outside debug/profile builds.
 - [x] Add an optional Android emulator Emacs network smoke gated by
   `IOSMACS_ANDROID_EXPECT_NETWORK=1`.
 - [x] Verify the Android emulator Emacs network smoke through the packaged NW
   route.
+- [x] Add a default Android emulator workspace relaunch-persistence smoke.
 - [x] Autostart Android by default now that a native channel route exists.
 - [x] Verify Android native-channel tests, structure check, and debug APK
   build.
@@ -1029,7 +1032,9 @@ Flutter Android native channel status:
 - Normal Android Workspace Export now writes the prepared workspace file or zip
   into the selected exchange folder through `DocumentsContract`; workspace zip
   export preserves app-private subdirectory relative paths. When no exchange
-  folder is selected it still presents the document-create picker.
+  folder is selected it still presents the document-create picker. Android zip
+  export skips Emacs `.#...` lock artifacts and missing entries so a Dired/file
+  lock left in the workspace cannot make export fail with `ENOENT`.
 - The main Android manifest declares `android.permission.INTERNET`, matching
   the expectation that the packaged NW Emacs process can use network APIs in
   release-style builds. `scripts/run-flutter-android-emulator-smoke.sh` can now
@@ -1039,6 +1044,13 @@ Flutter Android native channel status:
   `elapsed_ms=301`, produced `iosmacs-android-file-ops-ok`, and wrote
   `iosmacs-android-network-ok` to the app-private marker with matching logcat
   evidence.
+- Android emulator smoke now verifies workspace relaunch persistence by
+  force-stopping and relaunching the app after the Emacs file-ops smoke,
+  checking that `notes/iosmacs-android-file-smoke.txt` still exists in
+  app-private storage, and requiring workspace list/open smoke evidence after
+  relaunch. The current verified relaunch reached the NW `*scratch*` frame in
+  `elapsed_ms=304`, preserved `iosmacs-android-file-smoke`, listed 7 workspace
+  item(s), and reopened `/data/user/0/com.example.iosmacs_flutter/files/iosmacs/workspace/workspace-smoke.txt`.
 
 Flutter Android emulator scratch smoke TODO:
 

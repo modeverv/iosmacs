@@ -310,9 +310,14 @@ tree into app-private `/home/user`; Workspace Refresh/list non-destructively
 imports files that are missing from the app-private workspace; normal Workspace
 Export writes the prepared file or relative-path-preserving zip back into the
 tree through `DocumentsContract`; otherwise it falls back to
-`ACTION_CREATE_DOCUMENT`. The main Android manifest declares
+`ACTION_CREATE_DOCUMENT`. Workspace zip export skips Emacs `.#...` lock
+artifacts and missing entries so stale editor lock files do not abort export.
+The main Android manifest declares
 `android.permission.INTERNET`, and the emulator smoke can optionally require an
 Emacs-level HTTP connection marker with `IOSMACS_ANDROID_EXPECT_NETWORK=1`.
+The emulator smoke also force-stops and relaunches the app by default to prove
+that the Emacs-created workspace file remains in app-private storage and that
+workspace list/open smoke evidence still appears after relaunch.
 The active NW startup path also defers the official `--with-android`
 subprocess comparison probe so diagnostic evidence does not block first
 terminal output. The emulator smoke now proves both cold pdmp generation and

@@ -158,6 +158,20 @@ Flutter Android fallback surface reduction:
   `iosmacs-android-network-ok` to
   `flutter/build/android-emulator-smoke/android-network.marker` with matching
   logcat evidence.
+- Added default Android workspace relaunch-persistence proof to
+  `make flutter-android-emulator-smoke`. After the Emacs file-ops smoke saves
+  and reopens `notes/iosmacs-android-file-smoke.txt`, the smoke now force-stops
+  and relaunches the app, verifies the saved file still exists in app-private
+  storage, and waits for workspace list/open smoke evidence after relaunch.
+- Hardened Android workspace zip export after the first relaunch-persistence
+  run exposed an Emacs `notes/.#iosmacs-android-file-smoke.txt` lock artifact
+  that made export fail with `ENOENT`. Android export now skips Emacs `.#...`
+  lock artifacts and missing entries before building the relative-path zip.
+- Verified with shell syntax checks, `make flutter-structure-check`,
+  `git diff --check`, and `make flutter-android-emulator-smoke`. The passing
+  run exported `workspace-export.zip`, relaunched into NW `*scratch*` in
+  `elapsed_ms=304`, preserved `iosmacs-android-file-smoke`, listed 7 workspace
+  item(s), and reopened the workspace smoke file after relaunch.
 
 Flutter Android GNU Emacs NW text-terminal display:
 

@@ -520,13 +520,19 @@ private class AndroidNativeEmacsBridge(
   }
 
   private fun prepareWorkspaceExportFiles(root: File): List<File> {
-    val files = root.listFiles()?.sortedBy { it.name }.orEmpty()
+    val files = root.listFiles()
+      ?.filterNot { shouldSkipWorkspaceExportEntry(it) }
+      ?.sortedBy { it.name }
+      .orEmpty()
     return when {
       files.isEmpty() -> listOf(createWorkspaceRootExport(root))
       files.size == 1 && files.single().isFile -> files
       else -> listOf(createWorkspaceZipExport(root, files))
     }
   }
+
+  private fun shouldSkipWorkspaceExportEntry(file: File): Boolean =
+    file.name.startsWith(".#") || !file.exists()
 
   private fun createWorkspaceZipExport(root: File, files: List<File>): File {
     val zipFile = File(context.cacheDir, "iosmacs/workspace-export.zip")
@@ -540,6 +546,9 @@ private class AndroidNativeEmacsBridge(
   }
 
   private fun addWorkspaceZipEntry(zip: ZipOutputStream, root: File, file: File) {
+    if (shouldSkipWorkspaceExportEntry(file)) {
+      return
+    }
     val relativePath = file.relativeTo(root).invariantSeparatorsPath
     if (file.isDirectory) {
       val directoryEntry = if (relativePath.endsWith("/")) relativePath else "$relativePath/"
@@ -548,6 +557,9 @@ private class AndroidNativeEmacsBridge(
       file.listFiles()?.sortedBy { it.name }?.forEach { child ->
         addWorkspaceZipEntry(zip, root, child)
       }
+      return
+    }
+    if (!file.isFile) {
       return
     }
     zip.putNextEntry(ZipEntry(relativePath))

@@ -465,7 +465,11 @@ grep -q 'IOSMACS_ANDROID_EXPECT_PDUMP_REUSE' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_ANDROID_EXPECT_NETWORK' \
   scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'IOSMACS_ANDROID_EXPECT_WORKSPACE_RELAUNCH:-1' \
+  scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'logcat-warm-relaunch.txt' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'logcat-workspace-relaunch.txt' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'pdump reused' \
   scripts/run-flutter-android-emulator-smoke.sh
@@ -492,6 +496,12 @@ grep -q 'iosmacs-android-file-ops.marker' \
 grep -q 'iosmacs-android-file-ops-smoke.el' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs-android-file-ops-ok' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'android-file-smoke-relaunch.txt' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'workspace file did not persist across relaunch' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'wait_for_workspace_smoke' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs-android-network-ok' \
   scripts/run-flutter-android-emulator-smoke.sh
@@ -584,6 +594,10 @@ grep -q 'destination.exists() && !overwrite' \
 grep -q 'exportWorkspaceFileToTree' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'addWorkspaceZipEntry' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'shouldSkipWorkspaceExportEntry' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'file.name.startsWith(".#")' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'invariantSeparatorsPath' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
