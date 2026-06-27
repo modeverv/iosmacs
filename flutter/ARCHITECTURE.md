@@ -279,14 +279,19 @@ workspace mapping must be explicit backend responsibilities.
 The Android backend is represented by `AndroidEmacsBackend`. It now uses the
 shared `iosmacs/native_emacs` MethodChannel shape and an Android Runner native
 bridge for lifecycle, resize status, clipboard paste, and app-private workspace
-list/import/export. The terminal renderer is behind a JNI shared library
-(`libiosmacs_android_runtime.so`), which now presents a stateful Android
-terminal Emacs frame with `Buffer: *scratch*`, a Lisp Interaction mode line,
-input insertion, paste insertion, and redraw behavior. The GNU Emacs runtime
-itself is still an Android native-runtime project, not just a Flutter UI task.
-The likely hard parts are NDK compilation, replacing the JNI frame renderer
-with actual Emacs terminal output, document-provider export UX, keyboard/IME
-behavior, and packaging.
+list/import/export. The preferred current terminal route is a separate GNU
+Emacs NW binary packaged as `libemacs_nw.so`. That binary is built with the
+Android NDK but intentionally without `--with-android`, so it avoids the
+official Android port's `HAVE_ANDROID` text-terminal refusal and runs as a
+plain `-nw` process through `forkpty(3)`.
+
+The older JNI frame renderer in `libiosmacs_android_runtime.so` remains as a
+fallback diagnostic surface when the NW binary is absent. The official
+`--with-android` runtime build is still valuable for libraries, assets, Java
+bridge evidence, and comparison probes, but it is not the active interactive
+Flutter-terminal path. The likely hard parts are improving NW startup/runtime
+packaging, document-provider export UX, keyboard/IME behavior, and shrinking the
+fallback diagnostic surface.
 
 The Android backend should reuse the same facade ideas as iOS where practical,
 but it should not block the Flutter shell or desktop backend work.
@@ -394,9 +399,9 @@ Focused targets are available when iterating:
   runtime contract rather than a source-tree convenience.
 - A native PTY probe can launch the extracted upstream wrapper, but the
   official Android Emacs port rejects text-terminal mode for application
-  packages. The Flutter terminal cannot become a plain `-nw` stdio client; it
-  must adapt the official Android application/service event and rendering path
-  into the Flutter terminal channel.
+  packages. iosmacs therefore treats the official `--with-android` artifacts as
+  packaged-runtime evidence and uses the separately built `libemacs_nw.so`
+  binary as the active Flutter terminal route.
 
 ## Compatibility Principles
 
@@ -419,6 +424,7 @@ Focused targets are available when iterating:
 - The official GNU Emacs Android port is APK/JNI-oriented. Flutter Android
   consumes generated native libraries and assets as optional Gradle source
   directories plus the generated Java bridge jar after
-  `make flutter-android-emacs-runtime`. The terminal bridge still flows through
-  `AndroidNativeEmacsBridge` until the official Emacs event/output path is
-  adapted to the Flutter terminal channel.
+  `make flutter-android-emacs-runtime`. Interactive Android terminal evidence
+  should prefer `make flutter-android-emacs-nw-build` plus
+  `make flutter-android-emulator-smoke`; the official event/output path is no
+  longer the next required route for `-nw` display proof.

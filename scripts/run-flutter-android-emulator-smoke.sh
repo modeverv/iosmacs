@@ -96,13 +96,17 @@ flutter build apk --debug \
 # NW mode takes priority: if libemacs_nw.so is in the APK, Emacs starts via PTY.
 scratch_seen=0
 nw_session_seen=0
-for _ in {1..120}; do
+for _ in {1..180}; do
   logcat_snapshot="$("$adb_bin" -s "$device_id" logcat -d)"
   # Check for NW real Emacs PTY session
   if grep -q 'iosmacs Android GNU Emacs NW PTY session started' <<<"$logcat_snapshot"; then
     nw_session_seen=1
-    scratch_seen=1
-    break
+    if grep -q '\*scratch\*' <<<"$logcat_snapshot" &&
+      grep -q 'iosmacs-input-smoke: committed' <<<"$logcat_snapshot" &&
+      grep -q 'text="iosmacs input smoke"' <<<"$logcat_snapshot"; then
+      scratch_seen=1
+      break
+    fi
   fi
   # Fallback: check for JNI frame renderer output
   if grep -q 'GNU Emacs 30.2 Android terminal frame' <<<"$logcat_snapshot" &&
@@ -126,6 +130,14 @@ if [[ "$nw_session_seen" == "1" ]]; then
   printf 'NW Emacs PTY session detected — verifying NW evidence\n'
   grep -Eq 'iosmacs Android GNU Emacs NW PTY session started: pid=[0-9]+' "$out_dir/logcat.txt" || {
     printf 'error: NW PTY session started marker missing pid\n' >&2
+    exit 1
+  }
+  grep -q '\*scratch\*' "$out_dir/logcat.txt" || {
+    printf 'error: NW Emacs did not report *scratch* evidence\n' >&2
+    exit 1
+  }
+  grep -q 'text="iosmacs input smoke"' "$out_dir/logcat.txt" || {
+    printf 'error: NW Emacs smoke did not identify the committed input text\n' >&2
     exit 1
   }
   # Verify that real Emacs terminal output reached the Flutter terminal.
@@ -181,9 +193,18 @@ grep -q 'iosmacs-input-smoke: committed' "$out_dir/logcat.txt" || {
   printf 'error: did not observe Android input smoke evidence\n' >&2
   exit 1
 }
+grep -q 'text="iosmacs input smoke"' "$out_dir/logcat.txt" || {
+  printf 'error: did not observe Android input smoke text evidence\n' >&2
+  exit 1
+}
 grep -Eq 'iosmacs-resize-smoke: requested [1-9][0-9]*x[1-9][0-9]*; backend geometry [1-9][0-9]*x[1-9][0-9]*' \
   "$out_dir/logcat.txt" || {
   printf 'error: did not observe Android resize smoke evidence\n' >&2
+  exit 1
+}
+grep -q 'iosmacs-redraw-smoke: message="iosmacs Android native bridge: redrew Emacs terminal frame"' \
+  "$out_dir/logcat.txt" || {
+  printf 'error: did not observe Android redraw smoke evidence\n' >&2
   exit 1
 }
 

@@ -2,6 +2,22 @@
 
 ## 2026-06-27
 
+Flutter Android NW follow-up:
+
+- Accepted the Android GNU Emacs NW display result as the current Android
+  interactive terminal direction.
+- Updated the Flutter Android architecture and plan docs so the separately built
+  `libemacs_nw.so` route is the active path, while the official
+  `--with-android` runtime remains packaged evidence and fallback diagnostics.
+- Tightened the Android emulator smoke around the NW path: it now waits for the
+  NW PTY marker plus `*scratch*` and the named `iosmacs input smoke` committed
+  text marker before accepting the run.
+- Extended input-smoke logging to include the committed smoke text while
+  preserving the existing byte-count prefix used by iOS/macOS/backend smokes.
+- Verified with `flutter analyze`, targeted Flutter tests, `make
+  flutter-structure-check`, `make flutter-android-smoke`, `make
+  flutter-android-emulator-smoke`, shell syntax checks, and `git diff --check`.
+
 Flutter Android GNU Emacs NW text-terminal display:
 
 - Goal: bypass the `HAVE_ANDROID` text-terminal restriction and reach a state

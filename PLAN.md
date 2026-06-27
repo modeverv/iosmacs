@@ -19,7 +19,7 @@ Key Flutter constraints:
 - Do not move Emacs editor semantics into Dart. Dart and Flutter transport
   terminal bytes, display diagnostics, coordinate workers, and present UI;
   Emacs owns command semantics, buffers, minibuffer behavior, Dired, Lisp, undo,
-  kill ring, and keymaps.
+  Kill ring, and keymaps.
 - Split runtime responsibilities into Flutter main isolate, backend worker, and
   Emacs runtime.
 - Preserve the existing top-level `make verify` contract for the native iOS app

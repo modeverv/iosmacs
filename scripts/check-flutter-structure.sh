@@ -387,7 +387,13 @@ grep -q 'IOSMACS_FLUTTER_INPUT_SMOKE=true' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs-input-smoke: committed' \
   scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'text="iosmacs input smoke"' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'text="\$text"' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'iosmacs input smoke' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'NW Emacs did not report \*scratch\* evidence' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'Android Emacs terminal frame evidence' \
   scripts/run-flutter-android-emulator-smoke.sh

@@ -472,7 +472,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
     final diagnostics = widget.backend.diagnostics.value;
     _logInputSmoke(
       'committed $byteCount byte(s); backend input total '
-      '${diagnostics.inputBytes}',
+      '${diagnostics.inputBytes}; text="$text"',
     );
   }
 
