@@ -9,6 +9,10 @@ device_id="${IOSMACS_FLUTTER_ANDROID_DEVICE:-}"
 require_nw="${IOSMACS_ANDROID_REQUIRE_NW:-1}"
 out_dir="$repo_root/flutter/build/android-emulator-smoke"
 screenshot="$out_dir/scratch.png"
+package_id="com.example.iosmacs_flutter"
+android_file_elisp_path="files/iosmacs/workspace/iosmacs-android-file-ops-smoke.el"
+android_file_marker_path="files/iosmacs/workspace/iosmacs-android-file-ops.marker"
+android_file_smoke_path="files/iosmacs/workspace/notes/iosmacs-android-file-smoke.txt"
 
 export ANDROID_HOME="$sdk_root"
 export ANDROID_SDK_ROOT="$sdk_root"
@@ -86,14 +90,56 @@ flutter build apk --debug \
   --dart-define=IOSMACS_FLUTTER_CAPABILITIES_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_STATUS_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_INPUT_SMOKE=true \
+  --dart-define=IOSMACS_FLUTTER_ANDROID_FILE_OPS_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_RESIZE_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_REDRAW_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_WORKSPACE_SMOKE=true
 
 "$adb_bin" -s "$device_id" logcat -c
 "$adb_bin" -s "$device_id" install -r "$app_dir/build/app/outputs/flutter-apk/app-debug.apk"
+"$adb_bin" -s "$device_id" shell \
+  "run-as '$package_id' sh -c 'mkdir -p files/iosmacs/workspace files/iosmacs/workspace/notes'"
+"$adb_bin" -s "$device_id" shell \
+  "run-as '$package_id' sh -c 'rm -f \"$android_file_marker_path\" \"$android_file_smoke_path\" \"$android_file_elisp_path\"'"
+cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
+  "run-as '$package_id' sh -c 'cat > \"$android_file_elisp_path\"'"
+(let ((marker (expand-file-name "iosmacs-android-file-ops.marker" "~")))
+  (condition-case err
+      (progn
+        (setq default-directory "~/")
+        (require 'ls-lisp)
+        (setq ls-lisp-use-insert-directory-program nil
+              insert-directory-program "/system/bin/ls"
+              dired-use-ls-dired nil
+              dired-listing-switches "-al")
+        (require 'dired)
+        (let* ((dir (expand-file-name "notes/" "~"))
+               (file (expand-file-name "iosmacs-android-file-smoke.txt" dir))
+               (text "iosmacs-android-file-smoke\n"))
+          (make-directory dir t)
+          (find-file file)
+          (erase-buffer)
+          (insert text)
+          (save-buffer)
+          (kill-buffer (current-buffer))
+          (find-file file)
+          (unless (string-match-p "iosmacs-android-file-smoke" (buffer-string))
+            (error "reloaded file did not contain smoke text"))
+          (let ((dired-buffer (dired-noselect dir)))
+            (with-current-buffer dired-buffer
+              (goto-char (point-min))
+              (unless (search-forward "iosmacs-android-file-smoke.txt" nil t)
+                (error "dired did not list smoke file"))))
+          (write-region "iosmacs-android-file-ops-ok\n" nil marker nil nil)
+          (message "iosmacs-android-file-ops-ok")))
+    (error
+     (write-region
+      (format "iosmacs-android-file-ops-error:%S\n" err)
+      nil marker nil nil)
+     (message "iosmacs-android-file-ops-error:%S" err))))
+ELISP
 "$adb_bin" -s "$device_id" shell input keyevent 82 >/dev/null 2>&1 || true
-"$adb_bin" -s "$device_id" shell am start -n com.example.iosmacs_flutter/.MainActivity
+"$adb_bin" -s "$device_id" shell am start -n "$package_id/.MainActivity"
 
 # Wait for the NW PTY session by default.  Set IOSMACS_ANDROID_REQUIRE_NW=0
 # only when deliberately exercising the legacy fallback diagnostics.
@@ -143,6 +189,22 @@ for _ in {1..30}; do
   sleep 1
 done
 
+file_ops_seen=0
+file_ops_marker_text=""
+file_ops_saved_text=""
+for _ in {1..60}; do
+  file_ops_marker_text="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_file_marker_path" 2>/dev/null | tr -d '\r' || true)"
+  file_ops_saved_text="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_file_smoke_path" 2>/dev/null | tr -d '\r' || true)"
+  if grep -q 'iosmacs-android-file-ops-ok' <<<"$file_ops_marker_text" &&
+    grep -q 'iosmacs-android-file-smoke' <<<"$file_ops_saved_text"; then
+    file_ops_seen=1
+    break
+  fi
+  sleep 1
+done
+printf '%s\n' "$file_ops_marker_text" > "$out_dir/android-file-ops.marker"
+printf '%s\n' "$file_ops_saved_text" > "$out_dir/android-file-smoke.txt"
+
 "$adb_bin" -s "$device_id" logcat -d > "$out_dir/logcat.txt"
 
 if [[ "$require_nw" == "1" && "$nw_session_seen" != "1" ]]; then
@@ -157,6 +219,13 @@ if [[ "$scratch_seen" != "1" ]]; then
 fi
 if [[ "$keyboard_seen" != "1" ]]; then
   printf 'error: did not observe Android adb keyboard input evidence\n' >&2
+  printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2
+  exit 1
+fi
+if [[ "$file_ops_seen" != "1" ]]; then
+  printf 'error: did not observe Android Emacs file save/reopen/Dired evidence\n' >&2
+  printf 'marker file: %s\n' "$out_dir/android-file-ops.marker" >&2
+  printf 'saved file: %s\n' "$out_dir/android-file-smoke.txt" >&2
   printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2
   exit 1
 fi
@@ -248,6 +317,21 @@ grep -q 'text="iosmacs input smoke"' "$out_dir/logcat.txt" || {
 }
 grep -q "iosmacs-terminal-input-buffer: text=.*${keyboard_marker}" "$out_dir/logcat.txt" || {
   printf 'error: did not observe Android adb keyboard input marker\n' >&2
+  exit 1
+}
+grep -Eq 'iosmacs-android-file-ops-smoke: submitted [1-9][0-9]* byte\(s\); backend input total [1-9][0-9]*' \
+  "$out_dir/logcat.txt" || {
+  printf 'error: did not observe Android file-ops smoke submission evidence\n' >&2
+  exit 1
+}
+grep -q 'iosmacs-android-file-ops-ok' "$out_dir/android-file-ops.marker" || {
+  printf 'error: Android Emacs file-ops marker did not report ok\n' >&2
+  cat "$out_dir/android-file-ops.marker" >&2 || true
+  exit 1
+}
+grep -q 'iosmacs-android-file-smoke' "$out_dir/android-file-smoke.txt" || {
+  printf 'error: Android Emacs saved file had unexpected contents\n' >&2
+  cat "$out_dir/android-file-smoke.txt" >&2 || true
   exit 1
 }
 grep -Eq 'iosmacs-resize-smoke: requested [1-9][0-9]*x[1-9][0-9]*; backend geometry [1-9][0-9]*x[1-9][0-9]*' \

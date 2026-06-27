@@ -131,6 +131,7 @@ void main() {
           mirrorTerminalOutputToLog: true,
           runCapabilitiesSmoke: true,
           runInputSmoke: true,
+          runAndroidFileOpsSmoke: true,
           runResizeSmoke: true,
           runRedrawSmoke: true,
           runStatusSmoke: true,
@@ -143,7 +144,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 1500));
     await tester.pumpAndSettle();
 
     expect(find.byType(TerminalView), findsOneWidget);

@@ -51,6 +51,22 @@ Flutter Android NW follow-up:
   flutter-android-emulator-smoke`. The current emulator run reached the first
   interactive frame with `elapsed_ms=814` while suppressing `12640` startup
   bytes before rendering the usable terminal frame.
+- Added an Android NW file-ops parity smoke. The emulator smoke now writes an
+  Android app-workspace Elisp file, loads it through the interactive NW Emacs
+  terminal, and requires app-sandbox evidence that Emacs saved and reopened
+  `notes/iosmacs-android-file-smoke.txt`, verified Dired could list it, and
+  wrote `iosmacs-android-file-ops-ok`.
+- Patched both Android runtime asset generation and the Android NW build so
+  `loadup.el` guards the Android `pdumper-stats` helper when the NW route is
+  built with `--with-dumping=none`. Also expanded the NW `EMACSLOADPATH` to
+  include immediate Lisp subdirectories such as `calendar/`, and bumped the
+  extracted data version so patched assets are re-extracted.
+- Verified the updated Android NW runtime with `make flutter-android-emacs-runtime`,
+  `make flutter-android-emacs-nw-build`, `make flutter-structure-check`,
+  `flutter test test/widget_test.dart`, and `make
+  flutter-android-emulator-smoke`. The final emulator run reached the first
+  interactive frame with `elapsed_ms=1013`, suppressed `12875` startup bytes,
+  and produced `iosmacs-android-file-ops-ok`.
 
 Flutter Android fallback surface reduction:
 

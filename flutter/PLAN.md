@@ -1157,6 +1157,8 @@ Flutter Android GNU Emacs NDK runtime TODO:
 - [x] Add the user-facing Android document export picker flow.
 - [x] Defer the official Android subprocess comparison probe off the active NW
   startup hot path.
+- [x] Add Android NW file save/reopen/Dired proof against the app-private
+  workspace.
 - [ ] Improve Android NW startup packaging with a real dumped/runtime cache path
   so the interactive binary reaches `*scratch*` faster internally.
 
@@ -1230,8 +1232,9 @@ Flutter Android GNU Emacs NDK runtime status:
   PTY session.
 - The same Android NW startup marker now includes fork-to-first-usable-frame
   timing as `elapsed_ms=...`, and the emulator smoke requires that timing plus
-  suppression evidence. The current baseline run reached the first interactive
-  `*scratch*` frame in `814` ms while suppressing `12640` startup bytes.
+  suppression evidence. The current file-ops baseline run reached the first
+  interactive `*scratch*` frame in `1013` ms while suppressing `12875` startup
+  bytes.
 - Normal Android workspace export now presents the system
   `ACTION_CREATE_DOCUMENT` picker and writes the selected workspace file (or a
   generated workspace zip for multiple files) to the user-selected document
@@ -1241,6 +1244,19 @@ Flutter Android GNU Emacs NDK runtime status:
   comparison probe while the NW PTY route is active. The fallback path still
   runs that probe, but normal NW startup no longer blocks first terminal output
   on comparison-only diagnostics.
+- Android NW startup now uses a generated `EMACSLOADPATH` that includes the
+  extracted Lisp root plus immediate Lisp subdirectories. This keeps packaged
+  assets such as `calendar/time-date.el` visible to the NW route.
+- Both Android runtime asset generation and the Android NW build now guard the
+  Android `loadup.el` `pdumper-stats` helper for the no-pdump NW route. The
+  Android data extraction version is bumped so existing installs refresh the
+  patched Lisp assets.
+- `make flutter-android-emulator-smoke` now loads
+  `~/iosmacs-android-file-ops-smoke.el` through the interactive NW terminal and
+  verifies app-sandbox files through `run-as`: the marker must contain
+  `iosmacs-android-file-ops-ok`, and the saved file must contain
+  `iosmacs-android-file-smoke`. The Elisp creates, saves, reopens, and checks
+  Dired listing for `notes/iosmacs-android-file-smoke.txt`.
 - Current remaining Android work: keep the official `--with-android` runtime as
   packaged evidence/fallback and speed up NW startup internally with a real
   dumped runtime/cache path.

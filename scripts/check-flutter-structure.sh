@@ -387,9 +387,21 @@ grep -q 'emacs-android-java.jar' \
   scripts/build-flutter-android-emacs-runtime.sh
 grep -q 'java_bridge_jar' \
   scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'iosmacs: Android NW without pdumper-stats' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'iosmacs: Android NW without pdumper-stats' \
+  scripts/build-flutter-android-emacs-nw.sh
+grep -q -- '--with-dumping=none' \
+  scripts/build-flutter-android-emacs-nw.sh
+grep -q 'NwEmacsRuntime.loadPath' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'File.pathSeparator' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -Fq 'Buffer: \*scratch\*' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_FLUTTER_INPUT_SMOKE=true' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'IOSMACS_FLUTTER_ANDROID_FILE_OPS_SMOKE=true' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_FLUTTER_MIRROR_TERMINAL_INPUT=true' \
   scripts/run-flutter-android-emulator-smoke.sh
@@ -407,7 +419,21 @@ grep -q 'text="\$text"' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'iosmacs-terminal-input-buffer' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'iosmacs-android-file-ops-smoke' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'iosmacs-android-file-ops-smoke.el' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'iosmacs-android-file-ops.marker' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-android-file-ops-smoke.el' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-android-file-ops-ok' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'did not observe Android Emacs file save/reopen/Dired evidence' \
+  scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'release_nw_startup_buffer_locked("terminal frame detected")' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'nw_menu_bar_position' \
   "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
 grep -q 'iosmacs Android GNU Emacs NW interactive frame ready:' \
   "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
@@ -1149,7 +1175,7 @@ grep -q 'document-provider content export' \
   flutter/ARCHITECTURE.md
 grep -q 'ACTION_CREATE_DOCUMENT' \
   flutter/ARCHITECTURE.md
-grep -q 'does not block first terminal output' \
+grep -q 'diagnostic evidence does not block first' \
   flutter/ARCHITECTURE.md
 grep -q 'startup-chatter suppression' \
   flutter/ARCHITECTURE.md

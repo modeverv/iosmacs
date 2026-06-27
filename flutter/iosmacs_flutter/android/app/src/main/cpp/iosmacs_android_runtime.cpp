@@ -178,13 +178,17 @@ void update_pty_size_locked() {
   ioctl(official_emacs_master_fd, TIOCSWINSZ, &size);
 }
 
+size_t nw_menu_bar_position(const std::string &text) {
+  return text.find("File Edit Options Buffers Tools");
+}
+
 bool contains_nw_interactive_frame(const std::string &text) {
-  return text.find("File Edit Options Buffers Tools Help") != std::string::npos
+  return nw_menu_bar_position(text) != std::string::npos
       && text.find("*scratch*") != std::string::npos;
 }
 
 std::string tail_from_nw_interactive_frame(const std::string &text) {
-  const size_t ready_pos = text.find("File Edit Options Buffers Tools Help");
+  const size_t ready_pos = nw_menu_bar_position(text);
   if (ready_pos == std::string::npos) {
     return text;
   }

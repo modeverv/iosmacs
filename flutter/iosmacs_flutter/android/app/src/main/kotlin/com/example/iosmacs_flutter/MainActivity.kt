@@ -126,7 +126,7 @@ private class AndroidNativeEmacsBridge(
       lifecycleState = "iosmacs Android native bridge: GNU Emacs NW PTY terminal starting"
       val nwOutput = nativeRuntime.startNwEmacs(
         nwBinary,
-        dataDir?.let { File(it, "lisp").absolutePath } ?: "",
+        dataDir?.let { NwEmacsRuntime.loadPath(it) } ?: "",
         dataDir?.let { File(it, "etc").absolutePath } ?: "",
         prepareWorkspaceRoot().absolutePath,
         context.cacheDir.absolutePath,
@@ -590,13 +590,26 @@ private object NwEmacsRuntime {
   private const val ASSETS_LISP = "lisp"
   private const val ASSETS_ETC  = "etc"
   // Version marker: bump this if the extracted data format changes.
-  private const val DATA_VERSION = "1"
+  private const val DATA_VERSION = "2"
   private const val DATA_VERSION_FILE = ".iosmacs_nw_data_version"
 
   // Returns the path to the NW Emacs binary if it has been extracted, else null.
   fun executablePath(context: Context): String? {
     val path = File(context.applicationInfo.nativeLibraryDir, "libemacs_nw.so")
     return if (path.isFile && path.canExecute()) path.absolutePath else null
+  }
+
+  fun loadPath(dataRoot: File): String {
+    val lispRoot = File(dataRoot, "lisp")
+    if (!lispRoot.isDirectory) {
+      return ""
+    }
+    val dirs = mutableListOf(lispRoot)
+    lispRoot.listFiles()
+      ?.filter { it.isDirectory }
+      ?.sortedBy { it.name }
+      ?.forEach { dirs += it }
+    return dirs.joinToString(File.pathSeparator) { it.absolutePath }
   }
 
   // Ensures Emacs Lisp/etc data is extracted from APK assets to filesDir.

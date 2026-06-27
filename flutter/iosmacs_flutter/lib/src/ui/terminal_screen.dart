@@ -30,6 +30,7 @@ class TerminalScreen extends StatefulWidget {
     this.runWorkspaceSmoke = false,
     this.runCapabilitiesSmoke = false,
     this.runInputSmoke = false,
+    this.runAndroidFileOpsSmoke = false,
     this.runResizeSmoke = false,
     this.runRedrawSmoke = false,
     this.runStatusSmoke = false,
@@ -47,6 +48,7 @@ class TerminalScreen extends StatefulWidget {
   final bool runWorkspaceSmoke;
   final bool runCapabilitiesSmoke;
   final bool runInputSmoke;
+  final bool runAndroidFileOpsSmoke;
   final bool runResizeSmoke;
   final bool runRedrawSmoke;
   final bool runStatusSmoke;
@@ -96,6 +98,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
         widget.runWorkspaceSmoke ||
         widget.runCapabilitiesSmoke ||
         widget.runInputSmoke ||
+        widget.runAndroidFileOpsSmoke ||
         widget.runResizeSmoke ||
         widget.runRedrawSmoke ||
         widget.runStatusSmoke ||
@@ -410,6 +413,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
     if (widget.runInputSmoke) {
       await _runInputSmoke();
     }
+    if (widget.runAndroidFileOpsSmoke) {
+      await _runAndroidFileOpsSmoke();
+    }
     if (widget.runResizeSmoke) {
       await _runResizeSmoke();
     }
@@ -509,6 +515,25 @@ class _TerminalScreenState extends State<TerminalScreen> {
   void _logInputSmoke(String message) {
     if (widget.mirrorTerminalOutputToLog) {
       debugPrint('iosmacs-input-smoke: $message');
+    }
+  }
+
+  Future<void> _runAndroidFileOpsSmoke() async {
+    const elisp = r'''(load "~/iosmacs-android-file-ops-smoke.el")''';
+    await Future<void>.delayed(const Duration(seconds: 1));
+    final bytes = utf8.encode('$elisp\n');
+    await widget.backend.sendBytes(bytes);
+    await Future<void>.delayed(Duration.zero);
+    final diagnostics = widget.backend.diagnostics.value;
+    _logAndroidFileOpsSmoke(
+      'submitted ${bytes.length} byte(s); backend input total '
+      '${diagnostics.inputBytes}',
+    );
+  }
+
+  void _logAndroidFileOpsSmoke(String message) {
+    if (widget.mirrorTerminalOutputToLog) {
+      debugPrint('iosmacs-android-file-ops-smoke: $message');
     }
   }
 

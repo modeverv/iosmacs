@@ -184,6 +184,19 @@ s|(int\nsys_faccessat \(int fd, const char \*pathname, int mode, int flags\)\n\{
   fi
 fi
 
+loadup_el="${source_copy}/lisp/loadup.el"
+if [[ -f "${loadup_el}" ]] \
+  && ! grep -q 'iosmacs: Android NW without pdumper-stats' "${loadup_el}"; then
+  perl -0pi -e '
+s/\(and \(eq system-type '\''android\)\n         \(not \(pdumper-stats\)\)\)/(and (eq system-type '\''android)\n         ;; iosmacs: Android NW without pdumper-stats.\n         ;; This build uses --with-dumping=none, so pdumper functions are not\n         ;; linked.  Guard the Android repository-version helper accordingly.\n         (fboundp '\''pdumper-stats)\n         (not (pdumper-stats)))/s
+' "${loadup_el}"
+  if grep -q 'iosmacs: Android NW without pdumper-stats' "${loadup_el}"; then
+    printf 'patched lisp/loadup.el: guarded Android pdumper-stats for NW build\n'
+  else
+    printf 'warning: loadup.el pdumper-stats patch not applied (pattern may have changed)\n'
+  fi
+fi
+
 # ------------------------------------------------------------------ #
 # Step 3: Configure (without --with-android)                          #
 # ------------------------------------------------------------------ #

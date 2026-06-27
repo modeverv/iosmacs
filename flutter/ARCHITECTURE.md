@@ -290,16 +290,19 @@ fallback diagnostic surface when the NW binary is absent. The official
 `--with-android` runtime build is still valuable for libraries, assets, Java
 bridge evidence, and comparison probes, but it is not the active interactive
 Flutter-terminal path. The Android smoke now proves keyboard/IME input and
-document-provider-style `content://` workspace export against the NW route.
-The JNI PTY bridge buffers no-pdump startup chatter until the first menu-bar
-`*scratch*` frame is ready, so users see the usable terminal frame instead of
-loadup noise. Normal Android workspace export uses the system
-`ACTION_CREATE_DOCUMENT` picker, while smoke runs use a noninteractive
-content-provider export path for deterministic verification. The active NW
-startup path also defers the official `--with-android` subprocess comparison
-probe so diagnostic evidence does not block first terminal output. The likely
-hard parts are improving NW startup/runtime packaging with a real dumped/cache
-path and shrinking the fallback diagnostic surface.
+document-provider-style `content://` workspace export against the NW route. It
+also loads an app-workspace Elisp smoke file through the interactive NW
+terminal and verifies real Emacs file save/reopen plus Dired listing evidence
+inside the Android app sandbox. The JNI PTY bridge buffers no-pdump startup
+chatter until the first menu-bar `*scratch*` frame is ready, so users see the
+usable terminal frame instead of loadup noise. Normal Android workspace export
+uses the system `ACTION_CREATE_DOCUMENT` picker, while smoke runs use a
+noninteractive content-provider export path for deterministic verification.
+The active NW startup path also defers the official `--with-android`
+subprocess comparison probe so diagnostic evidence does not block first
+terminal output. The likely hard parts are improving NW startup/runtime
+packaging with a real dumped/cache path and shrinking the fallback diagnostic
+surface.
 
 The Android backend should reuse the same facade ideas as iOS where practical,
 but it should not block the Flutter shell or desktop backend work.

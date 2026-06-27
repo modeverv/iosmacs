@@ -38,6 +38,9 @@ void main() {
         'IOSMACS_FLUTTER_CAPABILITIES_SMOKE',
       ),
       runInputSmoke: const bool.fromEnvironment('IOSMACS_FLUTTER_INPUT_SMOKE'),
+      runAndroidFileOpsSmoke: const bool.fromEnvironment(
+        'IOSMACS_FLUTTER_ANDROID_FILE_OPS_SMOKE',
+      ),
       runResizeSmoke:
           const bool.fromEnvironment('IOSMACS_FLUTTER_RESIZE_SMOKE'),
       runRedrawSmoke:
@@ -57,6 +60,7 @@ class IOSMacsFlutterApp extends StatefulWidget {
     this.runWorkspaceSmoke = false,
     this.runCapabilitiesSmoke = false,
     this.runInputSmoke = false,
+    this.runAndroidFileOpsSmoke = false,
     this.runResizeSmoke = false,
     this.runRedrawSmoke = false,
     this.runStatusSmoke = false,
@@ -70,6 +74,7 @@ class IOSMacsFlutterApp extends StatefulWidget {
   final bool runWorkspaceSmoke;
   final bool runCapabilitiesSmoke;
   final bool runInputSmoke;
+  final bool runAndroidFileOpsSmoke;
   final bool runResizeSmoke;
   final bool runRedrawSmoke;
   final bool runStatusSmoke;
@@ -113,6 +118,7 @@ class _IOSMacsFlutterAppState extends State<IOSMacsFlutterApp> {
         runWorkspaceSmoke: widget.runWorkspaceSmoke,
         runCapabilitiesSmoke: widget.runCapabilitiesSmoke,
         runInputSmoke: widget.runInputSmoke,
+        runAndroidFileOpsSmoke: widget.runAndroidFileOpsSmoke,
         runResizeSmoke: widget.runResizeSmoke,
         runRedrawSmoke: widget.runRedrawSmoke,
         runStatusSmoke: widget.runStatusSmoke,
