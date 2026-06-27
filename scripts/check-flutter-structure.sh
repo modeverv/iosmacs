@@ -445,6 +445,12 @@ grep -q 'IOSMACS_FLUTTER_WORKSPACE_SMOKE=true' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_ANDROID_EXPECT_PDUMP' \
   scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'IOSMACS_ANDROID_EXPECT_PDUMP_REUSE' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'logcat-warm-relaunch.txt' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'pdump reused' \
+  scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'android-pdump.status' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_ANDROID_REQUIRE_NW:-1' \

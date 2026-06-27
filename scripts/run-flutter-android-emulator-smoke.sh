@@ -8,8 +8,10 @@ avd_name="${IOSMACS_FLUTTER_ANDROID_AVD:-iosmacs_flutter_pixel}"
 device_id="${IOSMACS_FLUTTER_ANDROID_DEVICE:-}"
 require_nw="${IOSMACS_ANDROID_REQUIRE_NW:-1}"
 expect_pdump="${IOSMACS_ANDROID_EXPECT_PDUMP:-0}"
+expect_pdump_reuse="${IOSMACS_ANDROID_EXPECT_PDUMP_REUSE:-0}"
 out_dir="$repo_root/flutter/build/android-emulator-smoke"
 screenshot="$out_dir/scratch.png"
+warm_logcat="$out_dir/logcat-warm-relaunch.txt"
 package_id="com.example.iosmacs_flutter"
 android_file_elisp_path="files/iosmacs/workspace/iosmacs-android-file-ops-smoke.el"
 android_file_marker_path="files/iosmacs/workspace/iosmacs-android-file-ops.marker"
@@ -42,6 +44,26 @@ command -v flutter >/dev/null 2>&1 || {
 }
 
 mkdir -p "$out_dir"
+
+wait_for_nw_startup() {
+  local started=0
+  local ready=0
+  local snapshot=""
+  for _ in {1..180}; do
+    snapshot="$("$adb_bin" -s "$device_id" logcat -d)"
+    if grep -q 'iosmacs Android GNU Emacs NW PTY session started' <<<"$snapshot"; then
+      started=1
+      if grep -q '\*scratch\*' <<<"$snapshot" &&
+        grep -q 'iosmacs-input-smoke: committed' <<<"$snapshot" &&
+        grep -q 'text="iosmacs input smoke"' <<<"$snapshot"; then
+        ready=1
+        break
+      fi
+    fi
+    sleep 1
+  done
+  printf '%s %s\n' "$started" "$ready"
+}
 
 if [[ -z "$device_id" ]]; then
   device_id="$("$adb_bin" devices | awk '/^emulator-[0-9]+[[:space:]]+device$/ { print $1; exit }')"
@@ -102,6 +124,10 @@ flutter build apk --debug \
 "$adb_bin" -s "$device_id" install -r "$app_dir/build/app/outputs/flutter-apk/app-debug.apk"
 "$adb_bin" -s "$device_id" shell \
   "run-as '$package_id' sh -c 'mkdir -p files/iosmacs/workspace files/iosmacs/workspace/notes'"
+if [[ "$expect_pdump" == "1" ]]; then
+  "$adb_bin" -s "$device_id" shell \
+    "run-as '$package_id' sh -c 'rm -rf files/iosmacs/emacs-pdmp files/iosmacs/etc'"
+fi
 "$adb_bin" -s "$device_id" shell \
   "run-as '$package_id' sh -c 'rm -f \"$android_file_marker_path\" \"$android_file_smoke_path\" \"$android_file_elisp_path\"'"
 cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
@@ -148,27 +174,29 @@ ELISP
 # only when deliberately exercising the legacy fallback diagnostics.
 scratch_seen=0
 nw_session_seen=0
-for _ in {1..180}; do
-  logcat_snapshot="$("$adb_bin" -s "$device_id" logcat -d)"
-  # Check for NW real Emacs PTY session
-  if grep -q 'iosmacs Android GNU Emacs NW PTY session started' <<<"$logcat_snapshot"; then
-    nw_session_seen=1
-    if grep -q '\*scratch\*' <<<"$logcat_snapshot" &&
-      grep -q 'iosmacs-input-smoke: committed' <<<"$logcat_snapshot" &&
-      grep -q 'text="iosmacs input smoke"' <<<"$logcat_snapshot"; then
+if [[ "$require_nw" == "1" ]]; then
+  read -r nw_session_seen scratch_seen < <(wait_for_nw_startup)
+else
+  for _ in {1..180}; do
+    logcat_snapshot="$("$adb_bin" -s "$device_id" logcat -d)"
+    if grep -q 'iosmacs Android GNU Emacs NW PTY session started' <<<"$logcat_snapshot"; then
+      nw_session_seen=1
+      if grep -q '\*scratch\*' <<<"$logcat_snapshot" &&
+        grep -q 'iosmacs-input-smoke: committed' <<<"$logcat_snapshot" &&
+        grep -q 'text="iosmacs input smoke"' <<<"$logcat_snapshot"; then
+        scratch_seen=1
+        break
+      fi
+    fi
+    # Fallback: check for JNI frame renderer output only when explicitly allowed.
+    if grep -q 'GNU Emacs 30.2 Android terminal frame' <<<"$logcat_snapshot" &&
+      grep -q 'Buffer: \*scratch\*' <<<"$logcat_snapshot"; then
       scratch_seen=1
       break
     fi
-  fi
-  # Fallback: check for JNI frame renderer output only when explicitly allowed.
-  if [[ "$require_nw" != "1" ]] &&
-    grep -q 'GNU Emacs 30.2 Android terminal frame' <<<"$logcat_snapshot" &&
-    grep -q 'Buffer: \*scratch\*' <<<"$logcat_snapshot"; then
-    scratch_seen=1
-    break
-  fi
-  sleep 1
-done
+    sleep 1
+  done
+fi
 
 keyboard_marker="androidadbinput"
 screen_size="$("$adb_bin" -s "$device_id" shell wm size 2>/dev/null | tr -d '\r' || true)"
@@ -269,6 +297,46 @@ if [[ "$nw_session_seen" == "1" ]]; then
       printf 'pdump size: %s\n' "$pdump_size" >&2
       exit 1
     fi
+  fi
+  if [[ "$expect_pdump_reuse" == "1" ]]; then
+    if [[ "$expect_pdump" != "1" ]]; then
+      printf 'error: IOSMACS_ANDROID_EXPECT_PDUMP_REUSE=1 requires IOSMACS_ANDROID_EXPECT_PDUMP=1\n' >&2
+      exit 1
+    fi
+    pdump_status_before="$pdump_status_text"
+    "$adb_bin" -s "$device_id" logcat -c
+    "$adb_bin" -s "$device_id" shell am force-stop "$package_id"
+    "$adb_bin" -s "$device_id" shell am start -n "$package_id/.MainActivity"
+    read -r warm_nw_session_seen warm_scratch_seen < <(wait_for_nw_startup)
+    "$adb_bin" -s "$device_id" logcat -d > "$warm_logcat"
+    pdump_status_after="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_pdump_status_path" 2>/dev/null | tr -d '\r' || true)"
+    printf '%s\n' "$pdump_status_after" > "$out_dir/android-pdump-warm.status"
+    if [[ "$warm_nw_session_seen" != "1" || "$warm_scratch_seen" != "1" ]]; then
+      printf 'error: Android warm relaunch did not reach NW *scratch* through pdmp\n' >&2
+      printf 'saved warm logcat: %s\n' "$warm_logcat" >&2
+      exit 1
+    fi
+    grep -q 'iosmacs Android GNU Emacs NW pdump reused:' "$warm_logcat" || {
+      printf 'error: Android warm relaunch did not report pdump reuse\n' >&2
+      printf 'saved warm logcat: %s\n' "$warm_logcat" >&2
+      exit 1
+    }
+    if grep -q 'iosmacs Android GNU Emacs NW pdump ready:' "$warm_logcat"; then
+      printf 'error: Android warm relaunch regenerated pdump instead of reusing it\n' >&2
+      printf 'saved warm logcat: %s\n' "$warm_logcat" >&2
+      exit 1
+    fi
+    if [[ "$pdump_status_after" != "$pdump_status_before" ]]; then
+      printf 'error: Android warm relaunch changed pdump status unexpectedly\n' >&2
+      printf 'before:\n%s\n' "$pdump_status_before" >&2
+      printf 'after:\n%s\n' "$pdump_status_after" >&2
+      exit 1
+    fi
+    grep -Eq 'iosmacs Android GNU Emacs NW interactive frame ready: terminal frame detected; elapsed_ms=[1-9][0-9]*; suppressed [0-9]+ startup byte\(s\)' \
+      "$warm_logcat" || {
+      printf 'error: Android warm relaunch startup timing marker missing\n' >&2
+      exit 1
+    }
   fi
   if grep -Eq 'I flutter : .*Loading emacs-lisp/' "$out_dir/logcat.txt"; then
     printf 'error: NW Emacs startup load chatter leaked into Flutter logs\n' >&2

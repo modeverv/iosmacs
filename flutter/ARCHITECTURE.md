@@ -304,8 +304,9 @@ export uses the system `ACTION_CREATE_DOCUMENT` picker, while smoke runs use a
 noninteractive content-provider export path for deterministic verification.
 The active NW startup path also defers the official `--with-android`
 subprocess comparison probe so diagnostic evidence does not block first
-terminal output. The likely hard parts are proving warm relaunch reuse of the
-cached pdmp and continuing to shrink the fallback diagnostic surface.
+terminal output. The emulator smoke now proves both cold pdmp generation and
+warm relaunch reuse of the cached pdmp without regeneration. The likely
+remaining hard part is continuing to shrink the fallback diagnostic surface.
 
 The Android backend should reuse the same facade ideas as iOS where practical,
 but it should not block the Flutter shell or desktop backend work.

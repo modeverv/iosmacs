@@ -1161,7 +1161,7 @@ Flutter Android GNU Emacs NDK runtime TODO:
   workspace.
 - [x] Improve Android NW startup packaging with a real dumped/runtime cache path
   so the interactive binary reaches `*scratch*` faster internally.
-- [ ] Add a dedicated Android warm-relaunch smoke that proves an existing
+- [x] Add a dedicated Android warm-relaunch smoke that proves an existing
   app-private `emacs.pdmp` is reused without regenerating it.
 
 Flutter Android GNU Emacs NDK runtime status:
@@ -1269,9 +1269,16 @@ Flutter Android GNU Emacs NDK runtime status:
   2328 ms, then reached the first interactive `*scratch*` frame in `305` ms
   with `469` suppressed startup bytes while still passing input, workspace,
   document-provider export, and file save/reopen/Dired checks.
+- `IOSMACS_ANDROID_EXPECT_PDUMP=1 IOSMACS_ANDROID_EXPECT_PDUMP_REUSE=1 make
+  flutter-android-emulator-smoke` now proves warm pdmp reuse. The smoke removes
+  the pdmp before the cold launch, verifies the cold `pdump ready` marker, then
+  force-stops and relaunches the app. The warm log must report `pdump reused`,
+  must not report a new `pdump ready`, and must preserve the pdmp status. The
+  current run generated the 11,564,416 byte pdmp in 2432 ms, reached
+  `*scratch*` in 302 ms on the cold pdmp launch, and reached `*scratch*` in
+  315 ms on warm relaunch while reusing the same pdmp.
 - Current remaining Android work: keep the official `--with-android` runtime as
-  packaged evidence/fallback, add a warm-relaunch proof that reuses the cached
-  pdmp without regeneration, and continue shrinking diagnostic/fallback surface.
+  packaged evidence/fallback and continue shrinking diagnostic/fallback surface.
 
 Flutter macOS workspace TODO:
 

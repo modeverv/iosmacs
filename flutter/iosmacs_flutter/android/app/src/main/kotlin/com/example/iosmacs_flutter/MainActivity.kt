@@ -643,6 +643,10 @@ private object NwEmacsRuntime {
     val key = "${executable.length()}:${executable.lastModified()}:$DATA_VERSION"
     val oldStatus = statusFile.takeIf { it.isFile }?.readText().orEmpty()
     if (dumpFile.isFile && oldStatus.contains("key=$key") && oldStatus.contains("status=ok")) {
+      Log.i(
+        TAG,
+        "iosmacs Android GNU Emacs NW pdump reused: ${dumpFile.absolutePath} bytes=${dumpFile.length()}",
+      )
       return dumpFile
     }
     if (oldStatus.contains("key=$key") && oldStatus.contains("status=failed")) {

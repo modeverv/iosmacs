@@ -82,6 +82,14 @@ Flutter Android NW follow-up:
   `*scratch*` frame through the pdmp route in `elapsed_ms=305` while suppressing
   only `469` startup bytes; file save/reopen/Dired proof still produced
   `iosmacs-android-file-ops-ok`.
+- Added Android NW warm-relaunch pdmp proof. With
+  `IOSMACS_ANDROID_EXPECT_PDUMP_REUSE=1`, the emulator smoke clears the pdmp
+  before the cold launch, verifies generation, then force-stops and relaunches
+  the app. The warm log must contain `iosmacs Android GNU Emacs NW pdump
+  reused`, must not contain a new `pdump ready` marker, and must keep the pdmp
+  status unchanged. The verified run generated the 11,564,416 byte pdmp in
+  2432 ms, reached `*scratch*` in 302 ms on the cold pdmp launch, then reused
+  the same pdmp and reached `*scratch*` in 315 ms on warm relaunch.
 
 Flutter Android fallback surface reduction:
 
