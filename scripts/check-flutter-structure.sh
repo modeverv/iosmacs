@@ -257,6 +257,8 @@ grep -q 'Android document-tree workspace exchange folder selection' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'Android workspace exchange folder import' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
+grep -q 'Android workspace exchange folder refresh sync' \
+  "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'Android workspace exchange folder export' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'fallback diagnostic frame running' \
@@ -564,6 +566,10 @@ grep -q 'importWorkspaceTreeDocumentChildren' \
 grep -q 'DocumentsContract.Document.MIME_TYPE_DIR' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'iosmacs Android workspace exchange import:' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'overwrite = false' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'destination.exists() && !overwrite' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'exportWorkspaceFileToTree' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"

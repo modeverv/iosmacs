@@ -126,10 +126,16 @@ Flutter Android fallback surface reduction:
   uses the deterministic app-owned content provider.
 - Expanded Android workspace zip export so app-private subdirectories such as
   `notes/` are included with relative paths instead of being silently omitted.
-- Verified the recursive Android workspace exchange import/export work with `make
-  flutter-structure-check`, targeted Flutter backend/screen tests,
-  `flutter analyze`, `git diff --check`, full `flutter test`, and `make
-  flutter-android-smoke`.
+- Added non-destructive Android exchange-folder refresh sync. Workspace
+  Refresh/list now imports files that are missing from the app-private workspace
+  from the persisted SAF tree, including nested files, while skipping existing
+  files so Emacs-side edits are not overwritten by a refresh. If the persisted
+  SAF grant cannot be read, the app logs the sync failure and still lists the
+  app-private workspace.
+- Verified the recursive Android workspace exchange import/export and
+  non-destructive refresh-sync work with `make flutter-structure-check`,
+  targeted Flutter backend/screen tests, `flutter analyze`, `git diff --check`,
+  full `flutter test`, and `make flutter-android-smoke`.
 
 Flutter Android GNU Emacs NW text-terminal display:
 

@@ -51,6 +51,10 @@ void main() {
     );
     expect(
       backend.capabilities.supportedFeatures,
+      contains('Android workspace exchange folder refresh sync'),
+    );
+    expect(
+      backend.capabilities.supportedFeatures,
       contains('Android workspace exchange folder export'),
     );
     expect(

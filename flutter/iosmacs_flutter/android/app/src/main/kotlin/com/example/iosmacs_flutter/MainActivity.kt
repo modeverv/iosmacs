@@ -153,7 +153,11 @@ private class AndroidNativeEmacsBridge(
         .edit()
         .putString(workspaceTreeUriKey, treeUri.toString())
         .apply()
-      val importedCount = importWorkspaceTreeDocuments(treeUri, prepareWorkspaceRoot())
+      val importedCount = importWorkspaceTreeDocuments(
+        treeUri,
+        prepareWorkspaceRoot(),
+        overwrite = true,
+      )
       lifecycleState = "iosmacs Android native bridge: saved workspace exchange folder"
       result.success(
         mapOf(
@@ -316,6 +320,19 @@ private class AndroidNativeEmacsBridge(
 
   private fun listWorkspace(result: MethodChannel.Result) {
     val root = prepareWorkspaceRoot()
+    var syncedCount = 0
+    var syncFailed = false
+    selectedWorkspaceTreeUri()?.let { treeUri ->
+      try {
+        syncedCount = importWorkspaceTreeDocuments(treeUri, root, overwrite = false)
+      } catch (error: Exception) {
+        syncFailed = true
+        Log.w(
+          "IOSMacsWorkspaceExport",
+          "Android workspace exchange refresh sync failed: ${error.localizedMessage}",
+        )
+      }
+    }
     val entries = root.listFiles()
       ?.sortedBy { it.name }
       ?.map { file ->
@@ -327,7 +344,14 @@ private class AndroidNativeEmacsBridge(
         )
       }
       ?: emptyList()
-    lifecycleState = "iosmacs Android native bridge: listed ${entries.size} workspace item(s)"
+    lifecycleState =
+      if (syncedCount > 0) {
+        "iosmacs Android native bridge: listed ${entries.size} workspace item(s), synced $syncedCount exchange item(s)"
+      } else if (syncFailed) {
+        "iosmacs Android native bridge: listed ${entries.size} workspace item(s), exchange sync failed"
+      } else {
+        "iosmacs Android native bridge: listed ${entries.size} workspace item(s)"
+      }
     result.success(entries)
   }
 
@@ -595,16 +619,17 @@ private class AndroidNativeEmacsBridge(
     return destination
   }
 
-  private fun importWorkspaceTreeDocuments(treeUri: Uri, root: File): Int {
+  private fun importWorkspaceTreeDocuments(treeUri: Uri, root: File, overwrite: Boolean): Int {
     root.mkdirs()
     return importWorkspaceTreeDocumentChildren(
       treeUri,
       DocumentsContract.getTreeDocumentId(treeUri),
       root,
+      overwrite,
     ).also { importedCount ->
       Log.i(
         "IOSMacsWorkspaceExport",
-        "iosmacs Android workspace exchange import: uri=$treeUri count=$importedCount",
+        "iosmacs Android workspace exchange import: uri=$treeUri overwrite=$overwrite count=$importedCount",
       )
     }
   }
@@ -613,6 +638,7 @@ private class AndroidNativeEmacsBridge(
     treeUri: Uri,
     documentId: String,
     destinationDir: File,
+    overwrite: Boolean,
   ): Int {
     destinationDir.mkdirs()
     val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
@@ -644,6 +670,7 @@ private class AndroidNativeEmacsBridge(
             treeUri,
             documentId,
             File(destinationDir, name),
+            overwrite,
           )
           continue
         }
@@ -651,8 +678,12 @@ private class AndroidNativeEmacsBridge(
           treeUri,
           documentId,
         )
+        val destination = File(destinationDir, name)
+        if (destination.exists() && !overwrite) {
+          continue
+        }
         context.contentResolver.openInputStream(sourceUri)?.use { input ->
-          File(destinationDir, name).outputStream().use { output ->
+          destination.outputStream().use { output ->
             input.copyTo(output)
           }
           importedCount += 1

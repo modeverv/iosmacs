@@ -987,6 +987,8 @@ Flutter Android native channel TODO:
   workspace exchange folder URI while keeping Emacs `/home/user` app-private.
 - [x] Import files recursively from the selected Android workspace exchange
   folder into the app-private workspace when the folder is selected.
+- [x] Sync missing files from the selected Android workspace exchange folder
+  during Workspace Refresh/list without overwriting existing app-private files.
 - [x] Use the persisted Android workspace exchange folder as the normal
   Workspace Export destination when it is available.
 - [x] Autostart Android by default now that a native channel route exists.
@@ -1012,6 +1014,12 @@ Flutter Android native channel status:
   tree into the app-private workspace, replacing same-named files. This makes
   existing user files and subfolders appear in the Emacs workspace after
   selection while preserving the native process's app-private POSIX root.
+- Workspace Refresh/list now performs a non-destructive refresh import from the
+  selected Android exchange folder. It adds files that are missing from the
+  app-private workspace, including files under subdirectories, while leaving
+  existing app-private files untouched so Emacs-side edits are not clobbered.
+  If the persisted SAF grant is unavailable, the refresh logs the sync failure
+  but still lists the app-private workspace.
 - Normal Android Workspace Export now writes the prepared workspace file or zip
   into the selected exchange folder through `DocumentsContract`; workspace zip
   export preserves app-private subdirectory relative paths. When no exchange

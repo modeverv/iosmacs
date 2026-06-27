@@ -31,6 +31,7 @@ class AndroidEmacsBackend implements EmacsBackend {
           'Android user-facing document export picker flow',
           'Android document-tree workspace exchange folder selection',
           'Android workspace exchange folder import',
+          'Android workspace exchange folder refresh sync',
           'Android workspace exchange folder export',
           'Android keyboard/IME runtime proof',
           'Android NDK GNU Emacs runtime artifact packaging',
