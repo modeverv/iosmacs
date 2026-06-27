@@ -31,6 +31,7 @@ class TerminalScreen extends StatefulWidget {
     this.runCapabilitiesSmoke = false,
     this.runInputSmoke = false,
     this.runAndroidFileOpsSmoke = false,
+    this.runPointerSmoke = false,
     this.runResizeSmoke = false,
     this.runRedrawSmoke = false,
     this.runStatusSmoke = false,
@@ -49,6 +50,7 @@ class TerminalScreen extends StatefulWidget {
   final bool runCapabilitiesSmoke;
   final bool runInputSmoke;
   final bool runAndroidFileOpsSmoke;
+  final bool runPointerSmoke;
   final bool runResizeSmoke;
   final bool runRedrawSmoke;
   final bool runStatusSmoke;
@@ -140,39 +142,43 @@ class _TerminalScreenState extends State<TerminalScreen> {
                   child: Container(
                     width: double.infinity,
                     color: const Color(0xff101214),
-                    child: TerminalView(
-                      _terminal,
-                      autofocus: true,
-                      controller: _terminalController,
-                      focusNode: _terminalFocusNode,
-                      keyboardType: TextInputType.text,
-                      onKeyEvent: _handleTerminalKeyEvent,
-                      padding: const EdgeInsets.all(12),
-                      textStyle: TerminalStyle(fontSize: _fontSize),
-                      theme: const TerminalTheme(
-                        cursor: Color(0xffeceff4),
-                        selection: Color(0xff4c566a),
-                        foreground: Color(0xffd8dee9),
-                        background: Color(0xff101214),
-                        black: Color(0xff101214),
-                        red: Color(0xffbf616a),
-                        green: Color(0xffa3be8c),
-                        yellow: Color(0xffebcb8b),
-                        blue: Color(0xff81a1c1),
-                        magenta: Color(0xffb48ead),
-                        cyan: Color(0xff88c0d0),
-                        white: Color(0xffeceff4),
-                        brightBlack: Color(0xff4c566a),
-                        brightRed: Color(0xffbf616a),
-                        brightGreen: Color(0xffa3be8c),
-                        brightYellow: Color(0xffebcb8b),
-                        brightBlue: Color(0xff81a1c1),
-                        brightMagenta: Color(0xffb48ead),
-                        brightCyan: Color(0xff8fbcbb),
-                        brightWhite: Color(0xffffffff),
-                        searchHitBackground: Color(0xff5e81ac),
-                        searchHitBackgroundCurrent: Color(0xffebcb8b),
-                        searchHitForeground: Color(0xff101214),
+                    child: Listener(
+                      behavior: HitTestBehavior.translucent,
+                      onPointerDown: _logTerminalPointerDown,
+                      child: TerminalView(
+                        _terminal,
+                        autofocus: true,
+                        controller: _terminalController,
+                        focusNode: _terminalFocusNode,
+                        keyboardType: TextInputType.text,
+                        onKeyEvent: _handleTerminalKeyEvent,
+                        padding: const EdgeInsets.all(12),
+                        textStyle: TerminalStyle(fontSize: _fontSize),
+                        theme: const TerminalTheme(
+                          cursor: Color(0xffeceff4),
+                          selection: Color(0xff4c566a),
+                          foreground: Color(0xffd8dee9),
+                          background: Color(0xff101214),
+                          black: Color(0xff101214),
+                          red: Color(0xffbf616a),
+                          green: Color(0xffa3be8c),
+                          yellow: Color(0xffebcb8b),
+                          blue: Color(0xff81a1c1),
+                          magenta: Color(0xffb48ead),
+                          cyan: Color(0xff88c0d0),
+                          white: Color(0xffeceff4),
+                          brightBlack: Color(0xff4c566a),
+                          brightRed: Color(0xffbf616a),
+                          brightGreen: Color(0xffa3be8c),
+                          brightYellow: Color(0xffebcb8b),
+                          brightBlue: Color(0xff81a1c1),
+                          brightMagenta: Color(0xffb48ead),
+                          brightCyan: Color(0xff8fbcbb),
+                          brightWhite: Color(0xffffffff),
+                          searchHitBackground: Color(0xff5e81ac),
+                          searchHitBackgroundCurrent: Color(0xffebcb8b),
+                          searchHitForeground: Color(0xff101214),
+                        ),
                       ),
                     ),
                   ),
@@ -381,6 +387,14 @@ class _TerminalScreenState extends State<TerminalScreen> {
     if (!widget.mirrorTerminalInputToLog || data.isEmpty) {
       return;
     }
+    if (data.codeUnits.any((int unit) => unit < 0x20 || unit == 0x7f)) {
+      final hex = utf8
+          .encode(data)
+          .take(80)
+          .map((int byte) => byte.toRadixString(16).padLeft(2, '0'))
+          .join(' ');
+      debugPrint('iosmacs-terminal-input-hex: bytes="$hex"');
+    }
     final printable = data
         .replaceAll('\r', '<CR>')
         .replaceAll('\n', '<LF>')
@@ -399,6 +413,17 @@ class _TerminalScreenState extends State<TerminalScreen> {
         'iosmacs-terminal-input-buffer: text="$_terminalInputMirrorBuffer"');
   }
 
+  void _logTerminalPointerDown(PointerDownEvent event) {
+    if (!widget.mirrorTerminalInputToLog) {
+      return;
+    }
+    debugPrint(
+      'iosmacs-terminal-pointer: kind=${event.kind.name}; '
+      'x=${event.localPosition.dx.toStringAsFixed(1)}; '
+      'y=${event.localPosition.dy.toStringAsFixed(1)}',
+    );
+  }
+
   Future<void> _runStartupSmokes() async {
     if (widget.runCapabilitiesSmoke) {
       _logCapabilitiesSmoke(widget.backend.capabilities);
@@ -415,6 +440,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
     }
     if (widget.runAndroidFileOpsSmoke) {
       await _runAndroidFileOpsSmoke();
+    }
+    if (widget.runPointerSmoke) {
+      await _runPointerSmoke();
     }
     if (widget.runResizeSmoke) {
       await _runResizeSmoke();
@@ -534,6 +562,35 @@ class _TerminalScreenState extends State<TerminalScreen> {
   void _logAndroidFileOpsSmoke(String message) {
     if (widget.mirrorTerminalOutputToLog) {
       debugPrint('iosmacs-android-file-ops-smoke: $message');
+    }
+  }
+
+  Future<void> _runPointerSmoke() async {
+    for (var attempt = 0; attempt < 24; attempt += 1) {
+      if (_terminal.mouseMode != MouseMode.none) {
+        break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    final down = _terminal.mouseInput(
+      TerminalMouseButton.left,
+      TerminalMouseButtonState.down,
+      const CellOffset(2, 2),
+    );
+    final up = _terminal.mouseInput(
+      TerminalMouseButton.left,
+      TerminalMouseButtonState.up,
+      const CellOffset(2, 2),
+    );
+    _logPointerSmoke(
+      'mode=${_terminal.mouseMode.name}; down=$down; up=$up',
+    );
+  }
+
+  void _logPointerSmoke(String message) {
+    if (widget.mirrorTerminalOutputToLog) {
+      debugPrint('iosmacs-pointer-smoke: $message');
     }
   }
 

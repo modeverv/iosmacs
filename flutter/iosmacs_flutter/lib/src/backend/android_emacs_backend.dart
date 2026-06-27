@@ -35,6 +35,7 @@ class AndroidEmacsBackend implements EmacsBackend {
           'Android workspace exchange folder export',
           'Android INTERNET permission for Emacs network processes',
           'Android keyboard/IME runtime proof',
+          'Android xterm pointer/mouse runtime proof',
           'Android NDK GNU Emacs runtime artifact packaging',
           'Android GNU Emacs Java bridge packaging',
           'terminal input and resize channel calls',

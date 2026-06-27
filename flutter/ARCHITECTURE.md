@@ -331,9 +331,13 @@ success is the first usable `*scratch*` terminal frame, not merely successful
 invalidates the cached pdmp, records `reason=startup_failed`, and retries the
 same startup without `--dump-file`. `make flutter-android-parity-smoke`
 requires pdump generation, warm reuse, corrupt-pdump recovery, network, command
-discovery, workspace, and relaunch evidence. The Android capability surface now
-presents the NW PTY route as the supported interactive path and keeps the
-stateful frame renderer on the diagnostic-only side. The
+discovery, pointer/mouse reporting, workspace, and relaunch evidence. The
+Android emulator smoke enables `xterm-mouse-mode`, taps the Flutter terminal
+body through ADB, and requires an Emacs-side `iosmacs-android-pointer-ok`
+marker so Android touch input is proved at the same terminal byte boundary as
+keyboard input. The Android capability surface now presents the NW PTY route as
+the supported interactive path and keeps the stateful frame renderer on the
+diagnostic-only side. The
 likely remaining hard part is continuing to audit and shrink fallback
 diagnostic surface that can still leak into normal workflows.
 

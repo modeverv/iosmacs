@@ -23,6 +23,7 @@ android_file_marker_path="files/iosmacs/workspace/iosmacs-android-file-ops.marke
 android_file_smoke_path="files/iosmacs/workspace/notes/iosmacs-android-file-smoke.txt"
 android_commands_marker_path="files/iosmacs/workspace/iosmacs-android-commands.marker"
 android_network_marker_path="files/iosmacs/workspace/iosmacs-android-network.marker"
+android_pointer_marker_path="files/iosmacs/workspace/iosmacs-android-pointer.marker"
 android_pdump_status_path="files/iosmacs/emacs-pdmp/emacs.pdmp.status"
 android_pdump_path="files/iosmacs/emacs-pdmp/emacs.pdmp"
 
@@ -143,6 +144,7 @@ flutter build apk --debug \
   --dart-define=IOSMACS_FLUTTER_STATUS_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_INPUT_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_ANDROID_FILE_OPS_SMOKE=true \
+  --dart-define=IOSMACS_FLUTTER_POINTER_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_RESIZE_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_REDRAW_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_WORKSPACE_SMOKE=true
@@ -156,7 +158,7 @@ if [[ "$expect_pdump" == "1" ]]; then
     "run-as '$package_id' sh -c 'rm -rf files/iosmacs/emacs-pdmp files/iosmacs/etc'"
 fi
 "$adb_bin" -s "$device_id" shell \
-  "run-as '$package_id' sh -c 'rm -f \"$android_file_marker_path\" \"$android_file_smoke_path\" \"$android_commands_marker_path\" \"$android_network_marker_path\" \"$android_file_elisp_path\"'"
+  "run-as '$package_id' sh -c 'rm -f \"$android_file_marker_path\" \"$android_file_smoke_path\" \"$android_commands_marker_path\" \"$android_network_marker_path\" \"$android_pointer_marker_path\" \"$android_file_elisp_path\"'"
 cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
   "run-as '$package_id' sh -c 'cat > \"$android_file_elisp_path\"'"
 (let ((marker (expand-file-name "iosmacs-android-file-ops.marker" "~")))
@@ -217,6 +219,32 @@ cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
       (format "iosmacs-android-commands-error:%S\n" err)
       nil marker nil nil)
      (message "iosmacs-android-commands-error:%S" err))))
+ELISP
+cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
+  "run-as '$package_id' sh -c 'cat >> \"$android_file_elisp_path\"'"
+
+(let ((marker (expand-file-name "iosmacs-android-pointer.marker" "~")))
+  (condition-case err
+      (progn
+        (require 'xt-mouse)
+        (xterm-mouse-mode 1)
+        (let ((handler
+               `(lambda (event)
+                  (interactive "e")
+                  (write-region
+                   (format "iosmacs-android-pointer-ok:%S\n" event)
+                   nil ,marker nil nil)
+                  (message "iosmacs-android-pointer-ok:%S" event))))
+          (global-set-key [down-mouse-1] handler)
+          (global-set-key [mouse-1] handler)
+          (global-set-key [drag-mouse-1] handler))
+        (write-region "iosmacs-android-pointer-ready\n" nil marker nil nil)
+        (message "iosmacs-android-pointer-ready"))
+    (error
+     (write-region
+      (format "iosmacs-android-pointer-error:%S\n" err)
+      nil marker nil nil)
+     (message "iosmacs-android-pointer-error:%S" err))))
 ELISP
 if [[ "$expect_network" == "1" ]]; then
   cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
@@ -303,25 +331,14 @@ if [[ "$screen_size" =~ ([0-9]+)x([0-9]+) ]]; then
   tap_x=$((BASH_REMATCH[1] / 2))
   tap_y=$((BASH_REMATCH[2] * 3 / 4))
 fi
-"$adb_bin" -s "$device_id" shell input tap "$tap_x" "$tap_y" >/dev/null 2>&1 || true
-sleep 0.5
-"$adb_bin" -s "$device_id" shell input text "$keyboard_marker"
-"$adb_bin" -s "$device_id" shell input keyevent ENTER >/dev/null 2>&1 || true
 keyboard_seen=0
-for _ in {1..30}; do
-  logcat_snapshot="$("$adb_bin" -s "$device_id" logcat -d)"
-  if grep -q "iosmacs-terminal-input-buffer: text=.*${keyboard_marker}" <<<"$logcat_snapshot"; then
-    keyboard_seen=1
-    break
-  fi
-  sleep 1
-done
 
 file_ops_seen=0
 file_ops_marker_text=""
 file_ops_saved_text=""
 commands_marker_text=""
 network_marker_text=""
+pointer_marker_text=""
 pdump_status_text=""
 pdump_size=""
 for _ in {1..60}; do
@@ -341,6 +358,33 @@ for _ in {1..30}; do
   fi
   sleep 1
 done
+for _ in {1..30}; do
+  pointer_marker_text="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_pointer_marker_path" 2>/dev/null | tr -d '\r' || true)"
+  if grep -q 'iosmacs-android-pointer-ready' <<<"$pointer_marker_text"; then
+    break
+  fi
+  sleep 1
+done
+"$adb_bin" -s "$device_id" shell input tap "$tap_x" "$tap_y" >/dev/null 2>&1 || true
+for _ in {1..30}; do
+  pointer_marker_text="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_pointer_marker_path" 2>/dev/null | tr -d '\r' || true)"
+  if grep -q 'iosmacs-android-pointer-ok' <<<"$pointer_marker_text"; then
+    break
+  fi
+  sleep 1
+done
+"$adb_bin" -s "$device_id" shell input tap "$tap_x" "$tap_y" >/dev/null 2>&1 || true
+sleep 0.5
+"$adb_bin" -s "$device_id" shell input text "$keyboard_marker"
+"$adb_bin" -s "$device_id" shell input keyevent ENTER >/dev/null 2>&1 || true
+for _ in {1..30}; do
+  logcat_snapshot="$("$adb_bin" -s "$device_id" logcat -d)"
+  if grep -q "iosmacs-terminal-input-buffer: text=.*${keyboard_marker}" <<<"$logcat_snapshot"; then
+    keyboard_seen=1
+    break
+  fi
+  sleep 1
+done
 pdump_status_text="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_pdump_status_path" 2>/dev/null | tr -d '\r' || true)"
 pdump_size="$("$adb_bin" -s "$device_id" shell run-as "$package_id" stat -c %s "$android_pdump_path" 2>/dev/null | tr -d '\r' || true)"
 if [[ "$expect_network" == "1" ]]; then
@@ -356,6 +400,7 @@ printf '%s\n' "$file_ops_marker_text" > "$out_dir/android-file-ops.marker"
 printf '%s\n' "$file_ops_saved_text" > "$out_dir/android-file-smoke.txt"
 printf '%s\n' "$commands_marker_text" > "$out_dir/android-commands.marker"
 printf '%s\n' "$network_marker_text" > "$out_dir/android-network.marker"
+printf '%s\n' "$pointer_marker_text" > "$out_dir/android-pointer.marker"
 printf '%s\n' "$pdump_status_text" > "$out_dir/android-pdump.status"
 
 "$adb_bin" -s "$device_id" logcat -d > "$out_dir/logcat.txt"
@@ -391,6 +436,12 @@ fi
 if [[ "$expect_network" == "1" ]] && ! grep -q 'iosmacs-android-network-ok' "$out_dir/android-network.marker"; then
   printf 'error: Android Emacs network smoke marker did not report ok\n' >&2
   cat "$out_dir/android-network.marker" >&2 || true
+  printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2
+  exit 1
+fi
+if ! grep -q 'iosmacs-android-pointer-ok' "$out_dir/android-pointer.marker"; then
+  printf 'error: Android Emacs pointer/mouse smoke marker did not report ok\n' >&2
+  cat "$out_dir/android-pointer.marker" >&2 || true
   printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2
   exit 1
 fi
@@ -607,6 +658,15 @@ grep -q 'iosmacs-android-commands-ok' "$out_dir/android-commands.marker" || {
 }
 grep -q 'iosmacs-android-commands-ok' "$out_dir/logcat.txt" || {
   printf 'error: did not observe Android Emacs command discovery log evidence\n' >&2
+  exit 1
+}
+grep -q 'iosmacs-android-pointer-ok' "$out_dir/android-pointer.marker" || {
+  printf 'error: Android Emacs pointer/mouse marker did not report ok\n' >&2
+  cat "$out_dir/android-pointer.marker" >&2 || true
+  exit 1
+}
+grep -q 'iosmacs-android-pointer-ok' "$out_dir/logcat.txt" || {
+  printf 'error: did not observe Android Emacs pointer/mouse log evidence\n' >&2
   exit 1
 }
 if [[ "$expect_network" == "1" ]]; then

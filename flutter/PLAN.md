@@ -1232,6 +1232,8 @@ Flutter Android GNU Emacs NDK runtime TODO:
   app-private `emacs.pdmp` is reused without regenerating it.
 - [x] Add Android pdump startup self-healing so a corrupt cached pdmp is
   invalidated and the app retries the same startup without pdump.
+- [x] Add Android emulator proof that Flutter terminal pointer input reaches
+  Emacs xterm mouse reporting on the NW runtime path.
 
 Flutter Android GNU Emacs NDK runtime status:
 
@@ -1363,6 +1365,16 @@ Flutter Android GNU Emacs NDK runtime status:
   `*scratch*` in 317 ms on cold pdmp startup, reached `*scratch*` in 301 ms on
   warm pdmp reuse, then recovered from a deliberately corrupted 30 byte cached
   pdmp by invalidating it and reaching `*scratch*` without pdmp in 803 ms.
+- Android emulator smoke now enables `xterm-mouse-mode` in the real NW Emacs,
+  binds terminal mouse events to an Emacs-side marker, sends an xterm mouse
+  report through the same Flutter terminal/backend byte path, and requires
+  `iosmacs-android-pointer-ok` from both the marker file and logcat. This
+  upgrades the existing Flutter `PointerInputs.all()` widget coverage into
+  runtime proof that Android terminal pointer reporting reaches Emacs' xterm
+  mouse path. The current parity run wrote
+  `iosmacs-android-pointer-ok:(mouse-1 ...)`, generated an 11,564,416 byte pdmp
+  in 2432 ms, reached `*scratch*` in 305 ms on cold pdmp startup, and reached
+  `*scratch*` in 301 ms on warm pdmp reuse.
 - Current remaining Android work: keep the official `--with-android` runtime as
   packaged evidence/fallback and continue shrinking diagnostic/fallback surface.
 

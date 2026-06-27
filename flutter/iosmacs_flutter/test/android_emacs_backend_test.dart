@@ -67,6 +67,10 @@ void main() {
     );
     expect(
       backend.capabilities.supportedFeatures,
+      contains('Android xterm pointer/mouse runtime proof'),
+    );
+    expect(
+      backend.capabilities.supportedFeatures,
       contains('Android NDK GNU Emacs runtime artifact packaging'),
     );
     expect(

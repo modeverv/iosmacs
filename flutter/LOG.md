@@ -110,6 +110,24 @@ Flutter Android NW follow-up:
   301 ms on warm relaunch, then recovered from a deliberately corrupted 30 byte
   cached pdmp by invalidating it and reaching `*scratch*` without pdmp in
   803 ms.
+- Added Android terminal pointer/mouse runtime proof. The Flutter terminal now
+  exposes `IOSMACS_FLUTTER_POINTER_SMOKE`, waits until xterm mouse reporting is
+  active, sends a synthetic left-button mouse down/up through the same terminal
+  output and backend byte path used by user pointer reporting, and logs
+  `iosmacs-pointer-smoke:` evidence.
+- Extended the Android emulator smoke Elisp to enable `xterm-mouse-mode`, bind
+  terminal mouse events to `iosmacs-android-pointer.marker`, and require
+  `iosmacs-android-pointer-ok` in both marker and logcat output. The Android
+  backend capability list now advertises `Android xterm pointer/mouse runtime
+  proof`.
+- Verified the pointer proof with `make flutter-structure-check`, targeted
+  Flutter tests, `make flutter-android-emulator-smoke`, and `make
+  flutter-android-parity-smoke`. The parity run wrote
+  `iosmacs-android-pointer-ok:(mouse-1 ...)`, generated an 11,564,416 byte pdmp
+  in 2432 ms, reached `*scratch*` in 305 ms on cold pdmp startup, reused the
+  pdmp and reached `*scratch*` in 301 ms on warm relaunch, then recovered from a
+  deliberately corrupted 30 byte cached pdmp by invalidating it and reaching
+  `*scratch*` without pdmp in 811 ms.
 
 Flutter Android fallback surface reduction:
 

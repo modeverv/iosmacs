@@ -263,6 +263,8 @@ grep -q 'Android workspace exchange folder export' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'Android INTERNET permission for Emacs network processes' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
+grep -q 'Android xterm pointer/mouse runtime proof' \
+  "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'android.permission.INTERNET' \
   "$app_dir/android/app/src/main/AndroidManifest.xml"
 grep -q 'fallback diagnostic frame running' \
@@ -459,9 +461,23 @@ grep -q 'IOSMACS_FLUTTER_INPUT_SMOKE=true' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_FLUTTER_ANDROID_FILE_OPS_SMOKE=true' \
   scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'IOSMACS_FLUTTER_POINTER_SMOKE=true' \
+  scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_FLUTTER_MIRROR_TERMINAL_INPUT=true' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_FLUTTER_WORKSPACE_SMOKE=true' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-android-pointer.marker' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'xterm-mouse-mode 1' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-android-pointer-ok' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-pointer-smoke' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'IOSMACS_FLUTTER_POINTER_SMOKE' \
+  "$app_dir/lib/main.dart"
+grep -q 'Android Emacs pointer/mouse smoke marker did not report ok' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_ANDROID_EXPECT_PDUMP' \
   scripts/run-flutter-android-emulator-smoke.sh

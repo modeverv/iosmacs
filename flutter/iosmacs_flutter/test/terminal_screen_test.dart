@@ -72,6 +72,10 @@ void main() {
     expect(
         find.text('Android GNU Emacs NW PTY terminal route'), findsOneWidget);
     expect(
+      find.text('Android xterm pointer/mouse runtime proof'),
+      findsOneWidget,
+    );
+    expect(
       find.text('Android fallback diagnostic frame renderer'),
       findsNothing,
     );
