@@ -35,6 +35,14 @@ void main() {
     );
     expect(
       backend.capabilities.supportedFeatures,
+      contains('Android document-provider content URI export'),
+    );
+    expect(
+      backend.capabilities.supportedFeatures,
+      contains('Android keyboard/IME runtime proof'),
+    );
+    expect(
+      backend.capabilities.supportedFeatures,
       contains('Android NDK GNU Emacs runtime artifact packaging'),
     );
     expect(
@@ -47,7 +55,7 @@ void main() {
     );
     expect(
       backend.capabilities.unsupportedFeatures,
-      contains('Android document provider export picker proof'),
+      contains('Android user-facing document export picker flow'),
     );
   });
 
@@ -200,8 +208,8 @@ void main() {
           return 1;
         case 'exportWorkspace':
           return <String>[
-            'file:///data/user/0/com.example.iosmacs_flutter/files/'
-                'iosmacs/workspace/scratch.el',
+            'content://com.example.iosmacs_flutter.workspace_export/'
+                'exports/scratch.el',
           ];
         default:
           return null;
@@ -224,7 +232,8 @@ void main() {
     expect(importedCount, 1);
 
     final exported = await backend.exportWorkspaceSelection();
-    expect(exported.single.scheme, 'file');
+    expect(exported.single.scheme, 'content');
+    expect(exported.single.authority, contains('workspace_export'));
     expect(backend.diagnostics.value.workspaceActions, 3);
   });
 }

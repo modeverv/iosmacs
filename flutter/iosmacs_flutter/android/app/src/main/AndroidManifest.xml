@@ -30,6 +30,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <provider
+            android:name=".WorkspaceExportProvider"
+            android:authorities="${applicationId}.workspace_export"
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

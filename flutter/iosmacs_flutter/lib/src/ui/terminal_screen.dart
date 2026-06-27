@@ -456,6 +456,10 @@ class _TerminalScreenState extends State<TerminalScreen> {
     }
     final exports = await widget.backend.exportWorkspaceSelection();
     _logSmoke('workspace export candidate(s): ${exports.length}');
+    _logSmoke(
+      'workspace export uri(s): '
+      '${exports.map((Uri uri) => uri.toString()).join(', ')}',
+    );
     if (widget.runStopSmoke) {
       await _runStopSmoke();
     }

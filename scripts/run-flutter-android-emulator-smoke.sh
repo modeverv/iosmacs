@@ -268,6 +268,16 @@ grep -q 'iosmacs-workspace-smoke: workspace export candidate(s):' "$out_dir/logc
   printf 'error: did not observe Android workspace export smoke evidence\n' >&2
   exit 1
 }
+grep -q 'iosmacs-workspace-smoke: workspace export uri(s): content://com.example.iosmacs_flutter.workspace_export/' \
+  "$out_dir/logcat.txt" || {
+  printf 'error: did not observe Android document-provider export URI evidence\n' >&2
+  exit 1
+}
+grep -Eq 'iosmacs Android document-provider export: uri=content://com\.example\.iosmacs_flutter\.workspace_export/.+ bytes=[1-9][0-9]*' \
+  "$out_dir/logcat.txt" || {
+  printf 'error: did not observe Android document-provider export byte evidence\n' >&2
+  exit 1
+}
 
 "$adb_bin" -s "$device_id" exec-out screencap -p > "$screenshot"
 focused="$("$adb_bin" -s "$device_id" shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' || true)"

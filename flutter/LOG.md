@@ -27,6 +27,11 @@ Flutter Android NW follow-up:
 - Verified the ADB keyboard proof with `dart format`, shell syntax checks,
   `git diff --check`, `make flutter-structure-check`, targeted Flutter widget
   tests, `flutter analyze`, and `make flutter-android-emulator-smoke`.
+- Added an Android `WorkspaceExportProvider` and changed native workspace
+  export to copy files through `ContentResolver.openOutputStream()` to
+  `content://com.example.iosmacs_flutter.workspace_export/...` URIs.
+- Extended the Android emulator smoke so the NW route must now prove returned
+  document-provider export URIs and native byte-count evidence in logcat.
 
 Flutter Android fallback surface reduction:
 

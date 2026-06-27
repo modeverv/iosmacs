@@ -439,10 +439,22 @@ grep -q 'iosmacs-workspace-smoke: workspace open requested:' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs-workspace-smoke: workspace export candidate(s):' \
   scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'workspace export uri(s): content://com.example.iosmacs_flutter.workspace_export/' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs Android document-provider export: uri=content://com\\.example\\.iosmacs_flutter\\.workspace_export/' \
+  scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs/workspace' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'contentResolver.openInputStream' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'WorkspaceExportProvider' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'contentResolver.openOutputStream' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'document-provider-export' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'workspace_export' \
+  "$app_dir/android/app/src/main/AndroidManifest.xml"
 grep -q 'DesktopEmacsPlatform.linux' \
   "$app_dir/lib/src/backend/desktop_emacs_backend.dart"
 grep -q 'DesktopEmacsPlatform.windows' \
@@ -1063,6 +1075,8 @@ grep -q 'IOSMACS_FLUTTER_AUTOSTART_NATIVE' \
   flutter/ARCHITECTURE.md
 grep -q 'IOSMACS_FLUTTER_MIRROR_TERMINAL_OUTPUT' \
   flutter/ARCHITECTURE.md
+grep -q 'IOSMACS_FLUTTER_MIRROR_TERMINAL_INPUT' \
+  flutter/ARCHITECTURE.md
 grep -q 'IOSMACS_FLUTTER_WORKSPACE_SMOKE' \
   flutter/ARCHITECTURE.md
 grep -q 'IOSMACS_FLUTTER_CAPABILITIES_SMOKE' \
@@ -1102,6 +1116,10 @@ grep -q 'capability, input, resize, redraw, status smoke output, workspace smoke
 grep -q 'list/import/open/export output, and stop smoke output' \
   flutter/ARCHITECTURE.md
 grep -q 'status smoke output' \
+  flutter/ARCHITECTURE.md
+grep -q 'make flutter-android-emulator-smoke' \
+  flutter/ARCHITECTURE.md
+grep -q 'document-provider content export' \
   flutter/ARCHITECTURE.md
 
 if grep -q 'FakeEmacsBackend()' "$app_dir/lib/main.dart"; then

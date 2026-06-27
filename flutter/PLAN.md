@@ -1151,9 +1151,9 @@ Flutter Android GNU Emacs NDK runtime TODO:
   `libemacs_nw.so` is the active interactive terminal path.
 - [x] Add Android emulator ADB keyboard/IME input proof against the NW runtime
   path.
+- [x] Add Android document-provider export proof against the NW runtime path.
 - [ ] Improve Android NW startup packaging so the interactive binary can avoid
   long no-pdump load output and reach `*scratch*` faster.
-- [ ] Add Android document-provider export proof against the NW runtime path.
 
 Flutter Android GNU Emacs NDK runtime status:
 
@@ -1213,9 +1213,14 @@ Flutter Android GNU Emacs NDK runtime status:
   `iosmacs-terminal-input-buffer` log evidence before accepting the run. This
   proves Android keyboard/IME input reaches the terminal input bridge while the
   NW route is active.
+- Android workspace export now writes exported workspace files through
+  `ContentResolver.openOutputStream()` to app-owned
+  `content://com.example.iosmacs_flutter.workspace_export/...` URIs, and the
+  emulator smoke requires both returned content URI evidence and native byte
+  evidence while the NW route is active.
 - Current remaining Android work: keep the official `--with-android` runtime as
-  packaged evidence/fallback, speed up NW startup packaging, and prove Android
-  document-provider export behavior against the real NW runtime.
+  packaged evidence/fallback, speed up NW startup packaging, and add the
+  user-facing Android document export picker flow.
 
 Flutter macOS workspace TODO:
 

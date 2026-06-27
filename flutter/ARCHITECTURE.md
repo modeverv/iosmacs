@@ -289,9 +289,11 @@ The older JNI frame renderer in `libiosmacs_android_runtime.so` remains as a
 fallback diagnostic surface when the NW binary is absent. The official
 `--with-android` runtime build is still valuable for libraries, assets, Java
 bridge evidence, and comparison probes, but it is not the active interactive
-Flutter-terminal path. The likely hard parts are improving NW startup/runtime
-packaging, document-provider export UX, keyboard/IME behavior, and shrinking the
-fallback diagnostic surface.
+Flutter-terminal path. The Android smoke now proves keyboard/IME input and
+document-provider-style `content://` workspace export against the NW route.
+The likely hard parts are improving NW startup/runtime packaging, adding the
+user-facing document export picker flow, and shrinking the fallback diagnostic
+surface.
 
 The Android backend should reuse the same facade ideas as iOS where practical,
 but it should not block the Flutter shell or desktop backend work.
@@ -315,6 +317,9 @@ The Flutter entry point accepts these compile-time environment flags through
 - `IOSMACS_FLUTTER_AUTOSTART_NATIVE`: start the selected backend after launch.
 - `IOSMACS_FLUTTER_MIRROR_TERMINAL_OUTPUT`: mirror terminal output to the debug
   log with an `iosmacs-terminal-output:` prefix.
+- `IOSMACS_FLUTTER_MIRROR_TERMINAL_INPUT`: mirror terminal input to the debug
+  log with an `iosmacs-terminal-input-buffer:` prefix for Android keyboard
+  smoke evidence.
 - `IOSMACS_FLUTTER_WORKSPACE_SMOKE`: run workspace capability smoke actions
   after startup and log `iosmacs-workspace-smoke:` list, import, open, and
   export evidence.
@@ -369,8 +374,9 @@ Focused targets are available when iterating:
 - `make flutter-android-smoke` builds the Android APK target.
 - `make flutter-android-emulator-smoke` builds, installs, and launches the
   Android APK on `iosmacs_flutter_pixel`, then checks capability, status,
-  input, resize, redraw, terminal output, and `*scratch*` screenshot evidence.
-  By default it requires the packaged `libemacs_nw.so` route; set
+  input, keyboard, resize, redraw, terminal output, workspace import/open,
+  document-provider content export, and `*scratch*` screenshot evidence. By
+  default it requires the packaged `libemacs_nw.so` route; set
   `IOSMACS_ANDROID_REQUIRE_NW=0` only to exercise fallback diagnostics.
 - `make flutter-android-emacs-configure` configures the vendored GNU Emacs
   Android port with the local Android SDK/NDK into

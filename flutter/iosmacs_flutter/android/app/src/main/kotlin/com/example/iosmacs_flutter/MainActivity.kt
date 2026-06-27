@@ -2,8 +2,14 @@ package com.example.iosmacs_flutter
 
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ContentProvider
+import android.content.ContentValues
 import android.content.Context
+import android.database.Cursor
+import android.database.MatrixCursor
 import android.net.Uri
+import android.os.ParcelFileDescriptor
+import android.provider.OpenableColumns
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -232,13 +238,16 @@ private class AndroidNativeEmacsBridge(
   private fun exportWorkspace(result: MethodChannel.Result) {
     val root = prepareWorkspaceRoot()
     val files = root.listFiles()?.sortedBy { it.name }.orEmpty()
-    val uris = if (files.isEmpty()) {
-      listOf(Uri.fromFile(root).toString())
+    val exportFiles = if (files.isEmpty()) {
+      listOf(createWorkspaceRootExport(root))
     } else {
-      files.map { Uri.fromFile(it).toString() }
+      files.filter { it.isFile }
+    }
+    val uris = exportFiles.mapNotNull { file ->
+      exportWorkspaceFileToDocumentProvider(file)
     }
     lifecycleState = "iosmacs Android native bridge: exported ${uris.size} workspace item(s)"
-    result.success(uris)
+    result.success(uris.map { it.toString() })
   }
 
   private fun selectWorkspaceRoot(result: MethodChannel.Result) {
@@ -301,8 +310,124 @@ private class AndroidNativeEmacsBridge(
     return root
   }
 
+  private fun createWorkspaceRootExport(root: File): File {
+    val file = File(root, "workspace-root.txt")
+    if (!file.exists()) {
+      file.writeText("iosmacs Android workspace root: ${root.absolutePath}\n")
+    }
+    return file
+  }
+
+  private fun exportWorkspaceFileToDocumentProvider(file: File): Uri? {
+    val uri = WorkspaceExportProvider.uriFor(context, file.name)
+    return try {
+      context.contentResolver.openOutputStream(uri, "wt")?.use { output ->
+        file.inputStream().use { input ->
+          input.copyTo(output)
+        }
+      } ?: return null
+      Log.i(
+        "IOSMacsWorkspaceExport",
+        "iosmacs Android document-provider export: uri=$uri bytes=${file.length()}",
+      )
+      uri
+    } catch (error: Exception) {
+      Log.e(
+        "IOSMacsWorkspaceExport",
+        "iosmacs Android document-provider export failed: ${error.localizedMessage}",
+      )
+      null
+    }
+  }
+
   private fun ClipData.Item.firstText(): String =
     coerceToText(context)?.toString() ?: ""
+}
+
+class WorkspaceExportProvider : ContentProvider() {
+  companion object {
+    private const val EXPORT_SEGMENT = "exports"
+
+    fun uriFor(context: Context, fileName: String): Uri =
+      Uri.Builder()
+        .scheme("content")
+        .authority("${context.packageName}.workspace_export")
+        .appendPath(EXPORT_SEGMENT)
+        .appendPath(fileName)
+        .build()
+
+    private fun exportRoot(context: Context): File =
+      File(context.cacheDir, "iosmacs/document-provider-export").apply {
+        mkdirs()
+      }
+  }
+
+  override fun onCreate(): Boolean = true
+
+  override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
+    val context = context ?: throw IllegalStateException("provider context unavailable")
+    val file = resolveFile(context, uri)
+    val accessMode = if (mode.contains("w")) {
+      file.parentFile?.mkdirs()
+      ParcelFileDescriptor.MODE_CREATE or
+        ParcelFileDescriptor.MODE_TRUNCATE or
+        ParcelFileDescriptor.MODE_WRITE_ONLY
+    } else {
+      ParcelFileDescriptor.MODE_READ_ONLY
+    }
+    return ParcelFileDescriptor.open(file, accessMode)
+  }
+
+  override fun query(
+    uri: Uri,
+    projection: Array<out String>?,
+    selection: String?,
+    selectionArgs: Array<out String>?,
+    sortOrder: String?,
+  ): Cursor {
+    val context = context ?: throw IllegalStateException("provider context unavailable")
+    val file = resolveFile(context, uri)
+    val columns = projection ?: arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE)
+    return MatrixCursor(columns).apply {
+      val row = arrayOfNulls<Any>(columns.size)
+      columns.forEachIndexed { index, column ->
+        row[index] = when (column) {
+          OpenableColumns.DISPLAY_NAME -> file.name
+          OpenableColumns.SIZE -> file.length()
+          else -> null
+        }
+      }
+      addRow(row)
+    }
+  }
+
+  override fun getType(uri: Uri): String = "application/octet-stream"
+
+  override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+
+  override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int = 0
+
+  override fun update(
+    uri: Uri,
+    values: ContentValues?,
+    selection: String?,
+    selectionArgs: Array<out String>?,
+  ): Int = 0
+
+  private fun resolveFile(context: Context, uri: Uri): File {
+    val segments = uri.pathSegments
+    require(segments.size == 2 && segments[0] == EXPORT_SEGMENT) {
+      "Unsupported workspace export URI: $uri"
+    }
+    val root = exportRoot(context)
+    val file = File(root, segments[1])
+    val rootPath = root.canonicalPath
+    val filePath = file.canonicalPath
+    require(filePath == rootPath || filePath.startsWith("$rootPath/")) {
+      "Workspace export URI escapes export root: $uri"
+    }
+    return file
+  }
 }
 
 private object AndroidNativeEmacsRuntime {
