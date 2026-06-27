@@ -38,6 +38,7 @@ class AndroidEmacsBackend implements EmacsBackend {
           'Android Japanese committed UTF-8 runtime proof',
           'Android xterm pointer/mouse runtime proof',
           'Android Ctrl/Meta modifier key row for terminal input',
+          'Android inline terminal input with IME and keyboard support',
           'Android NDK GNU Emacs runtime artifact packaging',
           'Android GNU Emacs Java bridge packaging',
           'terminal input and resize channel calls',

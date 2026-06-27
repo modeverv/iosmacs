@@ -106,9 +106,8 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(TerminalView), findsOneWidget);
-    expect(find.byType(TextField), findsOneWidget);
     expect(find.byTooltip('Start'), findsOneWidget);
-    expect(find.byTooltip('Send'), findsOneWidget);
+    expect(find.byTooltip('Show input row'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();

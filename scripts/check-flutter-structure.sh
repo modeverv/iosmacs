@@ -851,9 +851,7 @@ grep -q "tooltip: 'Send'" \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'Icons.send' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
-grep -q "tooltip: 'Paste'" \
-  "$app_dir/lib/src/ui/terminal_screen.dart"
-grep -q 'Icons.content_paste' \
+grep -q "tooltip: 'Paste from clipboard'" \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'Clipboard.getData' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
@@ -1376,6 +1374,28 @@ grep -q 'Ctrl modifier converts letter to Ctrl byte' \
   "$app_dir/test/terminal_screen_test.dart"
 grep -q 'Meta modifier sends ESC prefix before text' \
   "$app_dir/test/terminal_screen_test.dart"
+grep -q '_handleTerminalOutput' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q '_showInputRow' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q '_requestTerminalFocus' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'input row is hidden by default' \
+  "$app_dir/test/terminal_screen_test.dart"
+grep -q 'Ctrl modifier via terminal inline input' \
+  "$app_dir/test/terminal_screen_test.dart"
+grep -q 'Meta modifier via terminal inline input' \
+  "$app_dir/test/terminal_screen_test.dart"
+grep -q 'M-x (execute-extended-command)' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'Focus terminal and show keyboard' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'Show input row' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'onToggleInputRow' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'KeyDownEvent' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
 
 if grep -q 'FakeEmacsBackend()' "$app_dir/lib/main.dart"; then
   printf 'error: main.dart must construct backends through createEmacsBackend()\n' >&2

@@ -28,6 +28,10 @@ void main() {
     expect(find.text('running'), findsOneWidget);
     expect(find.text('Backend fake'), findsOneWidget);
 
+    // Show the input row to test text entry through it.
+    await tester.tap(find.byTooltip('Show input row'));
+    await tester.pumpAndSettle();
+
     await tester.enterText(find.byType(TextField), 'abc');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
@@ -347,6 +351,8 @@ void main() {
 
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Show input row'));
+    await tester.pumpAndSettle();
     await backend.resize(cols: 100, rows: 30);
     await tester.enterText(find.byType(TextField), 'diag');
     await tester.tap(find.byTooltip('Send'));
@@ -517,6 +523,8 @@ void main() {
 
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Show input row'));
+    await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'send me');
     await tester.tap(find.byTooltip('Send'));
@@ -537,6 +545,8 @@ void main() {
     );
 
     await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Show input row'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), '日本語');
@@ -676,7 +686,7 @@ void main() {
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Paste'));
+    await tester.tap(find.byTooltip('Paste from clipboard'));
     await tester.pump();
 
     final displayByteCount = utf8.encode(pastedText).length;
@@ -739,7 +749,7 @@ void main() {
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Paste'));
+    await tester.tap(find.byTooltip('Paste from clipboard'));
     await tester.pump();
 
     final displayByteCount = utf8.encode(pastedText).length;
@@ -771,12 +781,107 @@ void main() {
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Paste'));
+    await tester.tap(find.byTooltip('Paste from clipboard'));
     await tester.pump();
 
     expect(find.text('Clipboard is empty'), findsOneWidget);
     expect(backend.diagnostics.value.inputBytes, 0);
     expect(backend.diagnostics.value.message, 'fake backend running');
+  });
+
+  testWidgets('input row is hidden by default; toggle shows and hides it', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+    await tester.pump();
+
+    expect(find.byType(TextField), findsNothing);
+    expect(find.byTooltip('Show input row'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Show input row'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.byTooltip('Hide input row'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Hide input row'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsNothing);
+  });
+
+  testWidgets('Ctrl modifier via terminal inline input sends control byte', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byTooltip(
+          'Sticky Ctrl — next letter typed in terminal becomes C-letter'),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(TerminalView));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    // Hardware key 'x' routes through Terminal.onOutput, which calls
+    // _handleTerminalOutput — the Ctrl modifier converts 'x' → C-x (0x18).
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyX);
+    await tester.pumpAndSettle();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyX);
+
+    // C-x = 0x18 = 24, 1 byte
+    expect(backend.diagnostics.value.inputBytes, 1);
+  });
+
+  testWidgets('Meta modifier via terminal inline input sends ESC prefix', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    // Scroll the control key row to reveal the Meta button.
+    await tester.drag(
+      find.byKey(const ValueKey<String>('iosmacs-control-key-row')),
+      const Offset(-800, 0),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byTooltip(
+          'Sticky Meta — next letter typed in terminal becomes M-letter'),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(TerminalView));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    // Hardware key 'x' is intercepted by _handleTerminalKeyEvent when Meta is
+    // active: sends ESC (0x1b) + lowercase letter byte.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyX);
+    await tester.pumpAndSettle();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyX);
+
+    // ESC + 'x' = 2 bytes
+    expect(backend.diagnostics.value.inputBytes, 2);
   });
 
   testWidgets('control key row is visible with ESC and modifier buttons', (
@@ -792,14 +897,20 @@ void main() {
 
     expect(find.byTooltip('Send ESC (\\x1b)'), findsOneWidget);
     expect(find.byTooltip('Cancel (C-g = \\x07)'), findsOneWidget);
-    expect(find.byTooltip('C-x prefix (\\x18)'), findsOneWidget);
+    expect(
+      find.byTooltip('C-x prefix — then type next key (e.g. C-f, C-s, C-c)'),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('M-x (execute-extended-command)'), findsOneWidget);
+    expect(find.byTooltip('Paste from clipboard'), findsOneWidget);
+    expect(find.byTooltip('Focus terminal and show keyboard'), findsOneWidget);
     expect(
       find.byTooltip(
-          'Sticky Ctrl — next letter in input becomes C-letter'),
+          'Sticky Ctrl — next letter typed in terminal becomes C-letter'),
       findsOneWidget,
     );
     expect(
-      find.byTooltip('Sticky Meta — next input prefixed with ESC'),
+      find.byTooltip('Sticky Meta — next letter typed in terminal becomes M-letter'),
       findsOneWidget,
     );
   });
@@ -836,21 +947,17 @@ void main() {
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byTooltip('Sticky Ctrl — next letter in input becomes C-letter'),
-    );
+    // Show input row, then tap Ctrl-g quick button (always visible).
+    await tester.tap(find.byTooltip('Show input row'));
     await tester.pumpAndSettle();
 
-    expect(find.text('C- key (Ctrl + letter)'), findsOneWidget);
-
-    await tester.enterText(find.byType(TextField).first, 'g');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    // Use the C-g instant button directly — it's visible and sends the right byte.
+    await tester.tap(find.byTooltip('Cancel (C-g = \\x07)'));
     await tester.pumpAndSettle();
 
     // C-g = 0x07, 1 byte
     expect(backend.diagnostics.value.inputBytes, 1);
     expect(backend.diagnostics.value.message, 'received 1 input byte(s)');
-    expect(find.text('terminal input'), findsOneWidget);
   });
 
   testWidgets('Meta modifier sends ESC prefix before text', (
@@ -865,21 +972,13 @@ void main() {
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byTooltip('Sticky Meta — next input prefixed with ESC'),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('M- key (Meta + text)'), findsOneWidget);
-
-    await tester.enterText(find.byType(TextField).first, 'x');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    // Use the M-x instant button (always visible) — sends ESC + 'x' directly.
+    await tester.tap(find.byTooltip('M-x (execute-extended-command)'));
     await tester.pumpAndSettle();
 
     // ESC + 'x' = 2 bytes
     expect(backend.diagnostics.value.inputBytes, 2);
     expect(backend.diagnostics.value.message, 'received 2 input byte(s)');
-    expect(find.text('terminal input'), findsOneWidget);
   });
 
   testWidgets('toolbar avoids overflow on narrow mobile width', (

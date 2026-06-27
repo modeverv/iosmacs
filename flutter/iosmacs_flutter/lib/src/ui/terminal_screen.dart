@@ -84,6 +84,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   String _terminalInputMirrorBuffer = '';
   bool _ctrlModifier = false;
   bool _metaModifier = false;
+  bool _showInputRow = false;
 
   @override
   void initState() {
@@ -92,7 +93,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
     _terminal = Terminal(
       onOutput: (String data) {
         _mirrorTerminalInput(data);
-        unawaited(_inputBridge.sendTerminalOutput(data));
+        unawaited(_handleTerminalOutput(data));
       },
       onResize: (int cols, int rows, int pixelWidth, int pixelHeight) {
         unawaited(widget.backend.resize(cols: cols, rows: rows));
@@ -150,7 +151,10 @@ class _TerminalScreenState extends State<TerminalScreen> {
                     color: const Color(0xff101214),
                     child: Listener(
                       behavior: HitTestBehavior.translucent,
-                      onPointerDown: _logTerminalPointerDown,
+                      onPointerDown: (PointerDownEvent event) {
+                        _logTerminalPointerDown(event);
+                        _terminalFocusNode.requestFocus();
+                      },
                       child: TerminalView(
                         _terminal,
                         autofocus: true,
@@ -189,14 +193,14 @@ class _TerminalScreenState extends State<TerminalScreen> {
                     ),
                   ),
                 ),
-                _InputRow(
-                  controller: _inputController,
-                  focusNode: _inputFocusNode,
-                  onSubmitted: _sendText,
-                  onPaste: _pasteClipboardText,
-                  ctrlActive: _ctrlModifier,
-                  metaActive: _metaModifier,
-                ),
+                if (_showInputRow)
+                  _InputRow(
+                    controller: _inputController,
+                    focusNode: _inputFocusNode,
+                    onSubmitted: _sendText,
+                    ctrlActive: _ctrlModifier,
+                    metaActive: _metaModifier,
+                  ),
                 _ControlKeyRow(
                   ctrlActive: _ctrlModifier,
                   metaActive: _metaModifier,
@@ -206,17 +210,22 @@ class _TerminalScreenState extends State<TerminalScreen> {
                       setState(() => _metaModifier = !_metaModifier),
                   onSendBytes: (List<int> bytes) =>
                       unawaited(widget.backend.sendBytes(bytes)),
+                  onPaste: _pasteClipboardText,
+                  onFocusTerminal: _requestTerminalFocus,
                 ),
                 _Toolbar(
                   fontSize: _fontSize,
                   minFontSize: _minFontSize,
                   maxFontSize: _maxFontSize,
+                  showInputRow: _showInputRow,
                   onStart: widget.backend.start,
                   onStop: widget.backend.stop,
                   onReset: widget.backend.resetOrRedraw,
                   onFontChanged: _setFontSize,
                   onWorkspace: _openWorkspace,
                   onCapabilities: _openCapabilities,
+                  onToggleInputRow: () =>
+                      setState(() => _showInputRow = !_showInputRow),
                 ),
               ],
             ),
@@ -269,6 +278,31 @@ class _TerminalScreenState extends State<TerminalScreen> {
   }
 
   KeyEventResult _handleTerminalKeyEvent(FocusNode focusNode, KeyEvent event) {
+    // Apply Ctrl/Meta modifier to key-down events for letter keys.
+    // This covers hardware keyboards when a sticky modifier is active.
+    // Software keyboard (IME) input is handled in _handleTerminalOutput instead.
+    if (event is KeyDownEvent && (_ctrlModifier || _metaModifier)) {
+      final controlByte = _controlByteForKey(event.logicalKey);
+      if (controlByte != null) {
+        if (_ctrlModifier) {
+          final bytes = _metaModifier
+              ? <int>[0x1b, controlByte]
+              : <int>[controlByte];
+          setState(() {
+            _ctrlModifier = false;
+            _metaModifier = false;
+          });
+          unawaited(widget.backend.sendBytes(bytes));
+        } else {
+          // Meta only: ESC + lowercase letter (keyId is the lowercase ASCII code).
+          final lower = event.logicalKey.keyId & 0xff;
+          setState(() => _metaModifier = false);
+          unawaited(widget.backend.sendBytes(<int>[0x1b, lower]));
+        }
+        return KeyEventResult.handled;
+      }
+    }
+
     if (event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
@@ -1000,6 +1034,52 @@ class _TerminalScreenState extends State<TerminalScreen> {
     await _inputBridge.submitCommittedText(text);
   }
 
+  // Routes inline terminal output through Ctrl/Meta modifiers before forwarding.
+  // Called from Terminal.onOutput for all keyboard and IME input typed in the
+  // terminal view.  Ctrl/Meta only apply to single ASCII letters; multi-character
+  // text (Japanese IME commits, escape sequences, etc.) is forwarded as-is.
+  Future<void> _handleTerminalOutput(String data) async {
+    if (data.isEmpty) return;
+
+    if (_ctrlModifier) {
+      if (data.length == 1) {
+        final upper = data.toUpperCase().codeUnitAt(0);
+        if (upper >= 0x41 && upper <= 0x5A) {
+          final ctrlByte = upper - 0x40;
+          if (_metaModifier) {
+            setState(() {
+              _ctrlModifier = false;
+              _metaModifier = false;
+            });
+            await widget.backend.sendBytes(<int>[0x1b, ctrlByte]);
+          } else {
+            setState(() => _ctrlModifier = false);
+            await widget.backend.sendBytes(<int>[ctrlByte]);
+          }
+          return;
+        }
+      }
+      setState(() => _ctrlModifier = false);
+    }
+
+    if (_metaModifier) {
+      setState(() => _metaModifier = false);
+      if (data.length == 1) {
+        final code = data.codeUnitAt(0);
+        if (code >= 0x20 && code <= 0x7e) {
+          await widget.backend.sendBytes(<int>[0x1b, code]);
+          return;
+        }
+      }
+    }
+
+    await _inputBridge.sendTerminalOutput(data);
+  }
+
+  void _requestTerminalFocus() {
+    _terminalFocusNode.requestFocus();
+  }
+
   Future<void> _pasteClipboardText() async {
     final messenger = ScaffoldMessenger.of(context);
     final text = await widget.clipboardTextProvider();
@@ -1255,7 +1335,6 @@ class _InputRow extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.onSubmitted,
-    required this.onPaste,
     this.ctrlActive = false,
     this.metaActive = false,
   });
@@ -1263,7 +1342,6 @@ class _InputRow extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final ValueChanged<String> onSubmitted;
-  final Future<void> Function() onPaste;
   final bool ctrlActive;
   final bool metaActive;
 
@@ -1271,14 +1349,14 @@ class _InputRow extends StatelessWidget {
     if (ctrlActive && metaActive) return 'C-M- key';
     if (ctrlActive) return 'C- key (Ctrl + letter)';
     if (metaActive) return 'M- key (Meta + text)';
-    return 'terminal input';
+    return 'compose and send';
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: const Color(0xff1b1f26),
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
       child: Row(
         children: <Widget>[
           Expanded(
@@ -1312,14 +1390,6 @@ class _InputRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           IconButton(
-            tooltip: 'Paste',
-            onPressed: () {
-              unawaited(onPaste());
-            },
-            icon: const Icon(Icons.content_paste),
-            color: const Color(0xffa3be8c),
-          ),
-          IconButton(
             tooltip: 'Send',
             onPressed: () {
               onSubmitted(controller.text);
@@ -1338,12 +1408,14 @@ class _Toolbar extends StatelessWidget {
     required this.fontSize,
     required this.minFontSize,
     required this.maxFontSize,
+    required this.showInputRow,
     required this.onStart,
     required this.onStop,
     required this.onReset,
     required this.onFontChanged,
     required this.onWorkspace,
     required this.onCapabilities,
+    required this.onToggleInputRow,
   });
 
   static const double _toolbarSliderWidth = 168;
@@ -1351,12 +1423,14 @@ class _Toolbar extends StatelessWidget {
   final double fontSize;
   final double minFontSize;
   final double maxFontSize;
+  final bool showInputRow;
   final Future<void> Function() onStart;
   final Future<void> Function() onStop;
   final Future<void> Function() onReset;
   final ValueChanged<double> onFontChanged;
   final Future<void> Function() onWorkspace;
   final VoidCallback onCapabilities;
+  final VoidCallback onToggleInputRow;
 
   @override
   Widget build(BuildContext context) {
@@ -1406,6 +1480,14 @@ class _Toolbar extends StatelessWidget {
               icon: const Icon(Icons.info_outline),
               color: const Color(0xffd8dee9),
             ),
+            IconButton(
+              tooltip: showInputRow ? 'Hide input row' : 'Show input row',
+              onPressed: onToggleInputRow,
+              icon: Icon(showInputRow ? Icons.keyboard_hide : Icons.keyboard),
+              color: showInputRow
+                  ? const Color(0xff88c0d0)
+                  : const Color(0xff4c566a),
+            ),
             const SizedBox(width: 8),
             const Icon(Icons.text_fields, color: Color(0xffd8dee9)),
             SizedBox(
@@ -1453,6 +1535,8 @@ class _ControlKeyRow extends StatelessWidget {
     required this.onCtrlToggle,
     required this.onMetaToggle,
     required this.onSendBytes,
+    required this.onPaste,
+    required this.onFocusTerminal,
   });
 
   final bool ctrlActive;
@@ -1460,6 +1544,8 @@ class _ControlKeyRow extends StatelessWidget {
   final VoidCallback onCtrlToggle;
   final VoidCallback onMetaToggle;
   final void Function(List<int>) onSendBytes;
+  final Future<void> Function() onPaste;
+  final VoidCallback onFocusTerminal;
 
   @override
   Widget build(BuildContext context) {
@@ -1471,6 +1557,13 @@ class _ControlKeyRow extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: <Widget>[
+            _ModifierKeyButton(
+              label: 'KB',
+              tooltip: 'Focus terminal and show keyboard',
+              onPressed: onFocusTerminal,
+              active: false,
+              activeColor: const Color(0xffd8dee9),
+            ),
             _ModifierKeyButton(
               label: 'ESC',
               tooltip: 'Send ESC (\\x1b)',
@@ -1487,7 +1580,7 @@ class _ControlKeyRow extends StatelessWidget {
             ),
             _ModifierKeyButton(
               label: 'C-x',
-              tooltip: 'C-x prefix (\\x18)',
+              tooltip: 'C-x prefix — then type next key (e.g. C-f, C-s, C-c)',
               onPressed: () => onSendBytes(const <int>[0x18]),
               active: false,
               activeColor: const Color(0xff88c0d0),
@@ -1500,15 +1593,22 @@ class _ControlKeyRow extends StatelessWidget {
               activeColor: const Color(0xff88c0d0),
             ),
             _ModifierKeyButton(
+              label: 'M-x',
+              tooltip: 'M-x (execute-extended-command)',
+              onPressed: () => onSendBytes(const <int>[0x1b, 0x78]),
+              active: false,
+              activeColor: const Color(0xffebcb8b),
+            ),
+            _ModifierKeyButton(
               label: 'C-s',
-              tooltip: 'Search / Save (C-s = \\x13)',
+              tooltip: 'isearch-forward / save (C-s = \\x13)',
               onPressed: () => onSendBytes(const <int>[0x13]),
               active: false,
               activeColor: const Color(0xffa3be8c),
             ),
             _ModifierKeyButton(
               label: 'C-r',
-              tooltip: 'Reverse search (C-r = \\x12)',
+              tooltip: 'isearch-backward (C-r = \\x12)',
               onPressed: () => onSendBytes(const <int>[0x12]),
               active: false,
               activeColor: const Color(0xffa3be8c),
@@ -1522,7 +1622,7 @@ class _ControlKeyRow extends StatelessWidget {
             ),
             _ModifierKeyButton(
               label: 'TAB',
-              tooltip: 'Tab / complete (\\x09)',
+              tooltip: 'Tab / indent / complete (\\x09)',
               onPressed: () => onSendBytes(const <int>[0x09]),
               active: false,
               activeColor: const Color(0xffa3be8c),
@@ -1535,10 +1635,17 @@ class _ControlKeyRow extends StatelessWidget {
               activeColor: const Color(0xffbf616a),
             ),
             _ModifierKeyButton(
+              label: 'Paste',
+              tooltip: 'Paste from clipboard',
+              onPressed: () => unawaited(onPaste()),
+              active: false,
+              activeColor: const Color(0xffa3be8c),
+            ),
+            _ModifierKeyButton(
               label: 'Ctrl',
               tooltip: ctrlActive
-                  ? 'Ctrl modifier ON — type a letter to send C-x'
-                  : 'Sticky Ctrl — next letter in input becomes C-letter',
+                  ? 'Ctrl ON — type a letter in terminal to send C-letter'
+                  : 'Sticky Ctrl — next letter typed in terminal becomes C-letter',
               onPressed: onCtrlToggle,
               active: ctrlActive,
               activeColor: const Color(0xff88c0d0),
@@ -1546,8 +1653,8 @@ class _ControlKeyRow extends StatelessWidget {
             _ModifierKeyButton(
               label: 'Meta',
               tooltip: metaActive
-                  ? 'Meta modifier ON — type text to send M-text'
-                  : 'Sticky Meta — next input prefixed with ESC',
+                  ? 'Meta ON — type a letter in terminal to send M-letter'
+                  : 'Sticky Meta — next letter typed in terminal becomes M-letter',
               onPressed: onMetaToggle,
               active: metaActive,
               activeColor: const Color(0xffebcb8b),
