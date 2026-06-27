@@ -1147,7 +1147,7 @@ Flutter Android GNU Emacs NDK runtime TODO:
   comparison evidence.
 - [x] Verify Android emulator evidence for real GNU Emacs NW terminal output,
   `*scratch*`, and committed input smoke text.
-- [ ] Reduce the Android fallback diagnostic renderer now that
+- [x] Reduce the Android fallback diagnostic renderer now that
   `libemacs_nw.so` is the active interactive terminal path.
 - [ ] Improve Android NW startup packaging so the interactive binary can avoid
   long no-pdump load output and reach `*scratch*` faster.
@@ -1199,10 +1199,13 @@ Flutter Android GNU Emacs NDK runtime status:
 - The emulator smoke now treats the NW path as the active success path and
   requires the NW PTY marker, `*scratch*` evidence, and the named
   `iosmacs input smoke` committed-text marker before accepting the run.
+- The Android capability surface now advertises `Android GNU Emacs NW PTY
+  terminal route` as supported and demotes the old stateful frame renderer to an
+  explicit fallback diagnostic surface.
 - Current remaining Android work: keep the official `--with-android` runtime as
-  packaged evidence/fallback, simplify the diagnostic renderer, speed up NW
-  startup packaging, and prove keyboard/IME plus document-provider export
-  behavior against the real NW runtime.
+  packaged evidence/fallback, speed up NW startup packaging, and prove
+  keyboard/IME plus document-provider export behavior against the real NW
+  runtime.
 
 Flutter macOS workspace TODO:
 

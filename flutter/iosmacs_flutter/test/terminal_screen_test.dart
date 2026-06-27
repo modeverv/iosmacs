@@ -69,7 +69,12 @@ void main() {
     expect(find.text('Android native channel backend'), findsOneWidget);
     expect(find.text('Backend id: android-native-channel'), findsOneWidget);
     expect(find.text('Android backend selection'), findsOneWidget);
-    expect(find.text('Android NDK GNU Emacs terminal bridge'), findsOneWidget);
+    expect(
+        find.text('Android GNU Emacs NW PTY terminal route'), findsOneWidget);
+    expect(
+      find.text('official --with-android interactive terminal bridge'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('capabilities dialog shows desktop backend identity', (

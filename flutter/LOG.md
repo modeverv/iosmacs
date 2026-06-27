@@ -18,6 +18,15 @@ Flutter Android NW follow-up:
   flutter-structure-check`, `make flutter-android-smoke`, `make
   flutter-android-emulator-smoke`, shell syntax checks, and `git diff --check`.
 
+Flutter Android fallback surface reduction:
+
+- Updated Android backend capabilities so the supported path names
+  `Android GNU Emacs NW PTY terminal route` first, and the stateful frame
+  renderer is explicitly labeled as fallback diagnostics.
+- Updated Android native fallback lifecycle messages so they no longer read like
+  the primary terminal path when `libemacs_nw.so` is absent.
+- Updated tests and structure guards around the new NW-first/fallback wording.
+
 Flutter Android GNU Emacs NW text-terminal display:
 
 - Goal: bypass the `HAVE_ANDROID` text-terminal restriction and reach a state

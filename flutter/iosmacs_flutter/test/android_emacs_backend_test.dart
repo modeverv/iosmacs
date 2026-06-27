@@ -23,7 +23,11 @@ void main() {
     );
     expect(
       backend.capabilities.supportedFeatures,
-      contains('Android terminal Emacs frame renderer'),
+      contains('Android GNU Emacs NW PTY terminal route'),
+    );
+    expect(
+      backend.capabilities.supportedFeatures,
+      contains('Android fallback diagnostic frame renderer'),
     );
     expect(
       backend.capabilities.supportedFeatures,
@@ -39,7 +43,7 @@ void main() {
     );
     expect(
       backend.capabilities.unsupportedFeatures,
-      contains('Android NDK GNU Emacs terminal bridge'),
+      contains('official --with-android interactive terminal bridge'),
     );
     expect(
       backend.capabilities.unsupportedFeatures,
@@ -57,7 +61,7 @@ void main() {
         case 'start':
           return <String, Object>{
             'lifecycleState':
-                'iosmacs Android native bridge: Emacs terminal frame running',
+                'iosmacs Android native bridge: fallback diagnostic frame running',
             'cols': 80,
             'rows': 24,
           };
@@ -101,7 +105,7 @@ void main() {
     expect(backend.lifecycleState.value, 'running');
     expect(
       backend.diagnostics.value.message,
-      'iosmacs Android native bridge: Emacs terminal frame running',
+      'iosmacs Android native bridge: fallback diagnostic frame running',
     );
     expect(backend.diagnostics.value.outputBytes, greaterThan(0));
   });
@@ -118,7 +122,7 @@ void main() {
         case 'start':
           return <String, Object>{
             'lifecycleState':
-                'iosmacs Android native bridge: Emacs terminal frame running',
+                'iosmacs Android native bridge: fallback diagnostic frame running',
             'cols': 80,
             'rows': 24,
           };

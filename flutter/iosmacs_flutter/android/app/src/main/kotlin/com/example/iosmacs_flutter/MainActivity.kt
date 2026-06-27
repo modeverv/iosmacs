@@ -87,15 +87,17 @@ private class AndroidNativeEmacsBridge(
       return
     }
 
-    // Fall back to the HAVE_ANDROID build path (batch probe + PTY attempt).
+    // Fall back to diagnostics and the HAVE_ANDROID comparison probes when the
+    // separate NW binary is absent.  The official Android port is still useful
+    // as packaged-runtime evidence, but not as the active interactive -nw route.
     lifecycleState = if (officialRuntime.isAvailable) {
       if (officialRuntime.javaBridgeAvailable) {
-        "iosmacs Android native bridge: GNU Emacs NDK libraries and Java bridge packaged; terminal bridge pending"
+        "iosmacs Android native bridge: GNU Emacs NDK libraries and Java bridge packaged; using fallback diagnostic frame"
       } else {
-        "iosmacs Android native bridge: GNU Emacs NDK libraries packaged; Java bridge pending"
+        "iosmacs Android native bridge: GNU Emacs NDK libraries packaged; using fallback diagnostic frame"
       }
     } else {
-      "iosmacs Android native bridge: Emacs terminal frame running"
+      "iosmacs Android native bridge: fallback diagnostic frame running"
     }
     appendOutput(nativeRuntime.start(cols, rows))
     if (officialRuntime.isAvailable) {

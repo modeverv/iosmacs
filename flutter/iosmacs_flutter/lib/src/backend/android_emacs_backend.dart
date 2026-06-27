@@ -23,7 +23,8 @@ class AndroidEmacsBackend implements EmacsBackend {
           'Android backend selection',
           'Android SDK debug build surface',
           'Flutter MethodChannel transport',
-          'Android terminal Emacs frame renderer',
+          'Android GNU Emacs NW PTY terminal route',
+          'Android fallback diagnostic frame renderer',
           'Android native bridge diagnostics',
           'Android app-private workspace list/import/export',
           'Android content URI workspace import',
@@ -34,9 +35,9 @@ class AndroidEmacsBackend implements EmacsBackend {
           'deterministic unsupported diagnostics',
         ],
         unsupportedFeatures: <String>[
-          'Android NDK GNU Emacs terminal bridge',
+          'official --with-android interactive terminal bridge',
           'Android document provider export picker proof',
-          'PTY/process Emacs session on Android',
+          'Android keyboard/IME runtime proof',
         ],
       );
 

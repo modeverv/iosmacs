@@ -239,14 +239,18 @@ grep -q '&& !kbd_buffer_events_waiting ()' \
   scripts/build-emacs-ios-probe.sh
 grep -q 'Android NDK GNU Emacs runtime artifact packaging' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
-grep -q 'Android NDK GNU Emacs terminal bridge' \
+grep -q 'Android GNU Emacs NW PTY terminal route' \
+  "$app_dir/lib/src/backend/android_emacs_backend.dart"
+grep -q 'Android fallback diagnostic frame renderer' \
+  "$app_dir/lib/src/backend/android_emacs_backend.dart"
+grep -q 'official --with-android interactive terminal bridge' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'android-native-channel' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'Android app-private workspace list/import/export' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
-grep -q 'Android terminal Emacs frame renderer' \
-  "$app_dir/lib/src/backend/android_emacs_backend.dart"
+grep -q 'fallback diagnostic frame running' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'NativeEmacsBackend' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'externalNativeBuild' \
