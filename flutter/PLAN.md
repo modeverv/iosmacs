@@ -995,6 +995,8 @@ Flutter Android native channel TODO:
   Emacs can open network connections outside debug/profile builds.
 - [x] Add an optional Android emulator Emacs network smoke gated by
   `IOSMACS_ANDROID_EXPECT_NETWORK=1`.
+- [x] Verify the Android emulator Emacs network smoke through the packaged NW
+  route.
 - [x] Autostart Android by default now that a native channel route exists.
 - [x] Verify Android native-channel tests, structure check, and debug APK
   build.
@@ -1033,6 +1035,10 @@ Flutter Android native channel status:
   release-style builds. `scripts/run-flutter-android-emulator-smoke.sh` can now
   set `IOSMACS_ANDROID_EXPECT_NETWORK=1` to load an Emacs Lisp HTTP smoke using
   `make-network-process` and require an `iosmacs-android-network-ok` marker.
+  The current verified emulator run reached the NW `*scratch*` frame in
+  `elapsed_ms=301`, produced `iosmacs-android-file-ops-ok`, and wrote
+  `iosmacs-android-network-ok` to the app-private marker with matching logcat
+  evidence.
 
 Flutter Android emulator scratch smoke TODO:
 

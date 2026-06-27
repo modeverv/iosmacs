@@ -151,6 +151,13 @@ Flutter Android fallback surface reduction:
   `flutter analyze`, full `flutter test`, `git diff --check`, `make
   flutter-android-smoke`, and merged-manifest inspection for
   `android.permission.INTERNET`.
+- Ran the network-enabled Android emulator smoke with
+  `IOSMACS_ANDROID_EXPECT_NETWORK=1 make flutter-android-emulator-smoke`. The
+  run used the packaged NW PTY route, reached the interactive `*scratch*` frame
+  in `elapsed_ms=301`, produced `iosmacs-android-file-ops-ok`, and wrote
+  `iosmacs-android-network-ok` to
+  `flutter/build/android-emulator-smoke/android-network.marker` with matching
+  logcat evidence.
 
 Flutter Android GNU Emacs NW text-terminal display:
 
