@@ -129,6 +129,10 @@ grep -q 'pasteSystemClipboard' \
   "$app_dir/lib/src/backend/native_emacs_backend.dart"
 grep -q 'pasteSystemClipboard' \
   "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'normalizeTerminalInputText' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'replace("\\r\\n", "\\n")' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 if sed -n '/func handle(_ call: FlutterMethodCall/,/switch call.method/p' \
   "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift" \
   | grep -q 'focusTerminalInput()'; then

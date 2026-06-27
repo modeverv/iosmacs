@@ -245,7 +245,7 @@ private class AndroidNativeEmacsBridge(
       result.success(mapOf("accepted" to false, "byteCount" to 0))
       return
     }
-    val bytes = text.replace("\n", "\r").toByteArray(Charsets.UTF_8)
+    val bytes = normalizeTerminalInputText(text).toByteArray(Charsets.UTF_8)
     inputBytes += bytes.size
     lifecycleState = "iosmacs Android native bridge: pasted clipboard"
     if (officialTerminalStarted) {
@@ -255,6 +255,12 @@ private class AndroidNativeEmacsBridge(
     }
     result.success(mapOf("accepted" to true, "byteCount" to bytes.size))
   }
+
+  private fun normalizeTerminalInputText(text: String): String =
+    text
+      .replace("\r\n", "\n")
+      .replace("\r", "\n")
+      .replace("\n", "\r")
 
   private fun listWorkspace(result: MethodChannel.Result) {
     val root = prepareWorkspaceRoot()

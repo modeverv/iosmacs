@@ -1034,6 +1034,8 @@ Flutter Android terminal transport TODO:
   terminal stream while the GNU Emacs NDK runtime is pending.
 - [x] Route Android native clipboard paste through the same diagnostic terminal
   input renderer.
+- [x] Normalize Android native clipboard paste line endings with the same
+  CRLF/CR/LF-to-terminal-CR contract used by the Flutter/iOS paste path.
 - [x] Make Android native redraw rebuild the clean `*scratch*` terminal screen.
 - [x] Extend Dart Android backend tests so `sendBytes` drains Android terminal
   echo output.
@@ -1048,6 +1050,8 @@ Flutter Android terminal transport status:
 - The Android native bridge now has a diagnostic terminal transport for
   lifecycle, input, paste, redraw, resize status, output drain, and workspace
   operations.
+- Android native clipboard paste now collapses CRLF, lone CR, and LF into
+  terminal carriage returns before forwarding UTF-8 bytes to Emacs.
 - This still does not claim a real Android GNU Emacs runtime. The next
   connection step is replacing the diagnostic renderer behind
   `AndroidNativeEmacsBridge` with an NDK/JNI Emacs terminal source.

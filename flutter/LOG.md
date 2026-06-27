@@ -105,6 +105,13 @@ Flutter Android fallback surface reduction:
   diagnostics mode.
 - Extended the Android emulator smoke to enable workspace smoke and require
   list/import/open/export evidence while the NW route is active.
+- Aligned Android native clipboard paste newline handling with the Flutter/iOS
+  terminal-input contract: CRLF, lone CR, and LF are normalized to terminal CR
+  before UTF-8 bytes are sent to Emacs, with a structure guard covering the
+  Android bridge helper.
+- Verified the Android paste-normalization update with `make
+  flutter-structure-check`, full `flutter test`, `flutter analyze`, `git diff
+  --check`, and `make flutter-android-smoke`.
 
 Flutter Android GNU Emacs NW text-terminal display:
 

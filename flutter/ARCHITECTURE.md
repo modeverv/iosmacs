@@ -178,6 +178,7 @@ Input path:
 ```text
 keyboard / IME / terminal widget / clipboard paste
   -> committed bytes
+  -> CRLF/CR/LF normalized to terminal CR for committed multiline text and paste
   -> EmacsBackend.sendBytes
   -> backend worker
   -> platform terminal transport
