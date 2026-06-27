@@ -39,6 +39,10 @@ void main() {
     );
     expect(
       backend.capabilities.supportedFeatures,
+      contains('Android user-facing document export picker flow'),
+    );
+    expect(
+      backend.capabilities.supportedFeatures,
       contains('Android keyboard/IME runtime proof'),
     );
     expect(
@@ -55,7 +59,7 @@ void main() {
     );
     expect(
       backend.capabilities.unsupportedFeatures,
-      contains('Android user-facing document export picker flow'),
+      isNot(contains('Android user-facing document export picker flow')),
     );
   });
 
@@ -207,6 +211,8 @@ void main() {
         case 'importWorkspace':
           return 1;
         case 'exportWorkspace':
+          final arguments = call.arguments as Map<Object?, Object?>;
+          expect(arguments['nonInteractive'], isFalse);
           return <String>[
             'content://com.example.iosmacs_flutter.workspace_export/'
                 'exports/scratch.el',

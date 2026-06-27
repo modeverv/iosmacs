@@ -29,6 +29,7 @@ class AndroidEmacsBackend implements EmacsBackend {
           'Android app-private workspace list/import/export',
           'Android content URI workspace import',
           'Android document-provider content URI export',
+          'Android user-facing document export picker flow',
           'Android keyboard/IME runtime proof',
           'Android NDK GNU Emacs runtime artifact packaging',
           'Android GNU Emacs Java bridge packaging',
@@ -38,7 +39,6 @@ class AndroidEmacsBackend implements EmacsBackend {
         ],
         unsupportedFeatures: <String>[
           'official --with-android interactive terminal bridge',
-          'Android user-facing document export picker flow',
         ],
       );
 

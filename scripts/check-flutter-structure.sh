@@ -459,6 +459,16 @@ grep -q 'WorkspaceExportProvider' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'contentResolver.openOutputStream' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'Intent.ACTION_CREATE_DOCUMENT' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'onActivityResult' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'workspace-export.zip' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'iosmacs Android user document export:' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q "'nonInteractive': _workspaceSmoke" \
+  "$app_dir/lib/src/backend/native_emacs_backend.dart"
 grep -q 'document-provider-export' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'workspace_export' \
@@ -1128,6 +1138,8 @@ grep -q 'status smoke output' \
 grep -q 'make flutter-android-emulator-smoke' \
   flutter/ARCHITECTURE.md
 grep -q 'document-provider content export' \
+  flutter/ARCHITECTURE.md
+grep -q 'ACTION_CREATE_DOCUMENT' \
   flutter/ARCHITECTURE.md
 grep -q 'startup-chatter suppression' \
   flutter/ARCHITECTURE.md

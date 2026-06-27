@@ -1,10 +1,12 @@
 package com.example.iosmacs_flutter
 
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ContentProvider
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
@@ -18,6 +20,8 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.TimeUnit
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 class MainActivity : FlutterActivity() {
   private val nativeEmacsBridge by lazy {
@@ -31,15 +35,25 @@ class MainActivity : FlutterActivity() {
       AndroidNativeEmacsBridge.channelName,
     ).setMethodCallHandler(nativeEmacsBridge::handle)
   }
+
+  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    if (nativeEmacsBridge.handleActivityResult(requestCode, resultCode, data)) {
+      return
+    }
+    super.onActivityResult(requestCode, resultCode, data)
+  }
 }
 
 private class AndroidNativeEmacsBridge(
-  private val context: Context,
+  private val activity: MainActivity,
 ) {
   companion object {
     const val channelName = "iosmacs/native_emacs"
+    private const val exportDocumentRequestCode = 44017
   }
 
+  private val context: Context
+    get() = activity
   private var lifecycleState = "iosmacs Android native bridge: idle"
   private var cols = 80
   private var rows = 24
@@ -48,6 +62,8 @@ private class AndroidNativeEmacsBridge(
   private val output = ByteArrayOutputStream()
   private val nativeRuntime = AndroidNativeEmacsRuntime
   private val officialRuntime = OfficialAndroidEmacsRuntime
+  private var pendingExportResult: MethodChannel.Result? = null
+  private var pendingExportFile: File? = null
 
   fun handle(call: MethodCall, result: MethodChannel.Result) {
     when (call.method) {
@@ -60,11 +76,45 @@ private class AndroidNativeEmacsBridge(
       "pasteSystemClipboard" -> pasteSystemClipboard(result)
       "listWorkspace" -> listWorkspace(result)
       "importWorkspace" -> importWorkspace(call, result)
-      "exportWorkspace" -> exportWorkspace(result)
+      "exportWorkspace" -> exportWorkspace(call, result)
       "selectWorkspaceRoot" -> selectWorkspaceRoot(result)
       "clearWorkspaceRoot" -> clearWorkspaceRoot(result)
       else -> result.notImplemented()
     }
+  }
+
+  fun handleActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
+    if (requestCode != exportDocumentRequestCode) {
+      return false
+    }
+    val result = pendingExportResult ?: return true
+    val exportFile = pendingExportFile
+    pendingExportResult = null
+    pendingExportFile = null
+
+    val destinationUri = data?.data
+    if (resultCode != Activity.RESULT_OK || destinationUri == null || exportFile == null) {
+      lifecycleState = "iosmacs Android native bridge: user export cancelled"
+      result.success(emptyList<String>())
+      return true
+    }
+
+    try {
+      context.contentResolver.openOutputStream(destinationUri, "wt")?.use { output ->
+        exportFile.inputStream().use { input ->
+          input.copyTo(output)
+        }
+      } ?: throw IllegalStateException("document provider returned no output stream")
+      lifecycleState = "iosmacs Android native bridge: user exported workspace document"
+      Log.i(
+        "IOSMacsWorkspaceExport",
+        "iosmacs Android user document export: uri=$destinationUri bytes=${exportFile.length()}",
+      )
+      result.success(listOf(destinationUri.toString()))
+    } catch (error: Exception) {
+      result.error("workspace_export_failed", error.localizedMessage, null)
+    }
+    return true
   }
 
   private fun start(result: MethodChannel.Result) {
@@ -235,13 +285,13 @@ private class AndroidNativeEmacsBridge(
     }
   }
 
-  private fun exportWorkspace(result: MethodChannel.Result) {
+  private fun exportWorkspace(call: MethodCall, result: MethodChannel.Result) {
+    val nonInteractive = call.argument<Boolean>("nonInteractive") ?: false
     val root = prepareWorkspaceRoot()
-    val files = root.listFiles()?.sortedBy { it.name }.orEmpty()
-    val exportFiles = if (files.isEmpty()) {
-      listOf(createWorkspaceRootExport(root))
-    } else {
-      files.filter { it.isFile }
+    val exportFiles = prepareWorkspaceExportFiles(root)
+    if (!nonInteractive) {
+      startUserDocumentExport(exportFiles, result)
+      return
     }
     val uris = exportFiles.mapNotNull { file ->
       exportWorkspaceFileToDocumentProvider(file)
@@ -316,6 +366,56 @@ private class AndroidNativeEmacsBridge(
       file.writeText("iosmacs Android workspace root: ${root.absolutePath}\n")
     }
     return file
+  }
+
+  private fun prepareWorkspaceExportFiles(root: File): List<File> {
+    val files = root.listFiles()?.sortedBy { it.name }.orEmpty().filter { it.isFile }
+    return when {
+      files.isEmpty() -> listOf(createWorkspaceRootExport(root))
+      files.size == 1 -> files
+      else -> listOf(createWorkspaceZipExport(files))
+    }
+  }
+
+  private fun createWorkspaceZipExport(files: List<File>): File {
+    val zipFile = File(context.cacheDir, "iosmacs/workspace-export.zip")
+    zipFile.parentFile?.mkdirs()
+    ZipOutputStream(zipFile.outputStream()).use { zip ->
+      for (file in files) {
+        zip.putNextEntry(ZipEntry(file.name))
+        file.inputStream().use { input ->
+          input.copyTo(zip)
+        }
+        zip.closeEntry()
+      }
+    }
+    return zipFile
+  }
+
+  private fun startUserDocumentExport(
+    exportFiles: List<File>,
+    result: MethodChannel.Result,
+  ) {
+    val exportFile = exportFiles.firstOrNull() ?: createWorkspaceRootExport(prepareWorkspaceRoot())
+    if (pendingExportResult != null) {
+      result.error("workspace_export_in_progress", "another Android document export is already active", null)
+      return
+    }
+    val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+      addCategory(Intent.CATEGORY_OPENABLE)
+      type = if (exportFile.extension == "zip") "application/zip" else "application/octet-stream"
+      putExtra(Intent.EXTRA_TITLE, exportFile.name)
+    }
+    pendingExportResult = result
+    pendingExportFile = exportFile
+    lifecycleState = "iosmacs Android native bridge: presenting document export picker"
+    try {
+      activity.startActivityForResult(intent, exportDocumentRequestCode)
+    } catch (error: Exception) {
+      pendingExportResult = null
+      pendingExportFile = null
+      result.error("workspace_export_picker_unavailable", error.localizedMessage, null)
+    }
   }
 
   private fun exportWorkspaceFileToDocumentProvider(file: File): Uri? {

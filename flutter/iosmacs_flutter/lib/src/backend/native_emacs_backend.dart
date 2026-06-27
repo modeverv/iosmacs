@@ -29,6 +29,8 @@ class NativeEmacsBackend implements EmacsBackend {
   static const Duration _outputPollInterval = Duration(milliseconds: 16);
   static const int _maxDrainPasses = 64;
   static const bool _traceIo = bool.fromEnvironment('IOSMACS_FLUTTER_TRACE_IO');
+  static const bool _workspaceSmoke =
+      bool.fromEnvironment('IOSMACS_FLUTTER_WORKSPACE_SMOKE');
 
   final MethodChannel _channel;
   final StreamController<List<int>> _outputController =
@@ -218,7 +220,10 @@ class NativeEmacsBackend implements EmacsBackend {
 
   @override
   Future<List<Uri>> exportWorkspaceSelection() async {
-    final result = await _invokeNative<List<Object?>>('exportWorkspace');
+    final result = await _invokeNative<List<Object?>>(
+      'exportWorkspace',
+      <String, Object>{'nonInteractive': _workspaceSmoke},
+    );
     if (result != null) {
       final uris =
           result.whereType<String>().map(Uri.parse).toList(growable: false);

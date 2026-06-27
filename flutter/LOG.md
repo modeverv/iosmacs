@@ -36,6 +36,10 @@ Flutter Android NW follow-up:
   no-pdump load chatter is buffered until the first menu-bar `*scratch*` frame
   appears, then the smoke requires `interactive frame ready` evidence with a
   suppressed startup byte count.
+- Added the normal Android user-facing export flow: `exportWorkspace` now
+  presents `ACTION_CREATE_DOCUMENT`, writes the selected workspace file or a
+  generated workspace zip to the returned document URI, and keeps the
+  noninteractive provider export path for runtime smoke builds.
 
 Flutter Android fallback surface reduction:
 
