@@ -107,6 +107,9 @@ class _IOSMacsFlutterAppState extends State<IOSMacsFlutterApp> {
         backend: _backend,
         autoStartBackend: widget.autoStartBackend,
         mirrorTerminalOutputToLog: widget.mirrorTerminalOutputToLog,
+        mirrorTerminalInputToLog: const bool.fromEnvironment(
+          'IOSMACS_FLUTTER_MIRROR_TERMINAL_INPUT',
+        ),
         runWorkspaceSmoke: widget.runWorkspaceSmoke,
         runCapabilitiesSmoke: widget.runCapabilitiesSmoke,
         runInputSmoke: widget.runInputSmoke,

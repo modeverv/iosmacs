@@ -82,6 +82,7 @@ fi
 cd "$app_dir"
 flutter build apk --debug \
   --dart-define=IOSMACS_FLUTTER_MIRROR_TERMINAL_OUTPUT=true \
+  --dart-define=IOSMACS_FLUTTER_MIRROR_TERMINAL_INPUT=true \
   --dart-define=IOSMACS_FLUTTER_CAPABILITIES_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_STATUS_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_INPUT_SMOKE=true \
@@ -120,6 +121,28 @@ for _ in {1..180}; do
   sleep 1
 done
 
+keyboard_marker="androidadbinput"
+screen_size="$("$adb_bin" -s "$device_id" shell wm size 2>/dev/null | tr -d '\r' || true)"
+tap_x=540
+tap_y=1830
+if [[ "$screen_size" =~ ([0-9]+)x([0-9]+) ]]; then
+  tap_x=$((BASH_REMATCH[1] / 2))
+  tap_y=$((BASH_REMATCH[2] * 3 / 4))
+fi
+"$adb_bin" -s "$device_id" shell input tap "$tap_x" "$tap_y" >/dev/null 2>&1 || true
+sleep 0.5
+"$adb_bin" -s "$device_id" shell input text "$keyboard_marker"
+"$adb_bin" -s "$device_id" shell input keyevent ENTER >/dev/null 2>&1 || true
+keyboard_seen=0
+for _ in {1..30}; do
+  logcat_snapshot="$("$adb_bin" -s "$device_id" logcat -d)"
+  if grep -q "iosmacs-terminal-input-buffer: text=.*${keyboard_marker}" <<<"$logcat_snapshot"; then
+    keyboard_seen=1
+    break
+  fi
+  sleep 1
+done
+
 "$adb_bin" -s "$device_id" logcat -d > "$out_dir/logcat.txt"
 
 if [[ "$require_nw" == "1" && "$nw_session_seen" != "1" ]]; then
@@ -129,6 +152,11 @@ if [[ "$require_nw" == "1" && "$nw_session_seen" != "1" ]]; then
 fi
 if [[ "$scratch_seen" != "1" ]]; then
   printf 'error: did not observe Android Emacs terminal output in logcat\n' >&2
+  printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2
+  exit 1
+fi
+if [[ "$keyboard_seen" != "1" ]]; then
+  printf 'error: did not observe Android adb keyboard input evidence\n' >&2
   printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2
   exit 1
 fi
@@ -203,6 +231,10 @@ grep -q 'iosmacs-input-smoke: committed' "$out_dir/logcat.txt" || {
 }
 grep -q 'text="iosmacs input smoke"' "$out_dir/logcat.txt" || {
   printf 'error: did not observe Android input smoke text evidence\n' >&2
+  exit 1
+}
+grep -q "iosmacs-terminal-input-buffer: text=.*${keyboard_marker}" "$out_dir/logcat.txt" || {
+  printf 'error: did not observe Android adb keyboard input marker\n' >&2
   exit 1
 }
 grep -Eq 'iosmacs-resize-smoke: requested [1-9][0-9]*x[1-9][0-9]*; backend geometry [1-9][0-9]*x[1-9][0-9]*' \

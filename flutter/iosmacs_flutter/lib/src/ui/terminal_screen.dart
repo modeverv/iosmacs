@@ -26,6 +26,7 @@ class TerminalScreen extends StatefulWidget {
     required this.backend,
     this.autoStartBackend = false,
     this.mirrorTerminalOutputToLog = false,
+    this.mirrorTerminalInputToLog = false,
     this.runWorkspaceSmoke = false,
     this.runCapabilitiesSmoke = false,
     this.runInputSmoke = false,
@@ -42,6 +43,7 @@ class TerminalScreen extends StatefulWidget {
   final EmacsBackend backend;
   final bool autoStartBackend;
   final bool mirrorTerminalOutputToLog;
+  final bool mirrorTerminalInputToLog;
   final bool runWorkspaceSmoke;
   final bool runCapabilitiesSmoke;
   final bool runInputSmoke;
@@ -73,6 +75,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
   StreamSubscription<List<int>>? _outputSubscription;
   double _fontSize = 15;
+  String _terminalInputMirrorBuffer = '';
 
   @override
   void initState() {
@@ -80,6 +83,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
     _inputBridge = TerminalInputBridge(widget.backend);
     _terminal = Terminal(
       onOutput: (String data) {
+        _mirrorTerminalInput(data);
         unawaited(_inputBridge.sendTerminalOutput(data));
       },
       onResize: (int cols, int rows, int pixelWidth, int pixelHeight) {
@@ -368,6 +372,28 @@ class _TerminalScreenState extends State<TerminalScreen> {
     if (widget.mirrorTerminalOutputToLog) {
       debugPrint('iosmacs-terminal-output: $text');
     }
+  }
+
+  void _mirrorTerminalInput(String data) {
+    if (!widget.mirrorTerminalInputToLog || data.isEmpty) {
+      return;
+    }
+    final printable = data
+        .replaceAll('\r', '<CR>')
+        .replaceAll('\n', '<LF>')
+        .replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'), '');
+    if (printable.isEmpty) {
+      return;
+    }
+    _terminalInputMirrorBuffer += printable;
+    if (_terminalInputMirrorBuffer.length > 256) {
+      _terminalInputMirrorBuffer = _terminalInputMirrorBuffer.substring(
+        _terminalInputMirrorBuffer.length - 256,
+      );
+    }
+    debugPrint('iosmacs-terminal-input: text="$printable"');
+    debugPrint(
+        'iosmacs-terminal-input-buffer: text="$_terminalInputMirrorBuffer"');
   }
 
   Future<void> _runStartupSmokes() async {

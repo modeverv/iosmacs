@@ -17,6 +17,16 @@ Flutter Android NW follow-up:
 - Verified with `flutter analyze`, targeted Flutter tests, `make
   flutter-structure-check`, `make flutter-android-smoke`, `make
   flutter-android-emulator-smoke`, shell syntax checks, and `git diff --check`.
+- Added an Android emulator keyboard-input proof on the same NW route:
+  `make flutter-android-emulator-smoke` now focuses the Flutter terminal, sends
+  `androidadbinput` through `adb shell input text`, and requires
+  `iosmacs-terminal-input-buffer` evidence in logcat before accepting the run.
+- Added a smoke-only `IOSMACS_FLUTTER_MIRROR_TERMINAL_INPUT` flag so runtime
+  keyboard evidence can be mirrored to logs without changing the normal app
+  terminal behavior.
+- Verified the ADB keyboard proof with `dart format`, shell syntax checks,
+  `git diff --check`, `make flutter-structure-check`, targeted Flutter widget
+  tests, `flutter analyze`, and `make flutter-android-emulator-smoke`.
 
 Flutter Android fallback surface reduction:
 

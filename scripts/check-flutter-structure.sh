@@ -389,6 +389,8 @@ grep -Fq 'Buffer: \*scratch\*' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_FLUTTER_INPUT_SMOKE=true' \
   scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'IOSMACS_FLUTTER_MIRROR_TERMINAL_INPUT=true' \
+  scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_FLUTTER_WORKSPACE_SMOKE=true' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_ANDROID_REQUIRE_NW:-1' \
@@ -401,6 +403,12 @@ grep -q 'text="iosmacs input smoke"' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'text="\$text"' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'iosmacs-terminal-input-buffer' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'androidadbinput' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'did not observe Android adb keyboard input evidence' \
+  scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs input smoke' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'NW Emacs did not report \*scratch\* evidence' \
