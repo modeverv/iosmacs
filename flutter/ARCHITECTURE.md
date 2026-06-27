@@ -306,10 +306,10 @@ noninteractive content-provider export path for deterministic verification.
 Android workspace-root selection uses `ACTION_OPEN_DOCUMENT_TREE` to persist a
 user-selected SAF tree URI as a workspace exchange folder, but the active Emacs
 `/home/user` remains app-private until that tree can be explicitly synced into
-or mounted for the native NW process. Selection imports top-level files from
+or mounted for the native NW process. Selection recursively imports files from
 that tree into app-private `/home/user`; normal Workspace Export writes the
-prepared file or zip back into the tree through `DocumentsContract`; otherwise
-it falls back to `ACTION_CREATE_DOCUMENT`.
+prepared file or relative-path-preserving zip back into the tree through
+`DocumentsContract`; otherwise it falls back to `ACTION_CREATE_DOCUMENT`.
 The active NW startup path also defers the official `--with-android`
 subprocess comparison probe so diagnostic evidence does not block first
 terminal output. The emulator smoke now proves both cold pdmp generation and

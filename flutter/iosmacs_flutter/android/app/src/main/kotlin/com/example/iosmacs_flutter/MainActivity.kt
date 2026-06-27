@@ -496,27 +496,41 @@ private class AndroidNativeEmacsBridge(
   }
 
   private fun prepareWorkspaceExportFiles(root: File): List<File> {
-    val files = root.listFiles()?.sortedBy { it.name }.orEmpty().filter { it.isFile }
+    val files = root.listFiles()?.sortedBy { it.name }.orEmpty()
     return when {
       files.isEmpty() -> listOf(createWorkspaceRootExport(root))
-      files.size == 1 -> files
-      else -> listOf(createWorkspaceZipExport(files))
+      files.size == 1 && files.single().isFile -> files
+      else -> listOf(createWorkspaceZipExport(root, files))
     }
   }
 
-  private fun createWorkspaceZipExport(files: List<File>): File {
+  private fun createWorkspaceZipExport(root: File, files: List<File>): File {
     val zipFile = File(context.cacheDir, "iosmacs/workspace-export.zip")
     zipFile.parentFile?.mkdirs()
     ZipOutputStream(zipFile.outputStream()).use { zip ->
       for (file in files) {
-        zip.putNextEntry(ZipEntry(file.name))
-        file.inputStream().use { input ->
-          input.copyTo(zip)
-        }
-        zip.closeEntry()
+        addWorkspaceZipEntry(zip, root, file)
       }
     }
     return zipFile
+  }
+
+  private fun addWorkspaceZipEntry(zip: ZipOutputStream, root: File, file: File) {
+    val relativePath = file.relativeTo(root).invariantSeparatorsPath
+    if (file.isDirectory) {
+      val directoryEntry = if (relativePath.endsWith("/")) relativePath else "$relativePath/"
+      zip.putNextEntry(ZipEntry(directoryEntry))
+      zip.closeEntry()
+      file.listFiles()?.sortedBy { it.name }?.forEach { child ->
+        addWorkspaceZipEntry(zip, root, child)
+      }
+      return
+    }
+    zip.putNextEntry(ZipEntry(relativePath))
+    file.inputStream().use { input ->
+      input.copyTo(zip)
+    }
+    zip.closeEntry()
   }
 
   private fun startUserDocumentExport(
@@ -583,9 +597,27 @@ private class AndroidNativeEmacsBridge(
 
   private fun importWorkspaceTreeDocuments(treeUri: Uri, root: File): Int {
     root.mkdirs()
-    val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
+    return importWorkspaceTreeDocumentChildren(
       treeUri,
       DocumentsContract.getTreeDocumentId(treeUri),
+      root,
+    ).also { importedCount ->
+      Log.i(
+        "IOSMacsWorkspaceExport",
+        "iosmacs Android workspace exchange import: uri=$treeUri count=$importedCount",
+      )
+    }
+  }
+
+  private fun importWorkspaceTreeDocumentChildren(
+    treeUri: Uri,
+    documentId: String,
+    destinationDir: File,
+  ): Int {
+    destinationDir.mkdirs()
+    val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
+      treeUri,
+      documentId,
     )
     val projection = arrayOf(
       DocumentsContract.Document.COLUMN_DOCUMENT_ID,
@@ -601,30 +633,32 @@ private class AndroidNativeEmacsBridge(
         if (idColumn < 0 || nameColumn < 0) {
           continue
         }
+        val documentId = cursor.getString(idColumn)
         val mimeType = if (mimeColumn >= 0) cursor.getString(mimeColumn) else null
-        if (mimeType == DocumentsContract.Document.MIME_TYPE_DIR) {
-          continue
-        }
         val name = cursor.getString(nameColumn)?.replace("/", "_") ?: continue
         if (name.isBlank()) {
           continue
         }
+        if (mimeType == DocumentsContract.Document.MIME_TYPE_DIR) {
+          importedCount += importWorkspaceTreeDocumentChildren(
+            treeUri,
+            documentId,
+            File(destinationDir, name),
+          )
+          continue
+        }
         val sourceUri = DocumentsContract.buildDocumentUriUsingTree(
           treeUri,
-          cursor.getString(idColumn),
+          documentId,
         )
         context.contentResolver.openInputStream(sourceUri)?.use { input ->
-          File(root, name).outputStream().use { output ->
+          File(destinationDir, name).outputStream().use { output ->
             input.copyTo(output)
           }
           importedCount += 1
         }
       }
     }
-    Log.i(
-      "IOSMacsWorkspaceExport",
-      "iosmacs Android workspace exchange import: uri=$treeUri count=$importedCount",
-    )
     return importedCount
   }
 
