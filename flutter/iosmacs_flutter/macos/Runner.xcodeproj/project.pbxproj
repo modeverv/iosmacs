@@ -216,6 +216,7 @@
 				33CC10EB2044A3C60003C045 /* Resources */,
 				33CC110E2044A8840003C045 /* Bundle Framework */,
 				3399D490228B24CF009A79C7 /* ShellScript */,
+				4D3A02002DD0000000000002 /* Bundle Flutter macOS Emacs */,
 			);
 			buildRules = (
 			);
@@ -341,6 +342,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"$FLUTTER_ROOT\"/packages/flutter_tools/bin/macos_assemble.sh && touch Flutter/ephemeral/tripwire";
+		};
+		4D3A02002DD0000000000002 /* Bundle Flutter macOS Emacs */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\nREPO_ROOT=\"$(cd \"$PROJECT_DIR/../../..\" && pwd)\"\nIOSMACS_FLUTTER_MACOS_EMACS_DEST=\"$TARGET_BUILD_DIR/$WRAPPER_NAME/Contents/Resources\" \"$REPO_ROOT/scripts/build-flutter-macos-emacs-runtime.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

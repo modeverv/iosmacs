@@ -4,6 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 app_dir="${repo_root}/flutter/iosmacs_flutter"
 app_bundle="${app_dir}/build/macos/Build/Products/Debug/iosmacs_flutter.app"
+bundled_emacs="${app_bundle}/Contents/Resources/iosmacs-emacs/bin/emacs"
 log_path="${TMPDIR:-/tmp}/iosmacs-flutter-macos-native-smoke.log"
 hold_seconds="${IOSMACS_FLUTTER_MACOS_NATIVE_HOLD_SECONDS:-5}"
 
@@ -37,6 +38,32 @@ if [[ ! -x "${app_executable}" ]]; then
   echo "error: missing executable Flutter macOS app binary: ${app_executable}" >&2
   exit 1
 fi
+if [[ ! -x "${bundled_emacs}" ]]; then
+  echo "error: missing bundled Flutter macOS Emacs executable: ${bundled_emacs}" >&2
+  exit 1
+fi
+runtime_root="${app_bundle}/Contents/Resources/iosmacs-emacs"
+runtime_eval_check='(progn
+  (when (boundp '\''read-extended-command-predicate)
+    (setq read-extended-command-predicate nil))
+  (when (fboundp '\''execute-extended-command)
+    (global-set-key (kbd "M-X") #'\''execute-extended-command))
+  (autoload '\''dired "dired" nil t)
+  (autoload '\''tetris "tetris" nil t)
+  (unless (eq (key-binding (kbd "M-X")) '\''execute-extended-command)
+    (error "M-X is not bound to execute-extended-command"))
+  (unless (commandp '\''tetris)
+    (error "tetris is not commandp"))
+  (princ "iosmacs-macos-mx-tetris-ok\n"))'
+if ! EMACSLOADPATH="${runtime_root}/lisp" \
+    EMACSDATA="${runtime_root}/etc" \
+    EMACSDOC="${runtime_root}/etc" \
+    EMACSPATH="${runtime_root}/libexec" \
+    "${bundled_emacs}" --batch --quick --eval "${runtime_eval_check}" \
+    | grep -q 'iosmacs-macos-mx-tetris-ok'; then
+  echo "error: bundled Flutter macOS Emacs did not pass the M-X/tetris smoke" >&2
+  exit 1
+fi
 
 rm -f "${log_path}"
 "${app_executable}" >"${log_path}" 2>&1 &
@@ -44,24 +71,56 @@ app_pid=$!
 
 sleep "${hold_seconds}"
 
-if ! grep -q 'macOS Emacs process probe candidates' "${log_path}"; then
-  echo "error: macOS process probe did not start" >&2
+if ! grep -q 'macOS Emacs process candidates' "${log_path}"; then
+  echo "error: macOS process backend did not enumerate Emacs candidates" >&2
   cat "${log_path}" >&2 || true
   kill -TERM "${app_pid}" 2>/dev/null || true
   wait "${app_pid}" >/dev/null 2>&1 || true
   exit 1
 fi
 
-if ! grep -Eq 'iosmacs-macos-process-ok|macOS Emacs process probe unavailable' "${log_path}"; then
-  echo "error: macOS process probe did not report success or explicit unavailability" >&2
+if ! grep -Fq "macOS bundled GNU Emacs runtime: ${app_bundle}/Contents/Resources/iosmacs-emacs" "${log_path}"; then
+  echo "error: macOS native smoke did not report the bundled Emacs runtime" >&2
   cat "${log_path}" >&2 || true
   kill -TERM "${app_pid}" 2>/dev/null || true
   wait "${app_pid}" >/dev/null 2>&1 || true
   exit 1
 fi
 
-if ! grep -q 'Interactive PTY GNU Emacs backend is pending' "${log_path}"; then
-  echo "error: macOS native smoke did not preserve PTY pending diagnostic" >&2
+if ! grep -Fq "macOS interactive GNU Emacs process started: ${bundled_emacs}" "${log_path}"; then
+  echo "error: macOS native smoke did not start the bundled GNU Emacs process" >&2
+  cat "${log_path}" >&2 || true
+  kill -TERM "${app_pid}" 2>/dev/null || true
+  wait "${app_pid}" >/dev/null 2>&1 || true
+  exit 1
+fi
+
+if grep -Eq '/Applications/Emacs|/opt/homebrew/bin/emacs|/usr/local/bin/emacs' "${log_path}"; then
+  echo "error: macOS native smoke unexpectedly used a system Emacs candidate" >&2
+  cat "${log_path}" >&2 || true
+  kill -TERM "${app_pid}" 2>/dev/null || true
+  wait "${app_pid}" >/dev/null 2>&1 || true
+  exit 1
+fi
+
+if grep -q 'macOS Emacs process exited 1:' "${log_path}"; then
+  echo "error: macOS native smoke selected an Emacs process that exited during startup" >&2
+  cat "${log_path}" >&2 || true
+  kill -TERM "${app_pid}" 2>/dev/null || true
+  wait "${app_pid}" >/dev/null 2>&1 || true
+  exit 1
+fi
+
+if grep -Eq 'Could not open file: /dev/tty|exited during startup' "${log_path}"; then
+  echo "error: macOS native smoke did not keep the selected Emacs process alive at startup" >&2
+  cat "${log_path}" >&2 || true
+  kill -TERM "${app_pid}" 2>/dev/null || true
+  wait "${app_pid}" >/dev/null 2>&1 || true
+  exit 1
+fi
+
+if grep -q 'Interactive PTY GNU Emacs backend is pending' "${log_path}"; then
+  echo "error: macOS native smoke regressed to the old PTY pending diagnostic" >&2
   cat "${log_path}" >&2 || true
   kill -TERM "${app_pid}" 2>/dev/null || true
   wait "${app_pid}" >/dev/null 2>&1 || true

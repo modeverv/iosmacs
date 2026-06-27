@@ -26,7 +26,15 @@ void main() {
     );
     expect(
       backend.capabilities.supportedFeatures,
-      contains('macOS Emacs process probe'),
+      contains('macOS child-process GNU Emacs session'),
+    );
+    expect(
+      backend.capabilities.supportedFeatures,
+      contains('bundled macOS GNU Emacs runtime packaging'),
+    );
+    expect(
+      backend.capabilities.supportedFeatures,
+      contains('macOS direct PTY resize/ioctl bridge'),
     );
     expect(
       backend.capabilities.supportedFeatures,
@@ -46,15 +54,11 @@ void main() {
     );
     expect(
       backend.capabilities.supportedFeatures,
-      contains('macOS sandbox workspace list/import/export'),
+      contains('macOS Application Support workspace list/import/export'),
     );
     expect(
       backend.capabilities.unsupportedFeatures,
       contains('physical-device GNU Emacs core startup'),
-    );
-    expect(
-      backend.capabilities.unsupportedFeatures,
-      contains('macOS interactive PTY GNU Emacs session'),
     );
   });
 

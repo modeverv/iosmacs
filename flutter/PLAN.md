@@ -159,8 +159,8 @@ Current TODO:
 - [x] Add Flutter smoke controls for autostarting native backend and mirroring
   terminal output to process logs.
 - [x] Include the macOS native process-probe smoke in Flutter verification.
-- [x] Replace macOS native workspace pending errors with sandbox workspace file
-  operations.
+- [x] Replace macOS native workspace pending errors with Application Support
+  workspace file operations.
 - [x] Expose macOS workspace list/import/export as supported backend behavior.
 - [x] Verify macOS workspace bridge wiring without regressing Flutter
   verification.
@@ -258,6 +258,12 @@ Current TODO:
 - [x] Add a widget test that guards the toolbar against narrow-width overflow.
 - [x] Verify responsive toolbar work with format, analyze, tests, structure
   check, and diff check.
+- [x] Replace the macOS native backend's process-probe-only path with a held
+  GNU Emacs child process behind the shared MethodChannel.
+- [x] Route macOS native `sendBytes`, redraw, output drain, and stop through
+  the held Emacs process instead of the old pending diagnostic.
+- [x] Update macOS native smoke evidence so hosts with Emacs must prove
+  interactive process startup rather than accepting the old PTY-pending path.
 - [x] Add an app-level narrow-width Flutter smoke test.
 - [x] Verify `IOSMacsFlutterApp` keeps terminal, input, and toolbar controls
   available on phone-width viewports.
@@ -460,8 +466,9 @@ Current verification status:
   `iosmacs-flutter-network-ok` under `/home/user`.
 - `make flutter-macos-smoke` passes and proves the Flutter macOS app can build,
   launch briefly, stay alive, and terminate cleanly.
-- macOS non-web now selects the native MethodChannel backend by default, while
-  the macOS Runner reports explicit PTY/process-backend pending diagnostics.
+- macOS non-web now selects the native MethodChannel backend by default, and
+  the macOS Runner starts a held GNU Emacs child process through the shared
+  byte-stream backend.
 - `make flutter-web-smoke` passes and builds Flutter Web debug output.
 - `make flutter-android-smoke` passes and builds the Flutter Android debug APK.
 - `make flutter-verify` passes and runs the Flutter structure, doctor, fake
@@ -820,8 +827,9 @@ Flutter macOS native channel TODO:
 - [x] Add a `macosNative` backend factory option.
 - [x] Select the native MethodChannel backend by default on macOS non-web.
 - [x] Register `iosmacs/native_emacs` in the macOS Runner.
-- [x] Return explicit macOS process-backend pending diagnostics for start,
-  stop, redraw, input, resize, drain, and workspace calls.
+- [x] Replace the initial process-backend pending diagnostics with a held macOS
+  GNU Emacs child-process route for start, stop, redraw, input, resize, and
+  drain calls.
 - [x] Add tests for macOS default selection and shared native-channel
   capabilities.
 - [x] Add structure checks for the macOS native bridge.
@@ -836,8 +844,9 @@ Flutter macOS native channel status:
 - The macOS Runner registers `iosmacs/native_emacs` and handles lifecycle,
   redraw, input, resize, drain, and workspace methods through
   `MacOSNativeEmacsBridge`.
-- The macOS bridge returns explicit `macos_process_backend_pending` diagnostics
-  for workspace surfaces until the PTY/process Emacs backend exists.
+- The macOS bridge now starts the bundled GNU Emacs child process through
+  `forkpty(3)` so `-nw` has a real controlling terminal, and keeps workspace
+  behavior behind native Application Support file operations.
 - Tests cover macOS default selection and the shared native-channel capability
   surface.
 - `make flutter-structure-check`, `flutter analyze`, `flutter test`, `make
@@ -845,13 +854,15 @@ Flutter macOS native channel status:
 
 Flutter macOS process probe TODO:
 
-- [x] Add deterministic Emacs executable candidate discovery in the macOS
-  Runner.
-- [x] Run a short `emacs --batch --quick` probe through `Process` on start.
-- [x] Drain process stdout/stderr into the Flutter terminal stream.
-- [x] Report process discovery or sandbox/process failure as native
+- [x] Add deterministic bundled Emacs executable candidate discovery in the
+  macOS Runner.
+- [x] Run a held GNU Emacs `-nw` child process through `forkpty(3)` on
+  start when the app-bundled Emacs executable is available.
+- [x] Drain PTY output into the Flutter terminal stream.
+- [x] Report process discovery or PTY/process failure as native
   diagnostics.
-- [x] Keep interactive PTY support explicitly pending after the process probe.
+- [x] Add direct PTY resize/ioctl support while replacing the old
+  process-probe-only path with a child-process byte stream.
 - [x] Apply native status payloads to Dart lifecycle/diagnostic values.
 - [x] Add tests for native status payload handling.
 - [x] Add structure checks for the macOS process probe.
@@ -860,19 +871,19 @@ Flutter macOS process probe TODO:
 
 Flutter macOS process probe status:
 
-- `MacOSNativeEmacsBridge` discovers `IOSMACS_FLUTTER_EMACS`,
-  `/usr/local/bin/emacs`, `/opt/homebrew/bin/emacs`,
-  `/Applications/Emacs.app/Contents/MacOS/Emacs`, and
-  `/Applications/Emacs-takaxp/Emacs.app/Contents/MacOS/Emacs`.
-- On `start`, the macOS bridge runs a short `emacs --batch --quick --eval`
-  probe and writes stdout/stderr or failure details into the native output
-  buffer.
-- The probe reports `iosmacs-macos-process-ok` on successful batch execution
-  and keeps the interactive PTY GNU Emacs session explicitly pending.
+- `MacOSNativeEmacsBridge` discovers the app-bundled
+  `Contents/Resources/iosmacs-emacs/bin/emacs` first, with
+  `IOSMACS_FLUTTER_EMACS` left only as an explicit debug fallback.
+- On `start`, the macOS bridge launches `<emacs> --quick --no-splash -nw`
+  through `forkpty(3)`, keeps the child pid plus PTY master handle, and drains
+  terminal output into the native output buffer.
+- If interactive startup cannot run, the bridge falls back to the older batch
+  probe and reports explicit diagnostic fallback instead of pretending the
+  process backend is connected.
 - `NativeEmacsBackend` now applies native `lifecycleState`, `cols`, and `rows`
   status payloads to diagnostics.
 - Tests cover native status payload handling; structure checks guard the
-  process probe markers.
+  child-process startup markers and reject the old PTY-pending marker.
 - `flutter analyze`, `flutter test`, `make flutter-macos-smoke`, and expanded
   `make flutter-verify` pass.
 
@@ -897,41 +908,95 @@ Flutter macOS process probe runtime smoke status:
 - `IOSMACS_FLUTTER_MIRROR_TERMINAL_OUTPUT` mirrors terminal output chunks into
   the process log with an `iosmacs-terminal-output:` prefix.
 - `scripts/run-flutter-macos-native-smoke.sh` builds the macOS app with both
-  flags, launches it, and checks the captured log for process-probe start,
-  success or explicit unavailability, and the interactive PTY pending marker.
+  flags, launches it, and checks the captured log for bundled Emacs runtime
+  discovery plus interactive GNU Emacs process startup from the app bundle.
 - `make flutter-macos-native-smoke` passes.
-- The captured smoke log shows `/usr/local/bin/emacs` exited 1, then
-  `/Applications/Emacs-takaxp/Emacs.app/Contents/MacOS/Emacs` emitted
-  `iosmacs-macos-process-ok`.
+- The captured smoke log now requires
+  `macOS interactive GNU Emacs process started:` with the bundled executable
+  path, rejects system Emacs candidates, and rejects the old
+  interactive-PTY-pending diagnostic.
 - `make flutter-verify` now includes the macOS native process-probe runtime
   smoke.
 - `flutter analyze`, `flutter test`, `make flutter-macos-native-smoke`, and
   expanded `make flutter-verify` pass.
 
+Flutter macOS bundled Emacs runtime TODO:
+
+- [x] Add a repository script that builds a relocatable-ish macOS GNU Emacs
+  runtime from `wasmacs/vendor/emacs`.
+- [x] Copy the Emacs executable, pdmp, lisp, etc, leim, and libexec runtime
+  files into `flutter/build/emacs-macos/runtime`.
+- [x] Add a macOS Runner build phase that copies the prepared runtime into
+  `Contents/Resources/iosmacs-emacs`.
+- [x] Make the macOS native bridge use the bundled runtime by default without
+  system Emacs path discovery.
+- [x] Verify smoke evidence against the app-bundled executable path.
+
+Flutter macOS bundled Emacs runtime status:
+
+- `scripts/build-flutter-macos-emacs-runtime.sh` builds the macOS runtime under
+  `flutter/build/emacs-macos/runtime` and can copy it into an app resources
+  directory through `IOSMACS_FLUTTER_MACOS_EMACS_DEST`.
+- The macOS Runner project contains a `Bundle Flutter macOS Emacs` build phase
+  that invokes the runtime script after Flutter's macOS embed phase.
+- `MacOSNativeEmacsBridge` sets `EMACSLOADPATH`, `EMACSDATA`, `EMACSDOC`, and
+  `EMACSPATH` for bundled-runtime launches, so the app does not depend on a
+  host Emacs installation.
+
+Flutter macOS Japanese input source and M-X TODO:
+
+- [x] Handle JIS `かな` / `英数` input-source switch keys in the macOS Runner
+  instead of letting the terminal key path swallow them.
+- [x] Select Hiragana for keyCode 104 and ABC/US for keyCode 102 through the
+  macOS TIS input-source API.
+- [x] Apply the same `M-X` to ordinary `M-x` binding used by bundled iOS Emacs
+  when launching bundled macOS Emacs.
+- [x] Autoload `dired` and `tetris` in bundled macOS Emacs startup init.
+- [x] Guard the macOS input-source bridge and `M-X` startup init in the Flutter
+  structure check.
+- [x] Add a direct bundled-Emacs `M-X` / `tetris` check to the macOS native
+  smoke.
+
+Flutter macOS Japanese input source and M-X status:
+
+- `AppDelegate` installs a local key-down monitor that handles only unmodified
+  JIS `英数` / `かな` key events, selects the requested macOS input source, and
+  consumes those source-switch keys before xterm/Emacs terminal input handles
+  them.
+- `MacOSNativeEmacsBridge` launches bundled Emacs with a small `--eval` form
+  that clears `read-extended-command-predicate`, binds `M-X` to
+  `execute-extended-command`, and autoloads `dired` and `tetris`.
+- `scripts/run-flutter-macos-native-smoke.sh` now checks the app-bundled Emacs
+  executable for the same `M-X` binding and `tetris` command availability
+  before launching the app.
+
 Flutter macOS workspace TODO:
 
-- [x] Create a sandbox workspace root under macOS Application Support.
+- [x] Create a workspace root under macOS Application Support.
 - [x] Implement `listWorkspace` in `MacOSNativeEmacsBridge`.
 - [x] Implement `importWorkspace` in `MacOSNativeEmacsBridge`.
 - [x] Implement `exportWorkspace` in `MacOSNativeEmacsBridge`.
 - [x] Return native workspace entries with name, path, directory flag, and size.
-- [x] Update backend capabilities to include macOS sandbox workspace behavior.
+- [x] Update backend capabilities to include macOS Application Support
+  workspace behavior.
 - [x] Add structure checks for the macOS workspace methods.
 - [x] Verify Dart tests, structure check, macOS smoke, macOS native smoke, and
   expanded `make flutter-verify`.
 
 Flutter macOS workspace status:
 
-- `MacOSNativeEmacsBridge` now creates a sandbox workspace root under
+- `MacOSNativeEmacsBridge` now creates a workspace root under
   Application Support at `iosmacs_flutter/workspace`.
 - `listWorkspace` returns sorted entries with name, path, directory flag, and
   byte size.
-- `importWorkspace` copies passed file URLs into the sandbox workspace,
+- `importWorkspace` copies passed file URLs into the Application Support
+  workspace,
   replacing existing items with the same name.
 - `exportWorkspace` returns workspace item file URLs, or the workspace root when
   it is empty.
-- Backend capabilities now report `macOS sandbox workspace list/import/export`
-  as supported behavior.
+- Backend capabilities now report
+  `macOS Application Support workspace list/import/export` as supported
+  behavior.
 - Structure checks guard the macOS workspace methods and Application Support
   workspace root.
 - `flutter analyze`, `flutter test`, `make flutter-macos-smoke`, `make
@@ -1413,12 +1478,17 @@ Exit criteria:
 The current top-level `make verify` remains the verification contract for the
 existing native iOS app.
 
-The Flutter path should grow its own verification targets later, likely:
+The Flutter path now has its own verification targets:
 
 - `make flutter-fake-smoke`
 - `make flutter-ios-smoke`
 - `make flutter-macos-smoke`
-- platform-specific backend smokes as they become real
+- `make flutter-ios-native-smoke`
+- `make flutter-macos-native-smoke`
+- `make flutter-backend-override-smoke`
+- `make flutter-web-smoke`
+- `make flutter-android-smoke`
+- `make flutter-verify`
 
 Do not replace the existing verification path until the Flutter iOS backend has
 equivalent evidence for startup, terminal rendering, input, file operations, and

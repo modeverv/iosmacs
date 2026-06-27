@@ -36,6 +36,7 @@ required_files=(
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
   "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
   "$app_dir/macos/Runner.xcodeproj/project.pbxproj"
+  "$app_dir/macos/Runner/AppDelegate.swift"
   "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
   "$app_dir/android/app/build.gradle.kts"
   "$app_dir/web/index.html"
@@ -68,6 +69,10 @@ if [[ ! -x scripts/run-flutter-macos-smoke.sh ]]; then
 fi
 if [[ ! -x scripts/run-flutter-macos-native-smoke.sh ]]; then
   printf 'error: missing executable Flutter macOS native smoke script\n' >&2
+  exit 1
+fi
+if [[ ! -x scripts/build-flutter-macos-emacs-runtime.sh ]]; then
+  printf 'error: missing executable Flutter macOS Emacs runtime build script\n' >&2
   exit 1
 fi
 if [[ ! -x scripts/run-flutter-backend-override-smoke.sh ]]; then
@@ -146,6 +151,57 @@ grep -q 'native drainOutput bytes=' \
   "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
 grep -q 'IOSMACS_WEB_TERMINAL_DEBUG_MARKER' \
   "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
+grep -q 'macOS child-process GNU Emacs session' \
+  "$app_dir/lib/src/backend/native_emacs_backend.dart"
+grep -q 'macOS direct PTY resize/ioctl bridge' \
+  "$app_dir/lib/src/backend/native_emacs_backend.dart"
+grep -q 'bundled macOS GNU Emacs runtime packaging' \
+  "$app_dir/lib/src/backend/native_emacs_backend.dart"
+grep -q 'startInteractiveEmacsProcess' \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+grep -q 'startupSurvivalProbeDuration' \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+grep -q 'bundledRuntimeDirectoryName = "iosmacs-emacs"' \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+grep -q 'Bundle.main.resourceURL' \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+grep -q 'EMACSLOADPATH' \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+grep -q 'exited during startup (' \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+grep -q 'macOS interactive GNU Emacs process started:' \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+grep -q 'forkpty(&masterFD' \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+grep -q 'TIOCSWINSZ' \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+grep -q 'execv(executablePath' \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+grep -q 'writeToEmacs(Data(bytes))' \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+if grep -Eq '/Applications/Emacs|/opt/homebrew/bin/emacs|/usr/local/bin/emacs' \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"; then
+  printf 'error: macOS native bridge must not auto-discover system Emacs paths\n' >&2
+  exit 1
+fi
+grep -q 'Bundle Flutter macOS Emacs' \
+  "$app_dir/macos/Runner.xcodeproj/project.pbxproj"
+grep -q 'IOSMACS_FLUTTER_MACOS_EMACS_DEST' \
+  "$app_dir/macos/Runner.xcodeproj/project.pbxproj"
+grep -q 'macOS native smoke did not start the bundled GNU Emacs process' \
+  scripts/run-flutter-macos-native-smoke.sh
+grep -q 'iosmacs-macos-mx-tetris-ok' \
+  scripts/run-flutter-macos-native-smoke.sh
+grep -q 'unexpectedly used a system Emacs candidate' \
+  scripts/run-flutter-macos-native-smoke.sh
+grep -q 'regressed to the old PTY pending diagnostic' \
+  scripts/run-flutter-macos-native-smoke.sh
+grep -q 'selected an Emacs process that exited during startup' \
+  scripts/run-flutter-macos-native-smoke.sh
+grep -q 'did not keep the selected Emacs process alive at startup' \
+  scripts/run-flutter-macos-native-smoke.sh
+grep -q 'macOS interactive GNU Emacs process started:' \
+  scripts/run-flutter-macos-native-smoke.sh
 grep -q 'IOSMACS_GC_THRESHOLD_MB' \
   iosmacs/Emacs/iosmacs_emacs_core.c
 grep -q 'IOSMACS_LIGHT_XTERM_INIT' \
@@ -438,18 +494,44 @@ grep -q 'iosmacs/native_emacs' \
   "$app_dir/ios/Runner/AppDelegate.swift"
 grep -q 'iosmacs/native_emacs' \
   "$app_dir/macos/Runner/MainFlutterWindow.swift"
+grep -q 'jisKanaKeyCode: UInt16 = 104' \
+  "$app_dir/macos/Runner/AppDelegate.swift"
+grep -q 'jisEisuKeyCode: UInt16 = 102' \
+  "$app_dir/macos/Runner/AppDelegate.swift"
+grep -q 'TISSelectInputSource' \
+  "$app_dir/macos/Runner/AppDelegate.swift"
+grep -q 'com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese' \
+  "$app_dir/macos/Runner/AppDelegate.swift"
+grep -q 'com.apple.keylayout.ABC' \
+  "$app_dir/macos/Runner/AppDelegate.swift"
 grep -q 'MacOSNativeEmacsBridge.swift in Sources' \
   "$app_dir/macos/Runner.xcodeproj/project.pbxproj"
-grep -q 'macos_process_backend_pending' \
-  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+grep -A1 'com.apple.security.app-sandbox' \
+  "$app_dir/macos/Runner/DebugProfile.entitlements" | grep -q '<false/>'
+grep -A1 'com.apple.security.app-sandbox' \
+  "$app_dir/macos/Runner/Release.entitlements" | grep -q '<false/>'
+if grep -q 'macos_process_backend_pending' \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"; then
+  printf 'error: macOS native bridge must not report the old process-backend pending diagnostic\n' >&2
+  exit 1
+fi
 grep -q 'runEmacsProcessProbe' \
   "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
 grep -q 'IOSMACS_FLUTTER_EMACS' \
   "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
 grep -q 'iosmacs-macos-process-ok' \
   "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
-grep -q 'Interactive PTY GNU Emacs backend is pending' \
+grep -q 'macOS interactive GNU Emacs process started:' \
   "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+grep -q 'global-set-key (kbd "M-X")' \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+grep -q "autoload 'tetris" \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
+if grep -q 'Interactive PTY GNU Emacs backend is pending' \
+  "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"; then
+  printf 'error: macOS native bridge must not keep the old interactive PTY pending marker\n' >&2
+  exit 1
+fi
 grep -q 'private func listWorkspace' \
   "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
 grep -q 'private func importWorkspace' \
@@ -585,7 +667,7 @@ grep -q 'sendBytes does not wait for native output drain to finish' \
   "$app_dir/test/native_emacs_backend_test.dart"
 grep -q 'iosmacs-native-drainOutput: first bytes=' \
   "$app_dir/lib/src/backend/native_emacs_backend.dart"
-grep -q 'macOS sandbox workspace list/import/export' \
+grep -q 'macOS Application Support workspace list/import/export' \
   "$app_dir/lib/src/backend/native_emacs_backend.dart"
 grep -q '_workspaceEntryFromMap' \
   "$app_dir/lib/src/backend/native_emacs_backend.dart"

@@ -1,5 +1,42 @@
 # iosmacs Flutter Log
 
+## 2026-06-27
+
+Flutter macOS bundled Emacs runtime:
+
+- Starting the host-independent macOS Emacs runtime work.
+- Goal for this unit: make `flutter run -d macos` use the Emacs runtime
+  prepared by this repo, so the Flutter macOS app does not depend on
+  `/usr/local/bin/emacs`, Homebrew Emacs, or Emacs.app being installed.
+- Added `scripts/build-flutter-macos-emacs-runtime.sh` to build a macOS
+  terminal Emacs from `wasmacs/vendor/emacs` and prepare
+  `flutter/build/emacs-macos/runtime`.
+- Built the runtime locally and verified the bundled executable can run in
+  batch mode with repo-provided lisp/etc/libexec paths.
+- Added a macOS Runner build phase that copies the runtime into
+  `Contents/Resources/iosmacs-emacs`.
+- Updated `MacOSNativeEmacsBridge` to prefer the bundled executable and to set
+  runtime environment paths before launching Emacs through `forkpty(3)`.
+- Updated macOS native smoke and structure checks to require bundled runtime
+  evidence and reject automatic system Emacs candidates.
+
+Flutter macOS Japanese input source and M-X:
+
+- Starting macOS keyboard parity work after `flutter run -d macos` showed
+  kana/eisu input-source switch warnings and `M-X tetris` still needed the iOS
+  runtime binding.
+- Added a macOS AppDelegate local key monitor for JIS `英数` keyCode 102 and
+  `かな` keyCode 104. It selects `ABC` for English input and
+  `Kotoeri.RomajiTyping.Japanese` for Hiragana, then consumes only those source
+  switch key events.
+- Added a macOS Emacs startup eval form that clears
+  `read-extended-command-predicate`, binds `M-X` to
+  `execute-extended-command`, and autoloads `dired` and `tetris`.
+- Added a direct bundled-Emacs `M-X` / `tetris` batch check to the macOS native
+  smoke before launching the Flutter app.
+- Updated structure checks to guard the macOS TIS input-source bridge and the
+  macOS `M-X`/`tetris` startup init.
+
 ## 2026-06-26
 
 - Started the Flutter workstream beside the existing native iOS app.
@@ -2406,3 +2443,44 @@ Flutter iOS mouse reporting:
   `git diff --check`, and `flutter build ios --simulator --debug`.
 - Installed and launched the rebuilt app on the booted iPad Simulator with
   process id `60217`.
+
+## 2026-06-27
+
+Flutter macOS child-process backend:
+
+- Starting work to bring the Flutter macOS backend closer to the current
+  Flutter iOS native path instead of stopping at process-probe diagnostics.
+- Replaced the macOS Runner's process-probe-only `start` path with a held GNU
+  Emacs child process launched through `forkpty(3)` as `<emacs> --quick
+  --no-splash -nw`.
+- The macOS native bridge now keeps the child pid plus PTY master, drains PTY
+  output into `NativeEmacsBackend.outputStream`, forwards `sendBytes` to the
+  PTY master, forwards redraw as form feed, resizes the PTY with
+  `ioctl(TIOCSWINSZ)`, and terminates the child process on `stop`.
+- Fixed the `flutter run -d macos` launch-maintenance issue where
+  `/usr/local/bin/emacs` could be selected, fail to find its app resources, and
+  leave the UI in a fake running state. Host Emacs discovery now prefers
+  Emacs.app candidates, verifies the child survives startup, and tries the
+  next candidate on early exit.
+- Disabled the macOS Runner app sandbox for this local host-Emacs backend;
+  with sandbox enabled, Emacs could not open `/dev/tty` even when a PTY was
+  allocated.
+- Kept host Emacs discovery explicit through `IOSMACS_FLUTTER_EMACS`,
+  Homebrew paths, and common Emacs.app locations, with the old batch probe
+  retained only as diagnostic fallback when interactive startup cannot run.
+- Updated backend capabilities, Dart tests, structure checks, macOS native
+  smoke assertions, and Flutter docs so macOS no longer presents the old
+  PTY/process-backend pending path as the current state.
+- Verified with `make flutter-structure-check`, `dart format
+  --set-exit-if-changed lib test`, `flutter analyze`, `flutter test`,
+  `make flutter-macos-native-smoke`, `make flutter-macos-smoke`, `make
+  flutter-backend-override-smoke`, `make flutter-ios-native-smoke`, `make
+  flutter-web-smoke`, `make flutter-android-smoke`, and `git diff --check`.
+- `make flutter-macos-native-smoke` captured
+  `macOS interactive GNU Emacs process started:` and workspace-open input
+  evidence in `/tmp` app logs.
+- A full `make flutter-verify` pass was attempted. It reached iOS native smoke
+  after structure, doctor, format, analyze, tests, and iOS launch smoke, then
+  hit a transient `did not reach *scratch*` timing failure even though the log
+  showed Emacs startup/file smoke activity. Re-running `make
+  flutter-ios-native-smoke` by itself passed.

@@ -228,15 +228,29 @@ Flutter path has equivalent startup, input, resize, and file-operation proof.
 The macOS backend is the first desktop proving ground.
 
 The current Flutter macOS path uses `NativeEmacsBackend` through the shared
-MethodChannel bridge for native startup and smoke evidence. Longer-term desktop
-process or PTY work should remain behind the same `EmacsBackend` interface.
+MethodChannel bridge for native startup and smoke evidence. The macOS Runner
+bundles a repo-built GNU Emacs runtime under
+`Contents/Resources/iosmacs-emacs` and holds that Emacs as a child process
+through `forkpty(3)`, giving Emacs `-nw` a real controlling terminal while
+keeping the Dart contract at the same byte-stream boundary as iOS.
 
-Expected future direction:
+Implemented macOS pieces:
 
 - Flutter desktop UI,
-- a child Emacs process or bundled native Emacs,
-- PTY-backed terminal transport,
-- the same Dart backend interface.
+- bundled macOS GNU Emacs runtime packaging through
+  `scripts/build-flutter-macos-emacs-runtime.sh`,
+- app-bundle Emacs discovery through `Bundle.main.resourceURL`, with
+  `IOSMACS_FLUTTER_EMACS` left only as an explicit debug fallback,
+- child-process lifecycle behind the `iosmacs/native_emacs` MethodChannel,
+- terminal output draining from the PTY master,
+- committed terminal input forwarding into the PTY master,
+- redraw, PTY resize, and stop forwarding,
+- Application Support workspace list/import/export,
+- the same Dart backend interface as iOS.
+
+Still explicit macOS gaps:
+
+- command-loop insertion marker proof matching the deepest iOS native smoke.
 
 macOS should help prove the UI/backend contract before Linux and Windows are
 expanded.

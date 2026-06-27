@@ -21,7 +21,7 @@ JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || printf '4')
 	app-installl smoke verify verify-iphone flutter-doctor flutter-structure-check flutter-bootstrap \
 	flutter-format-check flutter-analyze flutter-fake-smoke flutter-ios-smoke flutter-ios-launch-smoke flutter-macos-smoke \
 	flutter-ios-native-smoke flutter-macos-native-smoke flutter-backend-override-smoke flutter-web-smoke flutter-android-smoke \
-	flutter-emacs-static flutter-emacs-pdmp flutter-ipad-launch flutter-verify check clean distclean
+	flutter-emacs-static flutter-emacs-pdmp flutter-macos-emacs-runtime flutter-ipad-launch flutter-verify check clean distclean
 
 help:
 	@printf '%s\n' \
@@ -48,6 +48,7 @@ help:
 	  '  make flutter-ios-native-smoke Capture Flutter iOS native backend runtime smoke logs' \
 	  '  make flutter-emacs-static   Build Emacs static lib into flutter/build/emacs-ios (isolated)' \
 	  '  make flutter-emacs-pdmp    Build Emacs pdmp into flutter/build/emacs-ios (isolated)' \
+	  '  make flutter-macos-emacs-runtime Build bundled macOS Emacs runtime for Flutter' \
 	  '  make flutter-ipad-launch    Build Flutter iOS app and launch on booted iPad simulator' \
 	  '  make flutter-macos-smoke Build and launch Flutter macOS app briefly' \
 	  '  make flutter-macos-native-smoke Autostart and verify Flutter macOS native probe' \
@@ -153,6 +154,9 @@ flutter-emacs-static:
 flutter-emacs-pdmp: flutter-emacs-static
 	IOSMACS_BUILD_ROOT="$(FLUTTER_EMACS_BUILD_ROOT)" JOBS="$(JOBS)" \
 	  scripts/run-emacs-ios-nw-smoke.sh
+
+flutter-macos-emacs-runtime:
+	JOBS="$(JOBS)" scripts/build-flutter-macos-emacs-runtime.sh
 
 flutter-ios-launch-smoke:
 	scripts/run-flutter-ios-launch-smoke.sh
