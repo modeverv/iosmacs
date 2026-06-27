@@ -983,6 +983,8 @@ Flutter Android native channel TODO:
 - [x] Store Android workspace files under app-private
   `filesDir/iosmacs/workspace`.
 - [x] Support importing Android content URIs into the app-private workspace.
+- [x] Add an Android `ACTION_OPEN_DOCUMENT_TREE` picker path that persists a
+  workspace exchange folder URI while keeping Emacs `/home/user` app-private.
 - [x] Autostart Android by default now that a native channel route exists.
 - [x] Verify Android native-channel tests, structure check, and debug APK
   build.
@@ -997,6 +999,11 @@ Flutter Android native channel status:
 - The Android bridge returns real native status payloads and app-private
   workspace entries. It still reports the GNU Emacs NDK runtime and actual
   native Emacs terminal stream as pending.
+- Android `selectWorkspaceRoot` now opens a system document-tree picker and
+  stores the selected tree URI as a workspace exchange folder. Because Android
+  SAF trees are not direct POSIX directories for the native Emacs process,
+  `/home/user` remains app-private until explicit sync/import/export semantics
+  are added.
 
 Flutter Android emulator scratch smoke TODO:
 

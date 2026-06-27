@@ -112,6 +112,16 @@ Flutter Android fallback surface reduction:
 - Verified the Android paste-normalization update with `make
   flutter-structure-check`, full `flutter test`, `flutter analyze`, `git diff
   --check`, and `make flutter-android-smoke`.
+- Added Android workspace exchange folder selection. `selectWorkspaceRoot` now
+  opens `ACTION_OPEN_DOCUMENT_TREE`, persists the selected tree URI permission,
+  reports it through the shared native-channel workspace-selection path, and
+  `clearWorkspaceRoot` releases/removes that selection. The current Android
+  Emacs `/home/user` remains app-private because SAF tree URIs are not direct
+  POSIX directories for the NW Emacs process.
+- Verified the Android workspace exchange picker work with `make
+  flutter-structure-check`, targeted Flutter backend/screen tests,
+  `flutter analyze`, `git diff --check`, full `flutter test`, and `make
+  flutter-android-smoke`.
 
 Flutter Android GNU Emacs NW text-terminal display:
 

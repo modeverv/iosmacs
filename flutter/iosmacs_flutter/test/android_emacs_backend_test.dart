@@ -43,6 +43,10 @@ void main() {
     );
     expect(
       backend.capabilities.supportedFeatures,
+      contains('Android document-tree workspace exchange folder selection'),
+    );
+    expect(
+      backend.capabilities.supportedFeatures,
       contains('Android keyboard/IME runtime proof'),
     );
     expect(

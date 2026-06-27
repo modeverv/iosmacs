@@ -50,6 +50,9 @@ private class AndroidNativeEmacsBridge(
   companion object {
     const val channelName = "iosmacs/native_emacs"
     private const val exportDocumentRequestCode = 44017
+    private const val workspaceTreeRequestCode = 44018
+    private const val prefsName = "iosmacs_android_native_emacs"
+    private const val workspaceTreeUriKey = "workspace_tree_uri"
   }
 
   private val context: Context
@@ -64,6 +67,7 @@ private class AndroidNativeEmacsBridge(
   private val officialRuntime = OfficialAndroidEmacsRuntime
   private var pendingExportResult: MethodChannel.Result? = null
   private var pendingExportFile: File? = null
+  private var pendingWorkspaceTreeResult: MethodChannel.Result? = null
 
   fun handle(call: MethodCall, result: MethodChannel.Result) {
     when (call.method) {
@@ -84,9 +88,14 @@ private class AndroidNativeEmacsBridge(
   }
 
   fun handleActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
-    if (requestCode != exportDocumentRequestCode) {
-      return false
+    when (requestCode) {
+      exportDocumentRequestCode -> return handleExportDocumentResult(resultCode, data)
+      workspaceTreeRequestCode -> return handleWorkspaceTreeResult(resultCode, data)
     }
+    return false
+  }
+
+  private fun handleExportDocumentResult(resultCode: Int, data: Intent?): Boolean {
     val result = pendingExportResult ?: return true
     val exportFile = pendingExportFile
     pendingExportResult = null
@@ -113,6 +122,46 @@ private class AndroidNativeEmacsBridge(
       result.success(listOf(destinationUri.toString()))
     } catch (error: Exception) {
       result.error("workspace_export_failed", error.localizedMessage, null)
+    }
+    return true
+  }
+
+  private fun handleWorkspaceTreeResult(resultCode: Int, data: Intent?): Boolean {
+    val result = pendingWorkspaceTreeResult ?: return true
+    pendingWorkspaceTreeResult = null
+
+    val resultData = data
+    val treeUri = resultData?.data
+    if (resultCode != Activity.RESULT_OK || resultData == null || treeUri == null) {
+      lifecycleState = "iosmacs Android native bridge: workspace exchange folder selection cancelled"
+      result.success(
+        mapOf("message" to "Android workspace exchange folder selection cancelled"),
+      )
+      return true
+    }
+
+    try {
+      val flags = resultData.flags and (
+        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+          Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        )
+      if (flags != 0) {
+        context.contentResolver.takePersistableUriPermission(treeUri, flags)
+      }
+      context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+        .edit()
+        .putString(workspaceTreeUriKey, treeUri.toString())
+        .apply()
+      lifecycleState = "iosmacs Android native bridge: saved workspace exchange folder"
+      result.success(
+        mapOf(
+          "message" to "Android workspace exchange folder saved: $treeUri; Emacs /home/user remains app-private",
+          "workspaceRootUri" to treeUri.toString(),
+          "requiresRestart" to false,
+        ),
+      )
+    } catch (error: Exception) {
+      result.error("workspace_tree_selection_failed", error.localizedMessage, null)
     }
     return true
   }
@@ -318,20 +367,54 @@ private class AndroidNativeEmacsBridge(
   }
 
   private fun selectWorkspaceRoot(result: MethodChannel.Result) {
-    val path = prepareWorkspaceRoot().absolutePath
-    lifecycleState = "iosmacs Android native bridge: using app-private workspace"
-    result.success(
-      mapOf("message" to "Android app-private workspace: $path"),
-    )
+    if (pendingWorkspaceTreeResult != null) {
+      result.error("workspace_tree_selection_in_progress", "another Android workspace folder selection is already active", null)
+      return
+    }
+    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+      addFlags(
+        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+          Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+          Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
+          Intent.FLAG_GRANT_PREFIX_URI_PERMISSION,
+      )
+    }
+    pendingWorkspaceTreeResult = result
+    lifecycleState = "iosmacs Android native bridge: presenting workspace exchange folder picker"
+    try {
+      activity.startActivityForResult(intent, workspaceTreeRequestCode)
+    } catch (error: Exception) {
+      pendingWorkspaceTreeResult = null
+      result.error("workspace_tree_picker_unavailable", error.localizedMessage, null)
+    }
   }
 
   private fun clearWorkspaceRoot(result: MethodChannel.Result) {
     val path = prepareWorkspaceRoot().absolutePath
+    selectedWorkspaceTreeUri()?.let { treeUri ->
+      try {
+        context.contentResolver.releasePersistableUriPermission(
+          treeUri,
+          Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+        )
+      } catch (_: Exception) {
+        // The provider may have already revoked the grant.
+      }
+    }
+    context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+      .edit()
+      .remove(workspaceTreeUriKey)
+      .apply()
     lifecycleState = "iosmacs Android native bridge: reset app-private workspace"
     result.success(
       mapOf("message" to "Android default app-private workspace: $path"),
     )
   }
+
+  private fun selectedWorkspaceTreeUri(): Uri? =
+    context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+      .getString(workspaceTreeUriKey, null)
+      ?.let(Uri::parse)
 
   private fun status(): Map<String, Any> {
     val processProbe = if (officialTerminalStarted) {
@@ -358,6 +441,7 @@ private class AndroidNativeEmacsBridge(
       "androidEmacsProcessProbeStatus" to processProbe.status,
       "androidEmacsProcessProbeOutput" to processProbe.output,
       "androidEmacsOfficialTerminalStarted" to officialTerminalStarted,
+      "androidWorkspaceTreeUri" to (selectedWorkspaceTreeUri()?.toString() ?: ""),
     )
   }
 

@@ -303,6 +303,10 @@ startup chatter until the first menu-bar `*scratch*` frame is ready, so users
 see the usable terminal frame instead of loadup noise. Normal Android workspace
 export uses the system `ACTION_CREATE_DOCUMENT` picker, while smoke runs use a
 noninteractive content-provider export path for deterministic verification.
+Android workspace-root selection uses `ACTION_OPEN_DOCUMENT_TREE` to persist a
+user-selected SAF tree URI as a workspace exchange folder, but the active Emacs
+`/home/user` remains app-private until that tree can be explicitly synced into
+or mounted for the native NW process.
 The active NW startup path also defers the official `--with-android`
 subprocess comparison probe so diagnostic evidence does not block first
 terminal output. The emulator smoke now proves both cold pdmp generation and
