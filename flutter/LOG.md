@@ -95,7 +95,8 @@ Flutter Android fallback surface reduction:
 
 - Updated Android backend capabilities so the supported path names
   `Android GNU Emacs NW PTY terminal route` first, and the stateful frame
-  renderer is explicitly labeled as fallback diagnostics.
+  renderer is no longer advertised as a supported user-facing Android feature.
+  The capabilities dialog now keeps it on the diagnostic-only/unsupported side.
 - Updated Android native fallback lifecycle messages so they no longer read like
   the primary terminal path when `libemacs_nw.so` is absent.
 - Updated tests and structure guards around the new NW-first/fallback wording.

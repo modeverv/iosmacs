@@ -241,7 +241,7 @@ grep -q 'Android NDK GNU Emacs runtime artifact packaging' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'Android GNU Emacs NW PTY terminal route' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
-grep -q 'Android fallback diagnostic frame renderer' \
+grep -q 'Android fallback diagnostic frame renderer is diagnostic-only' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'official --with-android interactive terminal bridge' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"

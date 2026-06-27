@@ -305,8 +305,11 @@ noninteractive content-provider export path for deterministic verification.
 The active NW startup path also defers the official `--with-android`
 subprocess comparison probe so diagnostic evidence does not block first
 terminal output. The emulator smoke now proves both cold pdmp generation and
-warm relaunch reuse of the cached pdmp without regeneration. The likely
-remaining hard part is continuing to shrink the fallback diagnostic surface.
+warm relaunch reuse of the cached pdmp without regeneration. The Android
+capability surface now presents the NW PTY route as the supported interactive
+path and keeps the stateful frame renderer on the diagnostic-only side. The
+likely remaining hard part is continuing to audit and shrink fallback
+diagnostic surface that can still leak into normal workflows.
 
 The Android backend should reuse the same facade ideas as iOS where practical,
 but it should not block the Flutter shell or desktop backend work.

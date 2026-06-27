@@ -72,7 +72,16 @@ void main() {
     expect(
         find.text('Android GNU Emacs NW PTY terminal route'), findsOneWidget);
     expect(
+      find.text('Android fallback diagnostic frame renderer'),
+      findsNothing,
+    );
+    expect(
       find.text('official --with-android interactive terminal bridge'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+          'Android fallback diagnostic frame renderer is diagnostic-only'),
       findsOneWidget,
     );
   });

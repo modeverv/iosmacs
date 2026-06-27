@@ -27,7 +27,7 @@ void main() {
     );
     expect(
       backend.capabilities.supportedFeatures,
-      contains('Android fallback diagnostic frame renderer'),
+      isNot(contains('Android fallback diagnostic frame renderer')),
     );
     expect(
       backend.capabilities.supportedFeatures,
@@ -56,6 +56,10 @@ void main() {
     expect(
       backend.capabilities.unsupportedFeatures,
       contains('official --with-android interactive terminal bridge'),
+    );
+    expect(
+      backend.capabilities.unsupportedFeatures,
+      contains('Android fallback diagnostic frame renderer is diagnostic-only'),
     );
     expect(
       backend.capabilities.unsupportedFeatures,

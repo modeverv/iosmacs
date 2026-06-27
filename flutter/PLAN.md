@@ -1212,8 +1212,8 @@ Flutter Android GNU Emacs NDK runtime status:
 - The Android emulator smoke requires the packaged NW route by default; the old
   fallback diagnostic checks only run when `IOSMACS_ANDROID_REQUIRE_NW=0` is set.
 - The Android capability surface now advertises `Android GNU Emacs NW PTY
-  terminal route` as supported and demotes the old stateful frame renderer to an
-  explicit fallback diagnostic surface.
+  terminal route` as supported and keeps the old stateful frame renderer off the
+  supported user-facing feature list as diagnostic-only fallback evidence.
 - The Android emulator smoke now also exercises workspace list/import/open/export
   while the NW route is active, so app-private workspace behavior is checked
   against the real Android terminal runtime rather than only placeholder output.
