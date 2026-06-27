@@ -263,6 +263,8 @@ grep -q 'Android workspace exchange folder export' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'Android INTERNET permission for Emacs network processes' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
+grep -q 'Android Japanese committed UTF-8 runtime proof' \
+  "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'Android xterm pointer/mouse runtime proof' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'android.permission.INTERNET' \
@@ -449,6 +451,16 @@ grep -q -- '--android-nw-pdump-output' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q -- '--dump-file' \
   "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'iosmacs-android-force-xterm-input-decode' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'iosmacs-android-force-utf8-terminal' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'set-keyboard-coding-system' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'set-terminal-coding-system' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'LC_CTYPE' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
 grep -q 'global-set-key (kbd \\"M-X\\")' \
   "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
 grep -q "autoload 'tetris" \
@@ -458,6 +470,8 @@ grep -q 'File.pathSeparator' \
 grep -Fq 'Buffer: \*scratch\*' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_FLUTTER_INPUT_SMOKE=true' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'IOSMACS_FLUTTER_ANDROID_JAPANESE_INPUT_SMOKE=true' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_FLUTTER_ANDROID_FILE_OPS_SMOKE=true' \
   scripts/run-flutter-android-emulator-smoke.sh
@@ -469,6 +483,16 @@ grep -q 'IOSMACS_FLUTTER_WORKSPACE_SMOKE=true' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs-android-pointer.marker' \
   scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-android-japanese-input.marker' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-android-japanese-input-ok:日本語' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-android-japanese-input-smoke: submitted' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'IOSMACS_FLUTTER_ANDROID_JAPANESE_INPUT_SMOKE' \
+  "$app_dir/lib/main.dart"
+grep -q 'iosmacs-android-japanese-input-smoke' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'xterm-mouse-mode 1' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs-android-pointer-ok' \
@@ -1333,6 +1357,25 @@ grep -q 'diagnostic evidence does not block first' \
   flutter/ARCHITECTURE.md
 grep -q 'startup-chatter suppression' \
   flutter/ARCHITECTURE.md
+
+grep -q 'Android Ctrl/Meta modifier key row for terminal input' \
+  "$app_dir/lib/src/backend/android_emacs_backend.dart"
+grep -q '_ControlKeyRow' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q '_ModifierKeyButton' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q '_ctrlModifier' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q '_metaModifier' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'iosmacs-control-key-row' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'control key row is visible with ESC and modifier buttons' \
+  "$app_dir/test/terminal_screen_test.dart"
+grep -q 'Ctrl modifier converts letter to Ctrl byte' \
+  "$app_dir/test/terminal_screen_test.dart"
+grep -q 'Meta modifier sends ESC prefix before text' \
+  "$app_dir/test/terminal_screen_test.dart"
 
 if grep -q 'FakeEmacsBackend()' "$app_dir/lib/main.dart"; then
   printf 'error: main.dart must construct backends through createEmacsBackend()\n' >&2

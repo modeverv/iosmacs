@@ -31,6 +31,7 @@ class TerminalScreen extends StatefulWidget {
     this.runCapabilitiesSmoke = false,
     this.runInputSmoke = false,
     this.runAndroidFileOpsSmoke = false,
+    this.runAndroidJapaneseInputSmoke = false,
     this.runPointerSmoke = false,
     this.runResizeSmoke = false,
     this.runRedrawSmoke = false,
@@ -50,6 +51,7 @@ class TerminalScreen extends StatefulWidget {
   final bool runCapabilitiesSmoke;
   final bool runInputSmoke;
   final bool runAndroidFileOpsSmoke;
+  final bool runAndroidJapaneseInputSmoke;
   final bool runPointerSmoke;
   final bool runResizeSmoke;
   final bool runRedrawSmoke;
@@ -80,6 +82,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
   StreamSubscription<List<int>>? _outputSubscription;
   double _fontSize = 15;
   String _terminalInputMirrorBuffer = '';
+  bool _ctrlModifier = false;
+  bool _metaModifier = false;
 
   @override
   void initState() {
@@ -101,6 +105,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
         widget.runCapabilitiesSmoke ||
         widget.runInputSmoke ||
         widget.runAndroidFileOpsSmoke ||
+        widget.runAndroidJapaneseInputSmoke ||
+        widget.runPointerSmoke ||
         widget.runResizeSmoke ||
         widget.runRedrawSmoke ||
         widget.runStatusSmoke ||
@@ -188,6 +194,18 @@ class _TerminalScreenState extends State<TerminalScreen> {
                   focusNode: _inputFocusNode,
                   onSubmitted: _sendText,
                   onPaste: _pasteClipboardText,
+                  ctrlActive: _ctrlModifier,
+                  metaActive: _metaModifier,
+                ),
+                _ControlKeyRow(
+                  ctrlActive: _ctrlModifier,
+                  metaActive: _metaModifier,
+                  onCtrlToggle: () =>
+                      setState(() => _ctrlModifier = !_ctrlModifier),
+                  onMetaToggle: () =>
+                      setState(() => _metaModifier = !_metaModifier),
+                  onSendBytes: (List<int> bytes) =>
+                      unawaited(widget.backend.sendBytes(bytes)),
                 ),
                 _Toolbar(
                   fontSize: _fontSize,
@@ -438,6 +456,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
     if (widget.runInputSmoke) {
       await _runInputSmoke();
     }
+    if (widget.runAndroidJapaneseInputSmoke) {
+      await _runAndroidJapaneseInputSmoke();
+    }
     if (widget.runAndroidFileOpsSmoke) {
       await _runAndroidFileOpsSmoke();
     }
@@ -546,6 +567,30 @@ class _TerminalScreenState extends State<TerminalScreen> {
     }
   }
 
+  Future<void> _runAndroidJapaneseInputSmoke() async {
+    const text = '日本語';
+    const elisp =
+        '(let ((marker (expand-file-name "iosmacs-android-japanese-input.marker" "~"))) '
+        '(write-region "iosmacs-android-japanese-input-ok:日本語\\n" nil marker nil nil) '
+        '(message "iosmacs-android-japanese-input-ok:日本語"))';
+    // Use LF (\n = C-j) to trigger eval-print-last-sexp in *scratch*, not CR.
+    final bytes = utf8.encode('$elisp\n');
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await widget.backend.sendBytes(bytes);
+    await Future<void>.delayed(Duration.zero);
+    final diagnostics = widget.backend.diagnostics.value;
+    _logAndroidJapaneseInputSmoke(
+      'submitted ${bytes.length} byte(s); backend input total '
+      '${diagnostics.inputBytes}; text="$text"',
+    );
+  }
+
+  void _logAndroidJapaneseInputSmoke(String message) {
+    if (widget.mirrorTerminalOutputToLog) {
+      debugPrint('iosmacs-android-japanese-input-smoke: $message');
+    }
+  }
+
   Future<void> _runAndroidFileOpsSmoke() async {
     const elisp = r'''(load "~/iosmacs-android-file-ops-smoke.el")''';
     await Future<void>.delayed(const Duration(seconds: 1));
@@ -566,7 +611,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   }
 
   Future<void> _runPointerSmoke() async {
-    for (var attempt = 0; attempt < 24; attempt += 1) {
+    for (var attempt = 0; attempt < 60; attempt += 1) {
       if (_terminal.mouseMode != MouseMode.none) {
         break;
       }
@@ -928,8 +973,30 @@ class _TerminalScreenState extends State<TerminalScreen> {
     if (text.isEmpty) {
       return;
     }
-
     _inputController.clear();
+
+    final applyCtrl = _ctrlModifier;
+    final applyMeta = _metaModifier;
+    setState(() {
+      _ctrlModifier = false;
+      _metaModifier = false;
+    });
+
+    if (applyCtrl && text.length == 1) {
+      final upper = text.toUpperCase().codeUnitAt(0);
+      if (upper >= 0x41 && upper <= 0x5A) {
+        final ctrlByte = upper - 0x40;
+        final bytes = applyMeta ? <int>[0x1b, ctrlByte] : <int>[ctrlByte];
+        await widget.backend.sendBytes(bytes);
+        return;
+      }
+    }
+    if (applyMeta) {
+      await widget.backend.sendBytes(
+        <int>[0x1b, ...utf8.encode(text)],
+      );
+      return;
+    }
     await _inputBridge.submitCommittedText(text);
   }
 
@@ -1189,12 +1256,23 @@ class _InputRow extends StatelessWidget {
     required this.focusNode,
     required this.onSubmitted,
     required this.onPaste,
+    this.ctrlActive = false,
+    this.metaActive = false,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final ValueChanged<String> onSubmitted;
   final Future<void> Function() onPaste;
+  final bool ctrlActive;
+  final bool metaActive;
+
+  String get _hintText {
+    if (ctrlActive && metaActive) return 'C-M- key';
+    if (ctrlActive) return 'C- key (Ctrl + letter)';
+    if (metaActive) return 'M- key (Meta + text)';
+    return 'terminal input';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1214,13 +1292,21 @@ class _InputRow extends StatelessWidget {
                 color: Color(0xffeceff4),
                 fontFamily: 'monospace',
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 isDense: true,
                 filled: true,
-                fillColor: Color(0xff101214),
-                border: OutlineInputBorder(),
-                hintText: 'terminal input',
-                hintStyle: TextStyle(color: Color(0xff6f7785)),
+                fillColor: ctrlActive || metaActive
+                    ? const Color(0xff1a2535)
+                    : const Color(0xff101214),
+                border: const OutlineInputBorder(),
+                hintText: _hintText,
+                hintStyle: TextStyle(
+                  color: ctrlActive
+                      ? const Color(0xff88c0d0)
+                      : metaActive
+                          ? const Color(0xffebcb8b)
+                          : const Color(0xff6f7785),
+                ),
               ),
             ),
           ),
@@ -1355,6 +1441,169 @@ class _CapabilityLine extends StatelessWidget {
           const Text('- '),
           Expanded(child: Text(label)),
         ],
+      ),
+    );
+  }
+}
+
+class _ControlKeyRow extends StatelessWidget {
+  const _ControlKeyRow({
+    required this.ctrlActive,
+    required this.metaActive,
+    required this.onCtrlToggle,
+    required this.onMetaToggle,
+    required this.onSendBytes,
+  });
+
+  final bool ctrlActive;
+  final bool metaActive;
+  final VoidCallback onCtrlToggle;
+  final VoidCallback onMetaToggle;
+  final void Function(List<int>) onSendBytes;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey<String>('iosmacs-control-key-row'),
+      color: const Color(0xff1a2030),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: <Widget>[
+            _ModifierKeyButton(
+              label: 'ESC',
+              tooltip: 'Send ESC (\\x1b)',
+              onPressed: () => onSendBytes(const <int>[0x1b]),
+              active: false,
+              activeColor: const Color(0xffb48ead),
+            ),
+            _ModifierKeyButton(
+              label: 'C-g',
+              tooltip: 'Cancel (C-g = \\x07)',
+              onPressed: () => onSendBytes(const <int>[0x07]),
+              active: false,
+              activeColor: const Color(0xffbf616a),
+            ),
+            _ModifierKeyButton(
+              label: 'C-x',
+              tooltip: 'C-x prefix (\\x18)',
+              onPressed: () => onSendBytes(const <int>[0x18]),
+              active: false,
+              activeColor: const Color(0xff88c0d0),
+            ),
+            _ModifierKeyButton(
+              label: 'C-c',
+              tooltip: 'C-c prefix (\\x03)',
+              onPressed: () => onSendBytes(const <int>[0x03]),
+              active: false,
+              activeColor: const Color(0xff88c0d0),
+            ),
+            _ModifierKeyButton(
+              label: 'C-s',
+              tooltip: 'Search / Save (C-s = \\x13)',
+              onPressed: () => onSendBytes(const <int>[0x13]),
+              active: false,
+              activeColor: const Color(0xffa3be8c),
+            ),
+            _ModifierKeyButton(
+              label: 'C-r',
+              tooltip: 'Reverse search (C-r = \\x12)',
+              onPressed: () => onSendBytes(const <int>[0x12]),
+              active: false,
+              activeColor: const Color(0xffa3be8c),
+            ),
+            _ModifierKeyButton(
+              label: 'C-/',
+              tooltip: 'Undo (C-/ = \\x1f)',
+              onPressed: () => onSendBytes(const <int>[0x1f]),
+              active: false,
+              activeColor: const Color(0xffebcb8b),
+            ),
+            _ModifierKeyButton(
+              label: 'TAB',
+              tooltip: 'Tab / complete (\\x09)',
+              onPressed: () => onSendBytes(const <int>[0x09]),
+              active: false,
+              activeColor: const Color(0xffa3be8c),
+            ),
+            _ModifierKeyButton(
+              label: 'DEL',
+              tooltip: 'Delete backward (\\x7f)',
+              onPressed: () => onSendBytes(const <int>[0x7f]),
+              active: false,
+              activeColor: const Color(0xffbf616a),
+            ),
+            _ModifierKeyButton(
+              label: 'Ctrl',
+              tooltip: ctrlActive
+                  ? 'Ctrl modifier ON — type a letter to send C-x'
+                  : 'Sticky Ctrl — next letter in input becomes C-letter',
+              onPressed: onCtrlToggle,
+              active: ctrlActive,
+              activeColor: const Color(0xff88c0d0),
+            ),
+            _ModifierKeyButton(
+              label: 'Meta',
+              tooltip: metaActive
+                  ? 'Meta modifier ON — type text to send M-text'
+                  : 'Sticky Meta — next input prefixed with ESC',
+              onPressed: onMetaToggle,
+              active: metaActive,
+              activeColor: const Color(0xffebcb8b),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModifierKeyButton extends StatelessWidget {
+  const _ModifierKeyButton({
+    required this.label,
+    required this.tooltip,
+    required this.onPressed,
+    required this.active,
+    required this.activeColor,
+  });
+
+  final String label;
+  final String tooltip;
+  final VoidCallback onPressed;
+  final bool active;
+  final Color activeColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Tooltip(
+        message: tooltip,
+        child: TextButton(
+          onPressed: onPressed,
+          style: TextButton.styleFrom(
+            backgroundColor:
+                active ? activeColor.withValues(alpha: 0.25) : Colors.transparent,
+            foregroundColor: active ? activeColor : const Color(0xffd8dee9),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            minimumSize: const Size(36, 28),
+            side: active
+                ? BorderSide(color: activeColor, width: 1)
+                : BorderSide.none,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontFamily: 'monospace',
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
       ),
     );
   }

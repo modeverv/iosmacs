@@ -563,6 +563,8 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_startNwEmacs(
       setenv("EMACSDOC", etc.c_str(), 1);
     setenv("TERM",    "xterm-256color", 1);
     setenv("TERMINFO", "/dev/null", 1);  // suppress terminfo DB lookup
+    setenv("LANG", "en_US.UTF-8", 1);
+    setenv("LC_CTYPE", "en_US.UTF-8", 1);
     if (!home.empty())
       setenv("HOME", home.c_str(), 1);
     if (!cache.empty())
@@ -585,6 +587,25 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_startNwEmacs(
     args.push_back("--eval");
     args.push_back(
         "(progn "
+        "(defun iosmacs-android-force-xterm-input-decode () "
+        "(condition-case nil "
+        "(progn "
+        "(require 'term/xterm) "
+        "(when (fboundp 'terminal-init-xterm) "
+        "(terminal-init-xterm))) "
+        "(error nil))) "
+        "(iosmacs-android-force-xterm-input-decode) "
+        "(add-hook 'emacs-startup-hook #'iosmacs-android-force-xterm-input-decode) "
+        "(defun iosmacs-android-force-utf8-terminal () "
+        "(set-language-environment \"UTF-8\") "
+        "(prefer-coding-system 'utf-8-unix) "
+        "(setq locale-coding-system 'utf-8-unix "
+        "default-enable-multibyte-characters t) "
+        "(set-keyboard-coding-system 'utf-8-unix) "
+        "(set-terminal-coding-system 'utf-8-unix) "
+        "(ignore-errors (set-input-meta-mode 8))) "
+        "(iosmacs-android-force-utf8-terminal) "
+        "(add-hook 'emacs-startup-hook #'iosmacs-android-force-utf8-terminal) "
         "(when (boundp 'read-extended-command-predicate) "
         "(setq read-extended-command-predicate nil)) "
         "(when (fboundp 'execute-extended-command) "

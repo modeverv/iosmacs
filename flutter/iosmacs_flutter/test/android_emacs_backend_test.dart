@@ -67,7 +67,15 @@ void main() {
     );
     expect(
       backend.capabilities.supportedFeatures,
+      contains('Android Japanese committed UTF-8 runtime proof'),
+    );
+    expect(
+      backend.capabilities.supportedFeatures,
       contains('Android xterm pointer/mouse runtime proof'),
+    );
+    expect(
+      backend.capabilities.supportedFeatures,
+      contains('Android Ctrl/Meta modifier key row for terminal input'),
     );
     expect(
       backend.capabilities.supportedFeatures,

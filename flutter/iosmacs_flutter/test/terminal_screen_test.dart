@@ -72,7 +72,15 @@ void main() {
     expect(
         find.text('Android GNU Emacs NW PTY terminal route'), findsOneWidget);
     expect(
+      find.text('Android Japanese committed UTF-8 runtime proof'),
+      findsOneWidget,
+    );
+    expect(
       find.text('Android xterm pointer/mouse runtime proof'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Android Ctrl/Meta modifier key row for terminal input'),
       findsOneWidget,
     );
     expect(
@@ -769,6 +777,109 @@ void main() {
     expect(find.text('Clipboard is empty'), findsOneWidget);
     expect(backend.diagnostics.value.inputBytes, 0);
     expect(backend.diagnostics.value.message, 'fake backend running');
+  });
+
+  testWidgets('control key row is visible with ESC and modifier buttons', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+    await tester.pump();
+
+    expect(find.byTooltip('Send ESC (\\x1b)'), findsOneWidget);
+    expect(find.byTooltip('Cancel (C-g = \\x07)'), findsOneWidget);
+    expect(find.byTooltip('C-x prefix (\\x18)'), findsOneWidget);
+    expect(
+      find.byTooltip(
+          'Sticky Ctrl — next letter in input becomes C-letter'),
+      findsOneWidget,
+    );
+    expect(
+      find.byTooltip('Sticky Meta — next input prefixed with ESC'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+      'ESC control key button sends escape byte to backend', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Send ESC (\\x1b)'));
+    await tester.pumpAndSettle();
+
+    expect(backend.diagnostics.value.inputBytes, 1);
+    expect(backend.diagnostics.value.message, 'received 1 input byte(s)');
+  });
+
+  testWidgets('Ctrl modifier converts letter to Ctrl byte', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byTooltip('Sticky Ctrl — next letter in input becomes C-letter'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('C- key (Ctrl + letter)'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, 'g');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    // C-g = 0x07, 1 byte
+    expect(backend.diagnostics.value.inputBytes, 1);
+    expect(backend.diagnostics.value.message, 'received 1 input byte(s)');
+    expect(find.text('terminal input'), findsOneWidget);
+  });
+
+  testWidgets('Meta modifier sends ESC prefix before text', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byTooltip('Sticky Meta — next input prefixed with ESC'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('M- key (Meta + text)'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, 'x');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    // ESC + 'x' = 2 bytes
+    expect(backend.diagnostics.value.inputBytes, 2);
+    expect(backend.diagnostics.value.message, 'received 2 input byte(s)');
+    expect(find.text('terminal input'), findsOneWidget);
   });
 
   testWidgets('toolbar avoids overflow on narrow mobile width', (

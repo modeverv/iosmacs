@@ -21,6 +21,7 @@ package_id="com.example.iosmacs_flutter"
 android_file_elisp_path="files/iosmacs/workspace/iosmacs-android-file-ops-smoke.el"
 android_file_marker_path="files/iosmacs/workspace/iosmacs-android-file-ops.marker"
 android_file_smoke_path="files/iosmacs/workspace/notes/iosmacs-android-file-smoke.txt"
+android_japanese_marker_path="files/iosmacs/workspace/iosmacs-android-japanese-input.marker"
 android_commands_marker_path="files/iosmacs/workspace/iosmacs-android-commands.marker"
 android_network_marker_path="files/iosmacs/workspace/iosmacs-android-network.marker"
 android_pointer_marker_path="files/iosmacs/workspace/iosmacs-android-pointer.marker"
@@ -143,6 +144,7 @@ flutter build apk --debug \
   --dart-define=IOSMACS_FLUTTER_CAPABILITIES_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_STATUS_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_INPUT_SMOKE=true \
+  --dart-define=IOSMACS_FLUTTER_ANDROID_JAPANESE_INPUT_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_ANDROID_FILE_OPS_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_POINTER_SMOKE=true \
   --dart-define=IOSMACS_FLUTTER_RESIZE_SMOKE=true \
@@ -158,7 +160,7 @@ if [[ "$expect_pdump" == "1" ]]; then
     "run-as '$package_id' sh -c 'rm -rf files/iosmacs/emacs-pdmp files/iosmacs/etc'"
 fi
 "$adb_bin" -s "$device_id" shell \
-  "run-as '$package_id' sh -c 'rm -f \"$android_file_marker_path\" \"$android_file_smoke_path\" \"$android_commands_marker_path\" \"$android_network_marker_path\" \"$android_pointer_marker_path\" \"$android_file_elisp_path\"'"
+  "run-as '$package_id' sh -c 'rm -f \"$android_file_marker_path\" \"$android_file_smoke_path\" \"$android_japanese_marker_path\" \"$android_commands_marker_path\" \"$android_network_marker_path\" \"$android_pointer_marker_path\" \"$android_file_elisp_path\"'"
 cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
   "run-as '$package_id' sh -c 'cat > \"$android_file_elisp_path\"'"
 (let ((marker (expand-file-name "iosmacs-android-file-ops.marker" "~")))
@@ -336,6 +338,7 @@ keyboard_seen=0
 file_ops_seen=0
 file_ops_marker_text=""
 file_ops_saved_text=""
+japanese_marker_text=""
 commands_marker_text=""
 network_marker_text=""
 pointer_marker_text=""
@@ -347,6 +350,13 @@ for _ in {1..60}; do
   if grep -q 'iosmacs-android-file-ops-ok' <<<"$file_ops_marker_text" &&
     grep -q 'iosmacs-android-file-smoke' <<<"$file_ops_saved_text"; then
     file_ops_seen=1
+    break
+  fi
+  sleep 1
+done
+for _ in {1..30}; do
+  japanese_marker_text="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_japanese_marker_path" 2>/dev/null | tr -d '\r' || true)"
+  if grep -q 'iosmacs-android-japanese-input-ok:日本語' <<<"$japanese_marker_text"; then
     break
   fi
   sleep 1
@@ -398,6 +408,7 @@ if [[ "$expect_network" == "1" ]]; then
 fi
 printf '%s\n' "$file_ops_marker_text" > "$out_dir/android-file-ops.marker"
 printf '%s\n' "$file_ops_saved_text" > "$out_dir/android-file-smoke.txt"
+printf '%s\n' "$japanese_marker_text" > "$out_dir/android-japanese-input.marker"
 printf '%s\n' "$commands_marker_text" > "$out_dir/android-commands.marker"
 printf '%s\n' "$network_marker_text" > "$out_dir/android-network.marker"
 printf '%s\n' "$pointer_marker_text" > "$out_dir/android-pointer.marker"
@@ -430,6 +441,12 @@ fi
 if ! grep -q 'iosmacs-android-commands-ok' "$out_dir/android-commands.marker"; then
   printf 'error: Android Emacs command discovery smoke marker did not report ok\n' >&2
   cat "$out_dir/android-commands.marker" >&2 || true
+  printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2
+  exit 1
+fi
+if ! grep -q 'iosmacs-android-japanese-input-ok:日本語' "$out_dir/android-japanese-input.marker"; then
+  printf 'error: Android Emacs Japanese input smoke marker did not report ok\n' >&2
+  cat "$out_dir/android-japanese-input.marker" >&2 || true
   printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2
   exit 1
 fi
@@ -654,6 +671,19 @@ grep -q 'iosmacs-android-file-smoke' "$out_dir/android-file-smoke.txt" || {
 grep -q 'iosmacs-android-commands-ok' "$out_dir/android-commands.marker" || {
   printf 'error: Android Emacs command discovery smoke marker did not report ok\n' >&2
   cat "$out_dir/android-commands.marker" >&2 || true
+  exit 1
+}
+grep -q 'iosmacs-android-japanese-input-ok:日本語' "$out_dir/android-japanese-input.marker" || {
+  printf 'error: Android Emacs Japanese input marker did not report ok\n' >&2
+  cat "$out_dir/android-japanese-input.marker" >&2 || true
+  exit 1
+}
+grep -q 'iosmacs-android-japanese-input-ok:日本語' "$out_dir/logcat.txt" || {
+  printf 'error: did not observe Android Emacs Japanese input log evidence\n' >&2
+  exit 1
+}
+grep -q 'iosmacs-android-japanese-input-smoke: submitted' "$out_dir/logcat.txt" || {
+  printf 'error: did not observe Android Flutter Japanese input smoke submission evidence\n' >&2
   exit 1
 }
 grep -q 'iosmacs-android-commands-ok' "$out_dir/logcat.txt" || {
