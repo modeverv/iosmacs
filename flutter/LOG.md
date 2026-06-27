@@ -118,7 +118,12 @@ Flutter Android fallback surface reduction:
   `clearWorkspaceRoot` releases/removes that selection. The current Android
   Emacs `/home/user` remains app-private because SAF tree URIs are not direct
   POSIX directories for the NW Emacs process.
-- Verified the Android workspace exchange picker work with `make
+- Connected the selected Android exchange folder to Workspace Export. When a
+  persisted tree URI exists, normal `exportWorkspace` creates/replaces the
+  exported workspace file or zip inside that tree with `DocumentsContract`
+  instead of opening a document-create picker; smoke/noninteractive export still
+  uses the deterministic app-owned content provider.
+- Verified the Android workspace exchange picker/export work with `make
   flutter-structure-check`, targeted Flutter backend/screen tests,
   `flutter analyze`, `git diff --check`, full `flutter test`, and `make
   flutter-android-smoke`.

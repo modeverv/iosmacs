@@ -255,6 +255,8 @@ grep -q 'Android app-private workspace list/import/export' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'Android document-tree workspace exchange folder selection' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
+grep -q 'Android workspace exchange folder export' \
+  "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'fallback diagnostic frame running' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'NativeEmacsBackend' \
@@ -548,6 +550,12 @@ grep -q 'contentResolver.openOutputStream' \
 grep -q 'Intent.ACTION_OPEN_DOCUMENT_TREE' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'takePersistableUriPermission' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'DocumentsContract.createDocument' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'exportWorkspaceFileToTree' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'iosmacs Android workspace exchange export:' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'workspaceTreeUriKey' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"

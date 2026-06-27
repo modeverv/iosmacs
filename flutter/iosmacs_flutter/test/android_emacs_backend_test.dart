@@ -47,6 +47,10 @@ void main() {
     );
     expect(
       backend.capabilities.supportedFeatures,
+      contains('Android workspace exchange folder export'),
+    );
+    expect(
+      backend.capabilities.supportedFeatures,
       contains('Android keyboard/IME runtime proof'),
     );
     expect(

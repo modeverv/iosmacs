@@ -11,6 +11,7 @@ import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
 import android.os.ParcelFileDescriptor
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
@@ -355,6 +356,19 @@ private class AndroidNativeEmacsBridge(
     val nonInteractive = call.argument<Boolean>("nonInteractive") ?: false
     val root = prepareWorkspaceRoot()
     val exportFiles = prepareWorkspaceExportFiles(root)
+    val exchangeTreeUri = selectedWorkspaceTreeUri()
+    if (!nonInteractive && exchangeTreeUri != null) {
+      try {
+        val uris = exportFiles.mapNotNull { file ->
+          exportWorkspaceFileToTree(exchangeTreeUri, file)
+        }
+        lifecycleState = "iosmacs Android native bridge: exported ${uris.size} workspace item(s) to exchange folder"
+        result.success(uris.map { it.toString() })
+      } catch (error: Exception) {
+        result.error("workspace_exchange_export_failed", error.localizedMessage, null)
+      }
+      return
+    }
     if (!nonInteractive) {
       startUserDocumentExport(exportFiles, result)
       return
@@ -514,7 +528,7 @@ private class AndroidNativeEmacsBridge(
     }
     val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
       addCategory(Intent.CATEGORY_OPENABLE)
-      type = if (exportFile.extension == "zip") "application/zip" else "application/octet-stream"
+      type = mimeTypeFor(exportFile)
       putExtra(Intent.EXTRA_TITLE, exportFile.name)
     }
     pendingExportResult = result
@@ -550,6 +564,56 @@ private class AndroidNativeEmacsBridge(
       null
     }
   }
+
+  private fun exportWorkspaceFileToTree(treeUri: Uri, file: File): Uri? {
+    val destination = createOrReplaceTreeDocument(treeUri, file.name, mimeTypeFor(file))
+    context.contentResolver.openOutputStream(destination, "wt")?.use { output ->
+      file.inputStream().use { input ->
+        input.copyTo(output)
+      }
+    } ?: throw IllegalStateException("document tree returned no output stream")
+    Log.i(
+      "IOSMacsWorkspaceExport",
+      "iosmacs Android workspace exchange export: uri=$destination bytes=${file.length()}",
+    )
+    return destination
+  }
+
+  private fun createOrReplaceTreeDocument(treeUri: Uri, name: String, mimeType: String): Uri {
+    findTreeDocumentByName(treeUri, name)?.let { existing ->
+      DocumentsContract.deleteDocument(context.contentResolver, existing)
+    }
+    val rootDocumentUri = DocumentsContract.buildDocumentUriUsingTree(
+      treeUri,
+      DocumentsContract.getTreeDocumentId(treeUri),
+    )
+    return DocumentsContract.createDocument(context.contentResolver, rootDocumentUri, mimeType, name)
+      ?: throw IllegalStateException("document tree could not create $name")
+  }
+
+  private fun findTreeDocumentByName(treeUri: Uri, name: String): Uri? {
+    val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
+      treeUri,
+      DocumentsContract.getTreeDocumentId(treeUri),
+    )
+    val projection = arrayOf(
+      DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+      DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+    )
+    context.contentResolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
+      val idColumn = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+      val nameColumn = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+      while (cursor.moveToNext()) {
+        if (nameColumn >= 0 && cursor.getString(nameColumn) == name && idColumn >= 0) {
+          return DocumentsContract.buildDocumentUriUsingTree(treeUri, cursor.getString(idColumn))
+        }
+      }
+    }
+    return null
+  }
+
+  private fun mimeTypeFor(file: File): String =
+    if (file.extension == "zip") "application/zip" else "application/octet-stream"
 
   private fun ClipData.Item.firstText(): String =
     coerceToText(context)?.toString() ?: ""
