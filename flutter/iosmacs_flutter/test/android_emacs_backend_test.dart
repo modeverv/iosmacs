@@ -47,6 +47,10 @@ void main() {
     );
     expect(
       backend.capabilities.supportedFeatures,
+      contains('Android workspace exchange folder import'),
+    );
+    expect(
+      backend.capabilities.supportedFeatures,
       contains('Android workspace exchange folder export'),
     );
     expect(

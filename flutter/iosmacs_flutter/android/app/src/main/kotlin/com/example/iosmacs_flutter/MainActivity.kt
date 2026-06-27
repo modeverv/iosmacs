@@ -153,11 +153,13 @@ private class AndroidNativeEmacsBridge(
         .edit()
         .putString(workspaceTreeUriKey, treeUri.toString())
         .apply()
+      val importedCount = importWorkspaceTreeDocuments(treeUri, prepareWorkspaceRoot())
       lifecycleState = "iosmacs Android native bridge: saved workspace exchange folder"
       result.success(
         mapOf(
-          "message" to "Android workspace exchange folder saved: $treeUri; Emacs /home/user remains app-private",
+          "message" to "Android workspace exchange folder saved: $treeUri; imported $importedCount item(s); Emacs /home/user remains app-private",
           "workspaceRootUri" to treeUri.toString(),
+          "importedCount" to importedCount,
           "requiresRestart" to false,
         ),
       )
@@ -577,6 +579,53 @@ private class AndroidNativeEmacsBridge(
       "iosmacs Android workspace exchange export: uri=$destination bytes=${file.length()}",
     )
     return destination
+  }
+
+  private fun importWorkspaceTreeDocuments(treeUri: Uri, root: File): Int {
+    root.mkdirs()
+    val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
+      treeUri,
+      DocumentsContract.getTreeDocumentId(treeUri),
+    )
+    val projection = arrayOf(
+      DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+      DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+      DocumentsContract.Document.COLUMN_MIME_TYPE,
+    )
+    var importedCount = 0
+    context.contentResolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
+      val idColumn = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+      val nameColumn = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+      val mimeColumn = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE)
+      while (cursor.moveToNext()) {
+        if (idColumn < 0 || nameColumn < 0) {
+          continue
+        }
+        val mimeType = if (mimeColumn >= 0) cursor.getString(mimeColumn) else null
+        if (mimeType == DocumentsContract.Document.MIME_TYPE_DIR) {
+          continue
+        }
+        val name = cursor.getString(nameColumn)?.replace("/", "_") ?: continue
+        if (name.isBlank()) {
+          continue
+        }
+        val sourceUri = DocumentsContract.buildDocumentUriUsingTree(
+          treeUri,
+          cursor.getString(idColumn),
+        )
+        context.contentResolver.openInputStream(sourceUri)?.use { input ->
+          File(root, name).outputStream().use { output ->
+            input.copyTo(output)
+          }
+          importedCount += 1
+        }
+      }
+    }
+    Log.i(
+      "IOSMacsWorkspaceExport",
+      "iosmacs Android workspace exchange import: uri=$treeUri count=$importedCount",
+    )
+    return importedCount
   }
 
   private fun createOrReplaceTreeDocument(treeUri: Uri, name: String, mimeType: String): Uri {

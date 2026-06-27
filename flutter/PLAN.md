@@ -985,6 +985,8 @@ Flutter Android native channel TODO:
 - [x] Support importing Android content URIs into the app-private workspace.
 - [x] Add an Android `ACTION_OPEN_DOCUMENT_TREE` picker path that persists a
   workspace exchange folder URI while keeping Emacs `/home/user` app-private.
+- [x] Import top-level files from the selected Android workspace exchange
+  folder into the app-private workspace when the folder is selected.
 - [x] Use the persisted Android workspace exchange folder as the normal
   Workspace Export destination when it is available.
 - [x] Autostart Android by default now that a native channel route exists.
@@ -1006,6 +1008,10 @@ Flutter Android native channel status:
   SAF trees are not direct POSIX directories for the native Emacs process,
   `/home/user` remains app-private until explicit sync/import/export semantics
   are added.
+- Folder selection now copies top-level non-directory documents from that SAF
+  tree into the app-private workspace, replacing same-named files. This makes
+  existing user files appear in the Emacs workspace after selection while
+  preserving the native process's app-private POSIX root.
 - Normal Android Workspace Export now writes the prepared workspace file or zip
   into the selected exchange folder through `DocumentsContract`; when no
   exchange folder is selected it still presents the document-create picker.
