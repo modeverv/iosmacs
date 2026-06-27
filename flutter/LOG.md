@@ -43,6 +43,14 @@ Flutter Android NW follow-up:
 - Deferred the official Android subprocess comparison probe while the NW PTY
   terminal route is active, so comparison-only diagnostics no longer sit on the
   first-output hot path.
+- Added an Android NW startup timing marker to the JNI PTY bridge. The marker
+  measures fork-to-first-usable-`*scratch*` time at the same point where startup
+  chatter is released, and `make flutter-android-emulator-smoke` now requires
+  that timing/suppression evidence.
+- Verified the timing marker with `make flutter-structure-check` and `make
+  flutter-android-emulator-smoke`. The current emulator run reached the first
+  interactive frame with `elapsed_ms=814` while suppressing `12640` startup
+  bytes before rendering the usable terminal frame.
 
 Flutter Android fallback surface reduction:
 

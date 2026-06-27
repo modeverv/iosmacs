@@ -411,7 +411,11 @@ grep -q 'release_nw_startup_buffer_locked("terminal frame detected")' \
   "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
 grep -q 'iosmacs Android GNU Emacs NW interactive frame ready:' \
   "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
-grep -q 'NW Emacs startup chatter was not suppressed before the interactive frame' \
+grep -q 'elapsed_ms=' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
+grep -q 'elapsed_ms=\[1-9\]\[0-9\]\*; suppressed' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'NW Emacs startup timing/suppression marker missing before the interactive frame' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'NW Emacs startup load chatter leaked into Flutter logs' \
   scripts/run-flutter-android-emulator-smoke.sh

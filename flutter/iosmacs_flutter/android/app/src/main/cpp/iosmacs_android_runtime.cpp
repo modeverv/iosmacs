@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <chrono>
 #include <csignal>
 #include <cstring>
 #include <fcntl.h>
@@ -23,6 +24,7 @@ pid_t official_emacs_pid = -1;
 int official_emacs_master_fd = -1;
 bool official_emacs_suppress_startup_output = false;
 std::string official_emacs_startup_buffer;
+std::chrono::steady_clock::time_point official_emacs_start_time;
 
 jbyteArray to_byte_array(JNIEnv *env, const std::string &text) {
   auto bytes = env->NewByteArray(static_cast<jsize>(text.size()));
@@ -207,6 +209,12 @@ std::string release_nw_startup_buffer_locked(const char *reason) {
   const size_t suppressed_bytes = official_emacs_startup_buffer.size();
   std::string output = "\r\niosmacs Android GNU Emacs NW interactive frame ready: ";
   output += reason;
+  if (official_emacs_start_time != std::chrono::steady_clock::time_point{}) {
+    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - official_emacs_start_time);
+    output += "; elapsed_ms=";
+    output += std::to_string(static_cast<long long>(elapsed.count()));
+  }
   output += "; suppressed ";
   output += std::to_string(static_cast<unsigned long long>(suppressed_bytes));
   output += " startup byte(s)\r\n";
@@ -253,6 +261,7 @@ void reap_official_emacs_locked() {
     }
     official_emacs_suppress_startup_output = false;
     official_emacs_startup_buffer.clear();
+    official_emacs_start_time = std::chrono::steady_clock::time_point{};
   }
 }
 
@@ -309,6 +318,7 @@ void stop_official_emacs_locked() {
   }
   official_emacs_suppress_startup_output = false;
   official_emacs_startup_buffer.clear();
+  official_emacs_start_time = std::chrono::steady_clock::time_point{};
 }
 
 }  // namespace
@@ -570,6 +580,7 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_startNwEmacs(
   official_emacs_master_fd = master_fd;
   official_emacs_suppress_startup_output = true;
   official_emacs_startup_buffer.clear();
+  official_emacs_start_time = std::chrono::steady_clock::now();
   set_nonblocking(official_emacs_master_fd);
 
   std::string output = "\r\niosmacs Android GNU Emacs NW PTY session started: pid=";

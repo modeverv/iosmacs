@@ -1228,6 +1228,10 @@ Flutter Android GNU Emacs NDK runtime status:
   logs the number of suppressed startup bytes. This avoids showing long
   no-pdump load chatter in the Flutter terminal while preserving the real Emacs
   PTY session.
+- The same Android NW startup marker now includes fork-to-first-usable-frame
+  timing as `elapsed_ms=...`, and the emulator smoke requires that timing plus
+  suppression evidence. The current baseline run reached the first interactive
+  `*scratch*` frame in `814` ms while suppressing `12640` startup bytes.
 - Normal Android workspace export now presents the system
   `ACTION_CREATE_DOCUMENT` picker and writes the selected workspace file (or a
   generated workspace zip for multiple files) to the user-selected document
