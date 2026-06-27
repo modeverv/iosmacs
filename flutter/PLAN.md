@@ -991,6 +991,10 @@ Flutter Android native channel TODO:
   during Workspace Refresh/list without overwriting existing app-private files.
 - [x] Use the persisted Android workspace exchange folder as the normal
   Workspace Export destination when it is available.
+- [x] Add Android `INTERNET` permission to the main manifest so packaged NW
+  Emacs can open network connections outside debug/profile builds.
+- [x] Add an optional Android emulator Emacs network smoke gated by
+  `IOSMACS_ANDROID_EXPECT_NETWORK=1`.
 - [x] Autostart Android by default now that a native channel route exists.
 - [x] Verify Android native-channel tests, structure check, and debug APK
   build.
@@ -1024,6 +1028,11 @@ Flutter Android native channel status:
   into the selected exchange folder through `DocumentsContract`; workspace zip
   export preserves app-private subdirectory relative paths. When no exchange
   folder is selected it still presents the document-create picker.
+- The main Android manifest declares `android.permission.INTERNET`, matching
+  the expectation that the packaged NW Emacs process can use network APIs in
+  release-style builds. `scripts/run-flutter-android-emulator-smoke.sh` can now
+  set `IOSMACS_ANDROID_EXPECT_NETWORK=1` to load an Emacs Lisp HTTP smoke using
+  `make-network-process` and require an `iosmacs-android-network-ok` marker.
 
 Flutter Android emulator scratch smoke TODO:
 

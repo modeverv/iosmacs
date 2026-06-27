@@ -33,6 +33,7 @@ class AndroidEmacsBackend implements EmacsBackend {
           'Android workspace exchange folder import',
           'Android workspace exchange folder refresh sync',
           'Android workspace exchange folder export',
+          'Android INTERNET permission for Emacs network processes',
           'Android keyboard/IME runtime proof',
           'Android NDK GNU Emacs runtime artifact packaging',
           'Android GNU Emacs Java bridge packaging',

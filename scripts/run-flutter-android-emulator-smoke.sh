@@ -9,6 +9,7 @@ device_id="${IOSMACS_FLUTTER_ANDROID_DEVICE:-}"
 require_nw="${IOSMACS_ANDROID_REQUIRE_NW:-1}"
 expect_pdump="${IOSMACS_ANDROID_EXPECT_PDUMP:-0}"
 expect_pdump_reuse="${IOSMACS_ANDROID_EXPECT_PDUMP_REUSE:-0}"
+expect_network="${IOSMACS_ANDROID_EXPECT_NETWORK:-0}"
 out_dir="$repo_root/flutter/build/android-emulator-smoke"
 screenshot="$out_dir/scratch.png"
 warm_logcat="$out_dir/logcat-warm-relaunch.txt"
@@ -16,6 +17,7 @@ package_id="com.example.iosmacs_flutter"
 android_file_elisp_path="files/iosmacs/workspace/iosmacs-android-file-ops-smoke.el"
 android_file_marker_path="files/iosmacs/workspace/iosmacs-android-file-ops.marker"
 android_file_smoke_path="files/iosmacs/workspace/notes/iosmacs-android-file-smoke.txt"
+android_network_marker_path="files/iosmacs/workspace/iosmacs-android-network.marker"
 android_pdump_status_path="files/iosmacs/emacs-pdmp/emacs.pdmp.status"
 android_pdump_path="files/iosmacs/emacs-pdmp/emacs.pdmp"
 
@@ -129,7 +131,7 @@ if [[ "$expect_pdump" == "1" ]]; then
     "run-as '$package_id' sh -c 'rm -rf files/iosmacs/emacs-pdmp files/iosmacs/etc'"
 fi
 "$adb_bin" -s "$device_id" shell \
-  "run-as '$package_id' sh -c 'rm -f \"$android_file_marker_path\" \"$android_file_smoke_path\" \"$android_file_elisp_path\"'"
+  "run-as '$package_id' sh -c 'rm -f \"$android_file_marker_path\" \"$android_file_smoke_path\" \"$android_network_marker_path\" \"$android_file_elisp_path\"'"
 cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
   "run-as '$package_id' sh -c 'cat > \"$android_file_elisp_path\"'"
 (let ((marker (expand-file-name "iosmacs-android-file-ops.marker" "~")))
@@ -167,6 +169,52 @@ cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
       nil marker nil nil)
      (message "iosmacs-android-file-ops-error:%S" err))))
 ELISP
+if [[ "$expect_network" == "1" ]]; then
+  cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
+    "run-as '$package_id' sh -c 'cat >> \"$android_file_elisp_path\"'"
+
+(let ((marker (expand-file-name "iosmacs-android-network.marker" "~"))
+      (buffer (get-buffer-create " *iosmacs-android-network-smoke*"))
+      proc)
+  (condition-case err
+      (unwind-protect
+          (progn
+            (with-current-buffer buffer
+              (erase-buffer))
+            (setq proc
+                  (make-network-process
+                   :name "iosmacs-android-network-smoke"
+                   :buffer buffer
+                   :host "example.com"
+                   :service 80
+                   :nowait nil
+                   :coding 'binary))
+            (process-send-string
+             proc
+             "GET / HTTP/1.0\r\nHost: example.com\r\nConnection: close\r\n\r\n")
+            (let ((deadline (+ (float-time) 20)))
+              (while (and (< (float-time) deadline)
+                          (not (with-current-buffer buffer
+                                 (save-excursion
+                                   (goto-char (point-min))
+                                   (search-forward "HTTP/" nil t)))))
+                (accept-process-output proc 1)))
+            (unless (with-current-buffer buffer
+                      (save-excursion
+                        (goto-char (point-min))
+                        (search-forward "HTTP/" nil t)))
+              (error "network smoke did not receive HTTP response"))
+            (write-region "iosmacs-android-network-ok\n" nil marker nil nil)
+            (message "iosmacs-android-network-ok"))
+        (when (and proc (process-live-p proc))
+          (delete-process proc)))
+    (error
+     (write-region
+      (format "iosmacs-android-network-error:%S\n" err)
+      nil marker nil nil)
+     (message "iosmacs-android-network-error:%S" err))))
+ELISP
+fi
 "$adb_bin" -s "$device_id" shell input keyevent 82 >/dev/null 2>&1 || true
 "$adb_bin" -s "$device_id" shell am start -n "$package_id/.MainActivity"
 
@@ -223,6 +271,7 @@ done
 file_ops_seen=0
 file_ops_marker_text=""
 file_ops_saved_text=""
+network_marker_text=""
 pdump_status_text=""
 pdump_size=""
 for _ in {1..60}; do
@@ -237,8 +286,18 @@ for _ in {1..60}; do
 done
 pdump_status_text="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_pdump_status_path" 2>/dev/null | tr -d '\r' || true)"
 pdump_size="$("$adb_bin" -s "$device_id" shell run-as "$package_id" stat -c %s "$android_pdump_path" 2>/dev/null | tr -d '\r' || true)"
+if [[ "$expect_network" == "1" ]]; then
+  for _ in {1..30}; do
+    network_marker_text="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_network_marker_path" 2>/dev/null | tr -d '\r' || true)"
+    if grep -q 'iosmacs-android-network-ok' <<<"$network_marker_text"; then
+      break
+    fi
+    sleep 1
+  done
+fi
 printf '%s\n' "$file_ops_marker_text" > "$out_dir/android-file-ops.marker"
 printf '%s\n' "$file_ops_saved_text" > "$out_dir/android-file-smoke.txt"
+printf '%s\n' "$network_marker_text" > "$out_dir/android-network.marker"
 printf '%s\n' "$pdump_status_text" > "$out_dir/android-pdump.status"
 
 "$adb_bin" -s "$device_id" logcat -d > "$out_dir/logcat.txt"
@@ -262,6 +321,12 @@ if [[ "$file_ops_seen" != "1" ]]; then
   printf 'error: did not observe Android Emacs file save/reopen/Dired evidence\n' >&2
   printf 'marker file: %s\n' "$out_dir/android-file-ops.marker" >&2
   printf 'saved file: %s\n' "$out_dir/android-file-smoke.txt" >&2
+  printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2
+  exit 1
+fi
+if [[ "$expect_network" == "1" ]] && ! grep -q 'iosmacs-android-network-ok' "$out_dir/android-network.marker"; then
+  printf 'error: Android Emacs network smoke marker did not report ok\n' >&2
+  cat "$out_dir/android-network.marker" >&2 || true
   printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2
   exit 1
 fi
@@ -426,6 +491,17 @@ grep -q 'iosmacs-android-file-smoke' "$out_dir/android-file-smoke.txt" || {
   cat "$out_dir/android-file-smoke.txt" >&2 || true
   exit 1
 }
+if [[ "$expect_network" == "1" ]]; then
+  grep -q 'iosmacs-android-network-ok' "$out_dir/android-network.marker" || {
+    printf 'error: Android Emacs network smoke marker did not report ok\n' >&2
+    cat "$out_dir/android-network.marker" >&2 || true
+    exit 1
+  }
+  grep -q 'iosmacs-android-network-ok' "$out_dir/logcat.txt" || {
+    printf 'error: did not observe Android Emacs network smoke log evidence\n' >&2
+    exit 1
+  }
+fi
 grep -Eq 'iosmacs-resize-smoke: requested [1-9][0-9]*x[1-9][0-9]*; backend geometry [1-9][0-9]*x[1-9][0-9]*' \
   "$out_dir/logcat.txt" || {
   printf 'error: did not observe Android resize smoke evidence\n' >&2

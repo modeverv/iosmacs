@@ -59,6 +59,10 @@ void main() {
     );
     expect(
       backend.capabilities.supportedFeatures,
+      contains('Android INTERNET permission for Emacs network processes'),
+    );
+    expect(
+      backend.capabilities.supportedFeatures,
       contains('Android keyboard/IME runtime proof'),
     );
     expect(

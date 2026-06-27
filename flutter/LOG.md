@@ -136,6 +136,21 @@ Flutter Android fallback surface reduction:
   non-destructive refresh-sync work with `make flutter-structure-check`,
   targeted Flutter backend/screen tests, `flutter analyze`, `git diff --check`,
   full `flutter test`, and `make flutter-android-smoke`.
+- Added Android network-permission parity for the NW Emacs route. The main
+  Android manifest now declares `android.permission.INTERNET`, so release-style
+  packages do not depend on debug/profile manifest overlays for Emacs network
+  connections.
+- Added an optional emulator Emacs network smoke gated by
+  `IOSMACS_ANDROID_EXPECT_NETWORK=1`. When enabled,
+  `scripts/run-flutter-android-emulator-smoke.sh` appends an Emacs Lisp
+  `make-network-process` HTTP check to the existing Android file-ops smoke and
+  requires `iosmacs-android-network-ok` in both the app-private marker and
+  logcat evidence.
+- Verified the Android network-permission and optional-smoke wiring with shell
+  syntax checks, `make flutter-structure-check`, Android backend tests,
+  `flutter analyze`, full `flutter test`, `git diff --check`, `make
+  flutter-android-smoke`, and merged-manifest inspection for
+  `android.permission.INTERNET`.
 
 Flutter Android GNU Emacs NW text-terminal display:
 

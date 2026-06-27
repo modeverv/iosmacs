@@ -261,6 +261,10 @@ grep -q 'Android workspace exchange folder refresh sync' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'Android workspace exchange folder export' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
+grep -q 'Android INTERNET permission for Emacs network processes' \
+  "$app_dir/lib/src/backend/android_emacs_backend.dart"
+grep -q 'android.permission.INTERNET' \
+  "$app_dir/android/app/src/main/AndroidManifest.xml"
 grep -q 'fallback diagnostic frame running' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'NativeEmacsBackend' \
@@ -459,6 +463,8 @@ grep -q 'IOSMACS_ANDROID_EXPECT_PDUMP' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_ANDROID_EXPECT_PDUMP_REUSE' \
   scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'IOSMACS_ANDROID_EXPECT_NETWORK' \
+  scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'logcat-warm-relaunch.txt' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'pdump reused' \
@@ -486,6 +492,10 @@ grep -q 'iosmacs-android-file-ops.marker' \
 grep -q 'iosmacs-android-file-ops-smoke.el' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs-android-file-ops-ok' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-android-network-ok' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'make-network-process' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'did not observe Android Emacs file save/reopen/Dired evidence' \
   scripts/run-flutter-android-emulator-smoke.sh
