@@ -393,8 +393,44 @@ grep -q 'iosmacs: Android NW without pdumper-stats' \
   scripts/build-flutter-android-emacs-nw.sh
 grep -q -- '--with-dumping=none' \
   scripts/build-flutter-android-emacs-nw.sh
+grep -q 'IOSMACS_ANDROID_EMACS_NW_PDUMPER' \
+  scripts/build-flutter-android-emacs-nw.sh
+grep -q -- '--with-pdumper=yes' \
+  scripts/build-flutter-android-emacs-nw.sh
+grep -q 'IOSMACS_ANDROID_NW_PDUMP_USE_EMACSLOADPATH' \
+  scripts/build-flutter-android-emacs-nw.sh
+grep -q 'IOSMACS_PDMP_ALLOW_REQUIRE_DURING_DUMP' \
+  scripts/build-flutter-android-emacs-nw.sh
+grep -q 'IOSMACS_ANDROID_NW_PDUMP_OUTPUT' \
+  scripts/build-flutter-android-emacs-nw.sh
+grep -q -- '--android-nw-pdump-output' \
+  scripts/build-flutter-android-emacs-nw.sh
+grep -q 'IOSMACS_ANDROID_NW_PDUMP_OUTPUT' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q -- '--android-nw-pdump-output' \
+  scripts/build-flutter-android-emacs-runtime.sh
+grep -q 'Android NW pdump app lisp root' \
+  scripts/build-flutter-android-emacs-nw.sh
+grep -q 'add Android NW pdump subdirs' \
+  scripts/build-flutter-android-emacs-nw.sh
+grep -q 'iosmacs-nw-pdumper-enabled' \
+  scripts/build-flutter-android-emacs-nw.sh
 grep -q 'NwEmacsRuntime.loadPath' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'NwEmacsRuntime.ensurePdump' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q -- '--temacs=pdump' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'copyTo(File(dumpRelativeEtcDir, "DOC")' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'IOSMACS_ANDROID_NW_PDUMP_USE_EMACSLOADPATH' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'IOSMACS_ANDROID_NW_PDUMP_OUTPUT' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q -- '--android-nw-pdump-output' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q -- '--dump-file' \
+  "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
 grep -q 'File.pathSeparator' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -Fq 'Buffer: \*scratch\*' \
@@ -406,6 +442,10 @@ grep -q 'IOSMACS_FLUTTER_ANDROID_FILE_OPS_SMOKE=true' \
 grep -q 'IOSMACS_FLUTTER_MIRROR_TERMINAL_INPUT=true' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_FLUTTER_WORKSPACE_SMOKE=true' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'IOSMACS_ANDROID_EXPECT_PDUMP' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'android-pdump.status' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_ANDROID_REQUIRE_NW:-1' \
   scripts/run-flutter-android-emulator-smoke.sh

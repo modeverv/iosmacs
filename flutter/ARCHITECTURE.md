@@ -293,16 +293,19 @@ Flutter-terminal path. The Android smoke now proves keyboard/IME input and
 document-provider-style `content://` workspace export against the NW route. It
 also loads an app-workspace Elisp smoke file through the interactive NW
 terminal and verifies real Emacs file save/reopen plus Dired listing evidence
-inside the Android app sandbox. The JNI PTY bridge buffers no-pdump startup
-chatter until the first menu-bar `*scratch*` frame is ready, so users see the
-usable terminal frame instead of loadup noise. Normal Android workspace export
-uses the system `ACTION_CREATE_DOCUMENT` picker, while smoke runs use a
+inside the Android app sandbox. The Android NW route now has a target-side
+pdumper cache: the pdumper-capable `libemacs_nw.so` is still built without the
+official `HAVE_ANDROID` text-terminal restriction, but the app generates
+`files/iosmacs/emacs-pdmp/emacs.pdmp` inside app-private storage and passes it
+to interactive startup with `--dump-file`. The JNI PTY bridge still buffers any
+startup chatter until the first menu-bar `*scratch*` frame is ready, so users
+see the usable terminal frame instead of loadup noise. Normal Android workspace
+export uses the system `ACTION_CREATE_DOCUMENT` picker, while smoke runs use a
 noninteractive content-provider export path for deterministic verification.
 The active NW startup path also defers the official `--with-android`
 subprocess comparison probe so diagnostic evidence does not block first
-terminal output. The likely hard parts are improving NW startup/runtime
-packaging with a real dumped/cache path and shrinking the fallback diagnostic
-surface.
+terminal output. The likely hard parts are proving warm relaunch reuse of the
+cached pdmp and continuing to shrink the fallback diagnostic surface.
 
 The Android backend should reuse the same facade ideas as iOS where practical,
 but it should not block the Flutter shell or desktop backend work.

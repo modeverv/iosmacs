@@ -67,6 +67,21 @@ Flutter Android NW follow-up:
   flutter-android-emulator-smoke`. The final emulator run reached the first
   interactive frame with `elapsed_ms=1013`, suppressed `12875` startup bytes,
   and produced `iosmacs-android-file-ops-ok`.
+- Added an Android NW pdumper route. `make
+  flutter-android-emacs-nw-pdumper-build` builds `libemacs_nw.so` with
+  pdumper support while still avoiding build-host dumping; the Android app then
+  generates `files/iosmacs/emacs-pdmp/emacs.pdmp` inside the app sandbox and
+  passes it to the PTY startup with `--dump-file`.
+- Patched Android NW `loadup.el`/`lread.c` so target-side pdump generation can
+  use the app-extracted Lisp root, find `../etc/DOC`, and write the pdmp to an
+  app-private path instead of the read-only APK native-library directory.
+- Extended `make flutter-android-emulator-smoke` with
+  `IOSMACS_ANDROID_EXPECT_PDUMP=1`, which requires the pdump ready marker,
+  `status=ok`, and a non-empty `emacs.pdmp`. The verified emulator run produced
+  an 11,564,416 byte pdmp in 2328 ms, then reached the first interactive
+  `*scratch*` frame through the pdmp route in `elapsed_ms=305` while suppressing
+  only `469` startup bytes; file save/reopen/Dired proof still produced
+  `iosmacs-android-file-ops-ok`.
 
 Flutter Android fallback surface reduction:
 

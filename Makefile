@@ -22,7 +22,7 @@ JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || printf '4')
 	flutter-format-check flutter-analyze flutter-fake-smoke flutter-ios-smoke flutter-ios-launch-smoke flutter-macos-smoke \
 	flutter-ios-native-smoke flutter-macos-native-smoke flutter-backend-override-smoke flutter-web-smoke flutter-android-smoke \
 	flutter-android-emulator-smoke flutter-android-emacs-configure flutter-android-emacs-runtime \
-	flutter-android-emacs-nw-configure flutter-android-emacs-nw-build \
+	flutter-android-emacs-nw-configure flutter-android-emacs-nw-build flutter-android-emacs-nw-pdumper-build \
 	flutter-emacs-static flutter-emacs-pdmp flutter-macos-emacs-runtime flutter-ipad-launch \
 	flutter-verify check clean distclean
 
@@ -63,6 +63,7 @@ help:
 	  '  make flutter-android-emacs-runtime Attempt GNU Emacs Android NDK native library build' \
 	  '  make flutter-android-emacs-nw-configure Configure GNU Emacs NW text-terminal for Android' \
 	  '  make flutter-android-emacs-nw-build Build GNU Emacs NW binary for Android (libemacs_nw.so)' \
+	  '  make flutter-android-emacs-nw-pdumper-build Build Android NW binary with pdumper support' \
 	  '  make flutter-verify      Run the Flutter workstream verification checks' \
 	  '  make emacs-nw-smoke    Run the terminal -nw smoke check' \
 	  '  make clean             Remove repo-local generated build outputs' \
@@ -224,6 +225,10 @@ flutter-android-emacs-nw-configure:
 
 flutter-android-emacs-nw-build:
 	IOSMACS_ANDROID_EMACS_NW_BUILD=1 scripts/build-flutter-android-emacs-nw.sh
+
+flutter-android-emacs-nw-pdumper-build:
+	IOSMACS_ANDROID_EMACS_NW_PDUMPER=1 IOSMACS_ANDROID_EMACS_NW_BUILD=1 \
+	  scripts/build-flutter-android-emacs-nw.sh
 
 flutter-verify:
 	$(MAKE) flutter-structure-check

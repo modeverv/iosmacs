@@ -512,6 +512,7 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_startNwEmacs(
     jstring etc_dir,
     jstring home_dir,
     jstring cache_dir,
+    jstring dump_file,
     jint cols,
     jint rows) {
   std::lock_guard<std::mutex> lock(runtime_mutex);
@@ -530,6 +531,7 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_startNwEmacs(
   const std::string etc        = jstring_to_string(env, etc_dir);
   const std::string home       = jstring_to_string(env, home_dir);
   const std::string cache      = jstring_to_string(env, cache_dir);
+  const std::string dump       = jstring_to_string(env, dump_file);
 
   if (executable.empty()) {
     return to_byte_array(
@@ -557,6 +559,8 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_startNwEmacs(
       setenv("EMACSLOADPATH", lisp.c_str(), 1);
     if (!etc.empty())
       setenv("EMACSDATA", etc.c_str(), 1);
+    if (!etc.empty())
+      setenv("EMACSDOC", etc.c_str(), 1);
     setenv("TERM",    "xterm-256color", 1);
     setenv("TERMINFO", "/dev/null", 1);  // suppress terminfo DB lookup
     if (!home.empty())
@@ -568,15 +572,23 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_startNwEmacs(
     // Disable GUI attempts; force text terminal.
     setenv("DISPLAY", "", 1);
     // Start interactive Emacs in nw mode.
-    const char *argv[] = {
-        executable.c_str(),
-        "-Q",
-        "--no-window-system",
-        "--quick",
-        "--no-splash",
-        nullptr,
-    };
-    execv(executable.c_str(), const_cast<char *const *>(argv));
+    std::vector<std::string> args;
+    args.push_back(executable);
+    if (!dump.empty()) {
+      args.push_back("--dump-file");
+      args.push_back(dump);
+    }
+    args.push_back("-Q");
+    args.push_back("--no-window-system");
+    args.push_back("--quick");
+    args.push_back("--no-splash");
+    std::vector<char *> argv;
+    argv.reserve(args.size() + 1);
+    for (std::string &arg : args) {
+      argv.push_back(arg.data());
+    }
+    argv.push_back(nullptr);
+    execv(executable.c_str(), argv.data());
     _exit(127);
   }
 

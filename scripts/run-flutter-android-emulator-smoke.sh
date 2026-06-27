@@ -7,12 +7,15 @@ sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/opt/homebrew/share/android-comman
 avd_name="${IOSMACS_FLUTTER_ANDROID_AVD:-iosmacs_flutter_pixel}"
 device_id="${IOSMACS_FLUTTER_ANDROID_DEVICE:-}"
 require_nw="${IOSMACS_ANDROID_REQUIRE_NW:-1}"
+expect_pdump="${IOSMACS_ANDROID_EXPECT_PDUMP:-0}"
 out_dir="$repo_root/flutter/build/android-emulator-smoke"
 screenshot="$out_dir/scratch.png"
 package_id="com.example.iosmacs_flutter"
 android_file_elisp_path="files/iosmacs/workspace/iosmacs-android-file-ops-smoke.el"
 android_file_marker_path="files/iosmacs/workspace/iosmacs-android-file-ops.marker"
 android_file_smoke_path="files/iosmacs/workspace/notes/iosmacs-android-file-smoke.txt"
+android_pdump_status_path="files/iosmacs/emacs-pdmp/emacs.pdmp.status"
+android_pdump_path="files/iosmacs/emacs-pdmp/emacs.pdmp"
 
 export ANDROID_HOME="$sdk_root"
 export ANDROID_SDK_ROOT="$sdk_root"
@@ -192,6 +195,8 @@ done
 file_ops_seen=0
 file_ops_marker_text=""
 file_ops_saved_text=""
+pdump_status_text=""
+pdump_size=""
 for _ in {1..60}; do
   file_ops_marker_text="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_file_marker_path" 2>/dev/null | tr -d '\r' || true)"
   file_ops_saved_text="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_file_smoke_path" 2>/dev/null | tr -d '\r' || true)"
@@ -202,8 +207,11 @@ for _ in {1..60}; do
   fi
   sleep 1
 done
+pdump_status_text="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_pdump_status_path" 2>/dev/null | tr -d '\r' || true)"
+pdump_size="$("$adb_bin" -s "$device_id" shell run-as "$package_id" stat -c %s "$android_pdump_path" 2>/dev/null | tr -d '\r' || true)"
 printf '%s\n' "$file_ops_marker_text" > "$out_dir/android-file-ops.marker"
 printf '%s\n' "$file_ops_saved_text" > "$out_dir/android-file-smoke.txt"
+printf '%s\n' "$pdump_status_text" > "$out_dir/android-pdump.status"
 
 "$adb_bin" -s "$device_id" logcat -d > "$out_dir/logcat.txt"
 
@@ -246,6 +254,22 @@ if [[ "$nw_session_seen" == "1" ]]; then
     printf 'error: NW Emacs startup timing/suppression marker missing before the interactive frame\n' >&2
     exit 1
   }
+  if [[ "$expect_pdump" == "1" ]]; then
+    grep -q 'iosmacs Android GNU Emacs NW pdump ready:' "$out_dir/logcat.txt" || {
+      printf 'error: Android NW pdump ready marker missing from logcat\n' >&2
+      exit 1
+    }
+    grep -q 'status=ok' "$out_dir/android-pdump.status" || {
+      printf 'error: Android NW pdump status did not report ok\n' >&2
+      cat "$out_dir/android-pdump.status" >&2 || true
+      exit 1
+    }
+    if [[ ! "$pdump_size" =~ ^[1-9][0-9]*$ ]]; then
+      printf 'error: Android NW pdump file was not created or had zero size\n' >&2
+      printf 'pdump size: %s\n' "$pdump_size" >&2
+      exit 1
+    fi
+  fi
   if grep -Eq 'I flutter : .*Loading emacs-lisp/' "$out_dir/logcat.txt"; then
     printf 'error: NW Emacs startup load chatter leaked into Flutter logs\n' >&2
     exit 1

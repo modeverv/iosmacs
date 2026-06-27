@@ -123,13 +123,24 @@ private class AndroidNativeEmacsBridge(
     val nwBinary = NwEmacsRuntime.executablePath(context)
     if (nwBinary != null && !officialTerminalStarted) {
       val dataDir = NwEmacsRuntime.ensureDataExtracted(context)
+      val workspaceRoot = prepareWorkspaceRoot()
+      val pdumpFile = dataDir?.let {
+        NwEmacsRuntime.ensurePdump(
+          context,
+          File(nwBinary),
+          it,
+          workspaceRoot,
+          context.cacheDir,
+        )
+      }
       lifecycleState = "iosmacs Android native bridge: GNU Emacs NW PTY terminal starting"
       val nwOutput = nativeRuntime.startNwEmacs(
         nwBinary,
         dataDir?.let { NwEmacsRuntime.loadPath(it) } ?: "",
         dataDir?.let { File(it, "etc").absolutePath } ?: "",
-        prepareWorkspaceRoot().absolutePath,
+        workspaceRoot.absolutePath,
         context.cacheDir.absolutePath,
+        pdumpFile?.absolutePath ?: "",
         cols,
         rows,
       )
@@ -576,6 +587,7 @@ private object AndroidNativeEmacsRuntime {
     etcDir: String,
     homeDir: String,
     cacheDir: String,
+    dumpFile: String,
     cols: Int,
     rows: Int,
   ): ByteArray
@@ -589,9 +601,11 @@ private object NwEmacsRuntime {
   // Asset directories for Emacs Lisp and etc data (from the Android build).
   private const val ASSETS_LISP = "lisp"
   private const val ASSETS_ETC  = "etc"
+  private const val ASSET_PDUMPER_ENABLED = "iosmacs-nw-pdumper-enabled"
   // Version marker: bump this if the extracted data format changes.
-  private const val DATA_VERSION = "2"
+  private const val DATA_VERSION = "6"
   private const val DATA_VERSION_FILE = ".iosmacs_nw_data_version"
+  private const val PDUMP_STATUS_FILE = "emacs.pdmp.status"
 
   // Returns the path to the NW Emacs binary if it has been extracted, else null.
   fun executablePath(context: Context): String? {
@@ -611,6 +625,120 @@ private object NwEmacsRuntime {
       ?.forEach { dirs += it }
     return dirs.joinToString(File.pathSeparator) { it.absolutePath }
   }
+
+  fun ensurePdump(
+    context: Context,
+    executable: File,
+    dataRoot: File,
+    homeDir: File,
+    cacheDir: File,
+  ): File? {
+    if (!pdumperEnabled(context)) {
+      return null
+    }
+
+    val dumpDir = File(context.filesDir, "iosmacs/emacs-pdmp").apply { mkdirs() }
+    val dumpFile = File(dumpDir, "emacs.pdmp")
+    val statusFile = File(dumpDir, PDUMP_STATUS_FILE)
+    val key = "${executable.length()}:${executable.lastModified()}:$DATA_VERSION"
+    val oldStatus = statusFile.takeIf { it.isFile }?.readText().orEmpty()
+    if (dumpFile.isFile && oldStatus.contains("key=$key") && oldStatus.contains("status=ok")) {
+      return dumpFile
+    }
+    if (oldStatus.contains("key=$key") && oldStatus.contains("status=failed")) {
+      Log.w(TAG, "Android NW pdump disabled after previous failure: ${statusFile.absolutePath}")
+      return null
+    }
+
+    dumpDir.listFiles()
+      ?.filter { it.name.endsWith(".pdmp") || it.name == PDUMP_STATUS_FILE }
+      ?.forEach { it.delete() }
+
+    val lispPath = loadPath(dataRoot)
+    val etcDir = File(dataRoot, "etc")
+    val dumpRelativeEtcDir = File(dumpDir.parentFile, "etc").apply { mkdirs() }
+    val sourceDoc = File(etcDir, "DOC")
+    if (sourceDoc.isFile) {
+      sourceDoc.copyTo(File(dumpRelativeEtcDir, "DOC"), overwrite = true)
+    }
+    val startedAt = System.nanoTime()
+    val captured = ByteArrayOutputStream()
+    return try {
+      val process = ProcessBuilder(
+        executable.absolutePath,
+        "--batch",
+        "-l",
+        "loadup",
+        "--temacs=pdump",
+        "--android-nw-pdump-output",
+        dumpFile.absolutePath,
+        "--bin-dest",
+        "not-set",
+        "--eln-dest",
+        "not-set",
+      )
+        .directory(dumpDir)
+        .redirectErrorStream(true)
+        .apply {
+          environment()["EMACSLOADPATH"] = lispPath
+          environment()["EMACSDATA"] = etcDir.absolutePath
+          environment()["EMACSDOC"] = etcDir.absolutePath
+          environment()["TERM"] = "dumb"
+          environment()["HOME"] = homeDir.absolutePath
+          environment()["TMPDIR"] = cacheDir.absolutePath
+          environment()["LC_ALL"] = "C"
+          environment()["IOSMACS_ANDROID_NW_PDUMP_USE_EMACSLOADPATH"] = "1"
+          environment()["IOSMACS_PDMP_ALLOW_REQUIRE_DURING_DUMP"] = "1"
+          environment()["IOSMACS_ANDROID_NW_PDUMP_OUTPUT"] = dumpFile.absolutePath
+        }
+        .start()
+      val outputThread = Thread {
+        try {
+          process.inputStream.use { input -> input.copyTo(captured) }
+        } catch (_: Exception) {
+          // The timeout path closes the stream while this thread is blocked.
+        }
+      }
+      outputThread.name = "iosmacs Android NW pdump output"
+      outputThread.start()
+      val finished = process.waitFor(90, TimeUnit.SECONDS)
+      if (!finished) {
+        process.destroyForcibly()
+      }
+      outputThread.join(1000)
+      val elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
+      if (finished && process.exitValue() == 0 && dumpFile.isFile) {
+        statusFile.writeText("status=ok\nkey=$key\nelapsed_ms=$elapsedMs\nbytes=${dumpFile.length()}\n")
+        Log.i(
+          TAG,
+          "iosmacs Android GNU Emacs NW pdump ready: ${dumpFile.absolutePath} bytes=${dumpFile.length()} elapsed_ms=$elapsedMs",
+        )
+        dumpFile
+      } else {
+        val status = if (finished) "exit=${process.exitValue()}" else "timeout"
+        val snippet = captured.toString(Charsets.UTF_8.name())
+          .replace("\r", "\\r")
+          .replace("\n", "\\n")
+          .take(1000)
+        statusFile.writeText("status=failed\nkey=$key\nresult=$status\noutput=$snippet\n")
+        Log.w(TAG, "Android NW pdump generation failed: $status output=$snippet")
+        null
+      }
+    } catch (error: Exception) {
+      statusFile.writeText("status=failed\nkey=$key\nerror=${error.localizedMessage}\n")
+      Log.w(TAG, "Android NW pdump generation error: ${error.localizedMessage}")
+      null
+    }
+  }
+
+  private fun pdumperEnabled(context: Context): Boolean =
+    try {
+      context.assets.open(ASSET_PDUMPER_ENABLED).use { input ->
+        input.readBytes().toString(Charsets.UTF_8).trim() == "1"
+      }
+    } catch (_: Exception) {
+      false
+    }
 
   // Ensures Emacs Lisp/etc data is extracted from APK assets to filesDir.
   // Returns the root data directory, or null on failure.

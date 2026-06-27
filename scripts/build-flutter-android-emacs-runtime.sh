@@ -135,6 +135,17 @@ done
 
 loadup_el="${source_copy}/lisp/loadup.el"
 if [[ -f "${loadup_el}" ]] \
+  && ! grep -q 'IOSMACS_ANDROID_NW_PDUMP_OUTPUT' "${loadup_el}"; then
+  perl -0pi -e '
+s/\(dump-emacs-portable \(expand-file-name output invocation-directory\)\)/(dump-emacs-portable\n                     (or (cadr (member "--android-nw-pdump-output" command-line-args))\n                         (getenv "IOSMACS_ANDROID_NW_PDUMP_OUTPUT")\n                         (expand-file-name output invocation-directory)))/s
+' "${loadup_el}"
+  if grep -q 'IOSMACS_ANDROID_NW_PDUMP_OUTPUT' "${loadup_el}"; then
+    printf 'patched lisp/loadup.el: Android NW pdump output override for asset use\n'
+  else
+    printf 'warning: loadup.el Android NW pdump output override patch not applied\n'
+  fi
+fi
+if [[ -f "${loadup_el}" ]] \
   && ! grep -q 'iosmacs: Android NW without pdumper-stats' "${loadup_el}"; then
   perl -0pi -e '
 s/\(and \(eq system-type '\''android\)\n         \(not \(pdumper-stats\)\)\)/(and (eq system-type '\''android)\n         ;; iosmacs: Android NW without pdumper-stats.\n         ;; The Flutter NW route can use --with-dumping=none while reusing\n         ;; these packaged Lisp assets, so pdumper functions may be absent.\n         (fboundp '\''pdumper-stats)\n         (not (pdumper-stats)))/s

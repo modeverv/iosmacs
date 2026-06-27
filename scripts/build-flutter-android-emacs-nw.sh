@@ -10,6 +10,9 @@
 #   scripts/build-flutter-android-emacs-nw.sh          # configure only
 #   IOSMACS_ANDROID_EMACS_NW_BUILD=1 \
 #     scripts/build-flutter-android-emacs-nw.sh        # full build
+#   IOSMACS_ANDROID_EMACS_NW_PDUMPER=1 \
+#   IOSMACS_ANDROID_EMACS_NW_BUILD=1 \
+#     scripts/build-flutter-android-emacs-nw.sh        # pdumper-capable build
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -17,7 +20,15 @@ source_root="${IOSMACS_EMACS_SOURCE:-${repo_root}/wasmacs/vendor/emacs}"
 sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}}"
 abi="${IOSMACS_ANDROID_ABI:-arm64-v8a}"
 api="${IOSMACS_ANDROID_API:-35}"
-build_root="${repo_root}/flutter/build/emacs-android-nw/${abi}"
+pdumper_mode="${IOSMACS_ANDROID_EMACS_NW_PDUMPER:-0}"
+if [[ "${pdumper_mode}" == "1" || "${pdumper_mode}" == "yes" || "${pdumper_mode}" == "true" ]]; then
+  pdumper_enabled=1
+  build_flavor="${abi}-pdumper"
+else
+  pdumper_enabled=0
+  build_flavor="${abi}"
+fi
+build_root="${repo_root}/flutter/build/emacs-android-nw/${build_flavor}"
 source_copy="${build_root}/source"
 tool_dir="${build_root}/tools"
 out_dir="${build_root}/iosmacs"
@@ -184,7 +195,67 @@ s|(int\nsys_faccessat \(int fd, const char \*pathname, int mode, int flags\)\n\{
   fi
 fi
 
+lread_c="${source_copy}/src/lread.c"
+if [[ -f "${lread_c}" ]] && ! grep -q 'IOSMACS_ANDROID_NW_PDUMP_USE_EMACSLOADPATH' "${lread_c}"; then
+  perl -0pi -e '
+s/bool use_loadpath = !will_dump_p \(\);/bool use_loadpath = !will_dump_p ()\n    || (will_dump_p () \&\& getenv ("IOSMACS_ANDROID_NW_PDUMP_USE_EMACSLOADPATH"));/s
+' "${lread_c}"
+  if grep -q 'IOSMACS_ANDROID_NW_PDUMP_USE_EMACSLOADPATH' "${lread_c}"; then
+    printf 'patched src/lread.c: allow EMACSLOADPATH during Android NW pdump\n'
+  else
+    printf 'warning: lread.c Android NW pdump load-path patch not applied\n'
+  fi
+fi
+if [[ -f "${lread_c}" ]] && ! grep -q 'iosmacs: Android NW pdump app lisp root' "${lread_c}"; then
+  perl -0pi -e '
+s/  if \(will_dump_p \(\)\)\n    \/\* PATH_DUMPLOADSEARCH is the lisp dir in the source directory\.\n       We used to add \.\.\/lisp \(ie the lisp dir in the build\n       directory\) at the front here, but that should not be\n       necessary, since in out of tree builds lisp\/ is empty, save\n       for Makefile\.  \*\/\n    return decode_env_path \(0, PATH_DUMPLOADSEARCH, 0\);/  if (will_dump_p ())\n    {\n#ifdef __ANDROID__\n      \/* iosmacs: Android NW pdump app lisp root.  *\/\n      return decode_env_path (0,\n                              "\/data\/user\/0\/com.example.iosmacs_flutter\/files\/iosmacs\/emacs-data\/lisp",\n                              0);\n#endif\n      \/* PATH_DUMPLOADSEARCH is the lisp dir in the source directory.\n         We used to add ..\/lisp (ie the lisp dir in the build\n         directory) at the front here, but that should not be\n         necessary, since in out of tree builds lisp\/ is empty, save\n         for Makefile.  *\/\n      return decode_env_path (0, PATH_DUMPLOADSEARCH, 0);\n    }/s
+' "${lread_c}"
+  if grep -q 'iosmacs: Android NW pdump app lisp root' "${lread_c}"; then
+    printf 'patched src/lread.c: Android NW pdump app Lisp root fallback added\n'
+  else
+    printf 'warning: lread.c Android NW pdump app Lisp root patch not applied\n'
+  fi
+fi
+
+fns_c="${source_copy}/src/fns.c"
+if [[ -f "${fns_c}" ]] && ! grep -q 'IOSMACS_PDMP_ALLOW_REQUIRE_DURING_DUMP' "${fns_c}"; then
+  perl -0pi -e '
+    s/if \(will_dump_p \(\) && !will_bootstrap_p \(\)\)/if (will_dump_p () && !will_bootstrap_p ()\n          \&\& !getenv ("IOSMACS_PDMP_ALLOW_REQUIRE_DURING_DUMP"))/s
+  ' "${fns_c}"
+  printf 'patched src/fns.c: allow guarded require during Android NW pdump\n'
+fi
+
+eval_c="${source_copy}/src/eval.c"
+if [[ -f "${eval_c}" ]] && ! grep -q 'IOSMACS_PDMP_ALLOW_REQUIRE_DURING_DUMP' "${eval_c}"; then
+  perl -0pi -e '
+    s/if \(will_dump_p \(\) && !will_bootstrap_p \(\)\)/if (will_dump_p () && !will_bootstrap_p ()\n      \&\& !getenv ("IOSMACS_PDMP_ALLOW_REQUIRE_DURING_DUMP"))/s
+  ' "${eval_c}"
+  printf 'patched src/eval.c: allow guarded autoload during Android NW pdump\n'
+fi
+
 loadup_el="${source_copy}/lisp/loadup.el"
+if [[ -f "${loadup_el}" ]] \
+  && ! grep -q 'iosmacs: add Android NW pdump subdirs' "${loadup_el}"; then
+  perl -0pi -e '
+s/\(if \(or \(member dump-mode '\''\("bootstrap" "pbootstrap"\)\)/(if (or (member dump-mode '\''("bootstrap" "pbootstrap"))\n        ;; iosmacs: add Android NW pdump subdirs.\n        (and (eq system-type '\''android) (equal dump-mode "pdump"))/s
+' "${loadup_el}"
+  if grep -q 'iosmacs: add Android NW pdump subdirs' "${loadup_el}"; then
+    printf 'patched lisp/loadup.el: add subdirectories during Android NW pdump\n'
+  else
+    printf 'warning: loadup.el Android NW pdump subdir patch not applied\n'
+  fi
+fi
+if [[ -f "${loadup_el}" ]] \
+  && ! grep -q 'IOSMACS_ANDROID_NW_PDUMP_OUTPUT' "${loadup_el}"; then
+  perl -0pi -e '
+s/\(dump-emacs-portable \(expand-file-name output invocation-directory\)\)/(dump-emacs-portable\n                     (or (cadr (member "--android-nw-pdump-output" command-line-args))\n                         (getenv "IOSMACS_ANDROID_NW_PDUMP_OUTPUT")\n                         (expand-file-name output invocation-directory)))/s
+' "${loadup_el}"
+  if grep -q 'IOSMACS_ANDROID_NW_PDUMP_OUTPUT' "${loadup_el}"; then
+    printf 'patched lisp/loadup.el: Android NW pdump output override added\n'
+  else
+    printf 'warning: loadup.el Android NW pdump output override patch not applied\n'
+  fi
+fi
 if [[ -f "${loadup_el}" ]] \
   && ! grep -q 'iosmacs: Android NW without pdumper-stats' "${loadup_el}"; then
   perl -0pi -e '
@@ -210,6 +281,10 @@ fi
 
 if [[ "${configure_needs_run}" == "1" ]]; then
   printf 'configuring GNU Emacs NW for %s Android (no HAVE_ANDROID)...\n' "${host_triple}"
+  pdumper_configure_args=()
+  if [[ "${pdumper_enabled}" == "1" ]]; then
+    pdumper_configure_args+=(--with-pdumper=yes)
+  fi
   (
     cd "${build_root}"
     # NOTE: We intentionally omit --with-android so HAVE_ANDROID is not defined.
@@ -247,6 +322,7 @@ if [[ "${configure_needs_run}" == "1" ]]; then
         --without-harfbuzz \
         --without-otf \
         --without-m17n-flt \
+        "${pdumper_configure_args[@]}" \
         --with-dumping=none \
         "CC=${android_cc}" \
         "AR=${android_ar}" \
@@ -284,6 +360,7 @@ fi
   printf 'configure=ok\n'
   printf 'android_abi=%s\n' "${abi}"
   printf 'android_api=%s\n' "${api}"
+  printf 'pdumper_enabled=%s\n' "${pdumper_enabled}"
   printf 'android_cc=%s\n' "${android_cc}"
   printf 'ncurses_stub=%s\n' "${stub_lib}"
   printf 'nw_emacs_binary=%s\n' "${build_root}/src/emacs"
@@ -466,10 +543,20 @@ if [[ -d "${shared_jni_dir}" ]]; then
   cp -p "${jni_lib_dir}/libemacs_nw.so" "${shared_jni_dir}/libemacs_nw.so"
   printf 'copied libemacs_nw.so to shared jniLibs: %s\n' "${shared_jni_dir}"
 fi
+shared_assets_dir="${repo_root}/flutter/build/emacs-android/${abi}/java/install_temp/assets"
+if [[ -d "${shared_assets_dir}" ]]; then
+  if [[ "${pdumper_enabled}" == "1" ]]; then
+    printf '1\n' >"${shared_assets_dir}/iosmacs-nw-pdumper-enabled"
+    printf 'wrote Android NW pdumper asset marker\n'
+  else
+    rm -f "${shared_assets_dir}/iosmacs-nw-pdumper-enabled"
+  fi
+fi
 
 {
   printf 'build=ok\n'
   printf 'build_log=%s\n' "${build_log}"
+  printf 'pdumper_enabled=%s\n' "${pdumper_enabled}"
   printf 'nw_binary=%s\n' "${nw_binary}"
   printf 'nw_jni_lib=%s\n' "${jni_lib_dir}/libemacs_nw.so"
 } >>"${status_file}"
