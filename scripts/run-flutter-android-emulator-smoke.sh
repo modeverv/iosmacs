@@ -181,6 +181,10 @@ if [[ "$nw_session_seen" == "1" ]]; then
     printf 'error: NW Emacs startup load chatter leaked into Flutter logs\n' >&2
     exit 1
   fi
+  if grep -q 'iosmacs Android GNU Emacs process probe: exit=0 marker=ok' "$out_dir/logcat.txt"; then
+    printf 'error: official Android subprocess probe ran on the active NW startup path\n' >&2
+    exit 1
+  fi
   grep -q 'text="iosmacs input smoke"' "$out_dir/logcat.txt" || {
     printf 'error: NW Emacs smoke did not identify the committed input text\n' >&2
     exit 1

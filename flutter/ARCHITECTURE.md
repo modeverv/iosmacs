@@ -295,9 +295,11 @@ The JNI PTY bridge buffers no-pdump startup chatter until the first menu-bar
 `*scratch*` frame is ready, so users see the usable terminal frame instead of
 loadup noise. Normal Android workspace export uses the system
 `ACTION_CREATE_DOCUMENT` picker, while smoke runs use a noninteractive
-content-provider export path for deterministic verification. The likely hard
-parts are improving NW startup/runtime packaging with a real dumped/cache path
-and shrinking the fallback diagnostic surface.
+content-provider export path for deterministic verification. The active NW
+startup path also defers the official `--with-android` subprocess comparison
+probe so diagnostic evidence does not block first terminal output. The likely
+hard parts are improving NW startup/runtime packaging with a real dumped/cache
+path and shrinking the fallback diagnostic surface.
 
 The Android backend should reuse the same facade ideas as iOS where practical,
 but it should not block the Flutter shell or desktop backend work.

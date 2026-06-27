@@ -1155,6 +1155,8 @@ Flutter Android GNU Emacs NDK runtime TODO:
 - [x] Suppress visible Android NW no-pdump startup chatter until the first
   interactive `*scratch*` terminal frame is ready.
 - [x] Add the user-facing Android document export picker flow.
+- [x] Defer the official Android subprocess comparison probe off the active NW
+  startup hot path.
 - [ ] Improve Android NW startup packaging with a real dumped/runtime cache path
   so the interactive binary reaches `*scratch*` faster internally.
 
@@ -1231,6 +1233,10 @@ Flutter Android GNU Emacs NDK runtime status:
   generated workspace zip for multiple files) to the user-selected document
   URI. Runtime smokes keep using the noninteractive content-provider path so
   emulator verification remains deterministic.
+- Android status reporting now defers the official `--with-android` subprocess
+  comparison probe while the NW PTY route is active. The fallback path still
+  runs that probe, but normal NW startup no longer blocks first terminal output
+  on comparison-only diagnostics.
 - Current remaining Android work: keep the official `--with-android` runtime as
   packaged evidence/fallback and speed up NW startup internally with a real
   dumped runtime/cache path.

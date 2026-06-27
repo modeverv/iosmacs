@@ -297,6 +297,8 @@ grep -q 'process.waitFor(8, TimeUnit.SECONDS)' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'iosmacs Android GNU Emacs process probe:' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+grep -q 'process probe deferred while NW PTY terminal is active' \
+  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'probeMarkerStatus' \
   "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
 grep -q 'startOfficialEmacs' \
@@ -412,6 +414,8 @@ grep -q 'iosmacs Android GNU Emacs NW interactive frame ready:' \
 grep -q 'NW Emacs startup chatter was not suppressed before the interactive frame' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'NW Emacs startup load chatter leaked into Flutter logs' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'official Android subprocess probe ran on the active NW startup path' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'androidadbinput' \
   scripts/run-flutter-android-emulator-smoke.sh
@@ -1140,6 +1144,8 @@ grep -q 'make flutter-android-emulator-smoke' \
 grep -q 'document-provider content export' \
   flutter/ARCHITECTURE.md
 grep -q 'ACTION_CREATE_DOCUMENT' \
+  flutter/ARCHITECTURE.md
+grep -q 'does not block first terminal output' \
   flutter/ARCHITECTURE.md
 grep -q 'startup-chatter suppression' \
   flutter/ARCHITECTURE.md

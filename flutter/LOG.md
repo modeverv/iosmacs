@@ -40,6 +40,9 @@ Flutter Android NW follow-up:
   presents `ACTION_CREATE_DOCUMENT`, writes the selected workspace file or a
   generated workspace zip to the returned document URI, and keeps the
   noninteractive provider export path for runtime smoke builds.
+- Deferred the official Android subprocess comparison probe while the NW PTY
+  terminal route is active, so comparison-only diagnostics no longer sit on the
+  first-output hot path.
 
 Flutter Android fallback surface reduction:
 

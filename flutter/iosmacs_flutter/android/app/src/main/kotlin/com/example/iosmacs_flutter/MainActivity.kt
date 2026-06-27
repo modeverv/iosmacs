@@ -316,23 +316,33 @@ private class AndroidNativeEmacsBridge(
     )
   }
 
-  private fun status(): Map<String, Any> = mapOf(
-    "lifecycleState" to lifecycleState,
-    "cols" to cols,
-    "rows" to rows,
-    "inputBytes" to inputBytes,
-    "outputBytes" to output.size(),
-    "androidEmacsRuntimeAvailable" to officialRuntime.isAvailable,
-    "androidEmacsRuntimeStatus" to officialRuntime.status,
-    "androidEmacsJavaBridgeAvailable" to officialRuntime.javaBridgeAvailable,
-    "androidEmacsJavaBridgeStatus" to officialRuntime.javaBridgeStatus,
-    "androidEmacsJavaBridgeFingerprint" to officialRuntime.javaBridgeFingerprint,
-    "androidEmacsWrapperExecutableAvailable" to officialRuntime.wrapperExecutableAvailable(context),
-    "androidEmacsWrapperExecutablePath" to officialRuntime.wrapperExecutablePath(context),
-    "androidEmacsProcessProbeStatus" to officialRuntime.processProbe(context).status,
-    "androidEmacsProcessProbeOutput" to officialRuntime.processProbe(context).output,
-    "androidEmacsOfficialTerminalStarted" to officialTerminalStarted,
-  )
+  private fun status(): Map<String, Any> {
+    val processProbe = if (officialTerminalStarted) {
+      AndroidEmacsProcessProbe(
+        status = "deferred",
+        output = "Android GNU Emacs process probe deferred while NW PTY terminal is active",
+      )
+    } else {
+      officialRuntime.processProbe(context)
+    }
+    return mapOf(
+      "lifecycleState" to lifecycleState,
+      "cols" to cols,
+      "rows" to rows,
+      "inputBytes" to inputBytes,
+      "outputBytes" to output.size(),
+      "androidEmacsRuntimeAvailable" to officialRuntime.isAvailable,
+      "androidEmacsRuntimeStatus" to officialRuntime.status,
+      "androidEmacsJavaBridgeAvailable" to officialRuntime.javaBridgeAvailable,
+      "androidEmacsJavaBridgeStatus" to officialRuntime.javaBridgeStatus,
+      "androidEmacsJavaBridgeFingerprint" to officialRuntime.javaBridgeFingerprint,
+      "androidEmacsWrapperExecutableAvailable" to officialRuntime.wrapperExecutableAvailable(context),
+      "androidEmacsWrapperExecutablePath" to officialRuntime.wrapperExecutablePath(context),
+      "androidEmacsProcessProbeStatus" to processProbe.status,
+      "androidEmacsProcessProbeOutput" to processProbe.output,
+      "androidEmacsOfficialTerminalStarted" to officialTerminalStarted,
+    )
+  }
 
   private fun appendOutput(text: String) {
     output.write(text.toByteArray(Charsets.UTF_8))
