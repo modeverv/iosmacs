@@ -38,7 +38,7 @@ required_files=(
   "$app_dir/macos/Runner.xcodeproj/project.pbxproj"
   "$app_dir/macos/Runner/AppDelegate.swift"
   "$app_dir/macos/Runner/MacOSNativeEmacsBridge.swift"
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
   "$app_dir/android/app/build.gradle.kts"
   "$app_dir/android/app/src/main/cpp/CMakeLists.txt"
   "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
@@ -130,9 +130,9 @@ grep -q 'pasteSystemClipboard' \
 grep -q 'pasteSystemClipboard' \
   "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift"
 grep -q 'normalizeTerminalInputText' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'replace("\\r\\n", "\\n")' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 if sed -n '/func handle(_ call: FlutterMethodCall/,/switch call.method/p' \
   "$app_dir/ios/Runner/FlutterNativeEmacsBridge.swift" \
   | grep -q 'focusTerminalInput()'; then
@@ -270,7 +270,7 @@ grep -q 'Android xterm pointer/mouse runtime proof' \
 grep -q 'android.permission.INTERNET' \
   "$app_dir/android/app/src/main/AndroidManifest.xml"
 grep -q 'fallback diagnostic frame running' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'NativeEmacsBackend' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'externalNativeBuild' \
@@ -290,43 +290,43 @@ grep -q 'implementation(files(androidEmacsJavaBridgeJar))' \
 grep -q 'iosmacs_android_runtime' \
   "$app_dir/android/app/src/main/cpp/CMakeLists.txt"
 grep -q 'System.loadLibrary("iosmacs_android_runtime")' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'AndroidNativeEmacsRuntime' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'OfficialAndroidEmacsRuntime' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'System.loadLibrary("emacs")' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'System.loadLibrary("android-emacs")' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'androidEmacsRuntimeAvailable' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'androidEmacsJavaBridgeAvailable' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'Class.forName("org.gnu.emacs.EmacsNative")' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'getFingerprint' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'libandroid-emacs.so").absolutePath' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'androidEmacsWrapperExecutableAvailable' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'EMACS_CLASS_PATH' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'process.waitFor(8, TimeUnit.SECONDS)' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'iosmacs Android GNU Emacs process probe:' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'process probe deferred while NW PTY terminal is active' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'probeMarkerStatus' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'startOfficialEmacs' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'sendOfficialBytes' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'drainOfficialOutput' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'useLegacyPackaging = true' \
   "$app_dir/android/app/build.gradle.kts"
 grep -q 'forkpty(&master_fd' \
@@ -336,7 +336,7 @@ grep -q 'EMACS_CLASS_PATH' \
 grep -q 'iosmacs Android GNU Emacs PTY session started:' \
   "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
 grep -q 'AndroidNativeEmacsBridge.channelName' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'Buffer: \*scratch\*' \
   "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
 grep -q 'GNU Emacs 30.2 Android terminal frame' \
@@ -436,19 +436,19 @@ grep -q 'add Android NW pdump subdirs' \
 grep -q 'iosmacs-nw-pdumper-enabled' \
   scripts/build-flutter-android-emacs-nw.sh
 grep -q 'NwEmacsRuntime.loadPath' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'NwEmacsRuntime.ensurePdump' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q -- '--temacs=pdump' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'copyTo(File(dumpRelativeEtcDir, "DOC")' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'IOSMACS_ANDROID_NW_PDUMP_USE_EMACSLOADPATH' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'IOSMACS_ANDROID_NW_PDUMP_OUTPUT' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q -- '--android-nw-pdump-output' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q -- '--dump-file' \
   "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
 grep -q 'iosmacs-android-force-xterm-input-decode' \
@@ -466,7 +466,7 @@ grep -q 'global-set-key (kbd \\"M-X\\")' \
 grep -q "autoload 'tetris" \
   "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
 grep -q 'File.pathSeparator' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -Fq 'Buffer: \*scratch\*' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'IOSMACS_FLUTTER_INPUT_SMOKE=true' \
@@ -621,66 +621,66 @@ grep -q 'iosmacs-workspace-smoke: workspace open requested:' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs-workspace-smoke: workspace export candidate(s):' \
   scripts/run-flutter-android-emulator-smoke.sh
-grep -q 'workspace export uri(s): content://com.example.iosmacs_flutter.workspace_export/' \
+grep -q 'workspace export uri(s): content://com.example.fluttmacs.workspace_export/' \
   scripts/run-flutter-android-emulator-smoke.sh
-grep -q 'iosmacs Android document-provider export: uri=content://com\\.example\\.iosmacs_flutter\\.workspace_export/' \
+grep -q 'iosmacs Android document-provider export: uri=content://com\\.example\\.fluttmacs\\.workspace_export/' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs/workspace' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'contentResolver.openInputStream' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'WorkspaceExportProvider' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'contentResolver.openOutputStream' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'Intent.ACTION_OPEN_DOCUMENT_TREE' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'takePersistableUriPermission' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'DocumentsContract.createDocument' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'DocumentsContract.Document.COLUMN_MIME_TYPE' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'importWorkspaceTreeDocuments' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'importWorkspaceTreeDocumentChildren' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'DocumentsContract.Document.MIME_TYPE_DIR' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'iosmacs Android workspace exchange import:' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'overwrite = false' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'destination.exists() && !overwrite' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'exportWorkspaceFileToTree' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'addWorkspaceZipEntry' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'shouldSkipWorkspaceExportEntry' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'file.name.startsWith(".#")' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'invariantSeparatorsPath' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'iosmacs Android workspace exchange export:' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'workspaceTreeUriKey' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'Emacs /home/user remains app-private' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'Intent.ACTION_CREATE_DOCUMENT' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'onActivityResult' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'workspace-export.zip' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'iosmacs Android user document export:' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q "'nonInteractive': _workspaceSmoke" \
   "$app_dir/lib/src/backend/native_emacs_backend.dart"
 grep -q 'document-provider-export' \
-  "$app_dir/android/app/src/main/kotlin/com/example/iosmacs_flutter/MainActivity.kt"
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'workspace_export' \
   "$app_dir/android/app/src/main/AndroidManifest.xml"
 grep -q 'DesktopEmacsPlatform.linux' \

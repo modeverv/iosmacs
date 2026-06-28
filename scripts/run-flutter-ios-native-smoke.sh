@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-app_dir="${repo_root}/flutter/iosmacs_flutter"
+app_dir="${repo_root}/flutter/fluttmacs"
 runner_app="${app_dir}/build/ios/iphonesimulator/Runner.app"
 device="${IOSMACS_SIMULATOR_UDID:-booted}"
 hold_seconds="${IOSMACS_FLUTTER_IOS_NATIVE_HOLD_SECONDS:-8}"

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:iosmacs_flutter/src/backend/fake_emacs_backend.dart';
-import 'package:iosmacs_flutter/src/ui/terminal_screen.dart';
+import 'package:fluttmacs/src/backend/fake_emacs_backend.dart';
+import 'package:fluttmacs/src/ui/terminal_screen.dart';
 import 'package:xterm/xterm.dart';
 
-import 'package:iosmacs_flutter/main.dart';
+import 'package:fluttmacs/main.dart';
 
 void main() {
   test('native platforms autostart backend by default', () {
@@ -57,7 +57,7 @@ void main() {
   });
 
   testWidgets('app starts on the terminal screen', (WidgetTester tester) async {
-    await tester.pumpWidget(const IOSMacsFlutterApp());
+    await tester.pumpWidget(const FluttmacsApp());
     await tester.pump();
 
     expect(find.text('idle'), findsOneWidget);
@@ -80,7 +80,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      const IOSMacsFlutterApp(backendOverride: 'fake'),
+      const FluttmacsApp(backendOverride: 'fake'),
     );
     await tester.pump();
 
@@ -100,7 +100,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      const IOSMacsFlutterApp(backendOverride: 'fake'),
+      const FluttmacsApp(backendOverride: 'fake'),
     );
     await tester.pump();
 

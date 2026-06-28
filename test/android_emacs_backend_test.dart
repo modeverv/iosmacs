@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:iosmacs_flutter/src/backend/android_emacs_backend.dart';
-import 'package:iosmacs_flutter/src/backend/native_emacs_backend.dart';
+import 'package:fluttmacs/src/backend/android_emacs_backend.dart';
+import 'package:fluttmacs/src/backend/native_emacs_backend.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -238,7 +238,7 @@ void main() {
           return <Map<String, Object>>[
             <String, Object>{
               'name': 'scratch.el',
-              'path': '/data/user/0/com.example.iosmacs_flutter/files/'
+              'path': '/data/user/0/com.example.fluttmacs/files/'
                   'iosmacs/workspace/scratch.el',
               'isDirectory': false,
               'sizeBytes': 12,
@@ -250,7 +250,7 @@ void main() {
           final arguments = call.arguments as Map<Object?, Object?>;
           expect(arguments['nonInteractive'], isFalse);
           return <String>[
-            'content://com.example.iosmacs_flutter.workspace_export/'
+            'content://com.example.fluttmacs.workspace_export/'
                 'exports/scratch.el',
           ];
         default:

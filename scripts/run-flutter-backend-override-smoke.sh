@@ -2,8 +2,8 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-app_dir="${repo_root}/flutter/iosmacs_flutter"
-app_bundle="${app_dir}/build/macos/Build/Products/Debug/iosmacs_flutter.app"
+app_dir="${repo_root}/flutter/fluttmacs"
+app_bundle="${app_dir}/build/macos/Build/Products/Debug/fluttmacs.app"
 hold_seconds="${IOSMACS_FLUTTER_BACKEND_OVERRIDE_HOLD_SECONDS:-2}"
 backend_list="${IOSMACS_FLUTTER_BACKEND_SMOKE_BACKENDS:-fake android linux windows web-wasm}"
 

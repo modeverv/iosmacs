@@ -551,7 +551,7 @@ final class MacOSNativeEmacsBridge {
     }
 
     let workspaceRoot = applicationSupportRoot
-      .appendingPathComponent("iosmacs_flutter", isDirectory: true)
+      .appendingPathComponent("fluttmacs", isDirectory: true)
       .appendingPathComponent("workspace", isDirectory: true)
     do {
       try FileManager.default.createDirectory(

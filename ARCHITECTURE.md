@@ -39,11 +39,11 @@ GNU Emacs Runtime
 ## Current Implementation Status
 
 The Flutter app currently implements the UI/backend contract in
-`flutter/iosmacs_flutter`.
+`flutter/fluttmacs`.
 
 Implemented pieces:
 
-- `IOSMacsFlutterApp` owns the app shell and backend selection.
+- `FluttmacsApp` owns the app shell and backend selection.
 - `TerminalScreen` owns the xterm terminal widget, toolbar actions, the status
   strip, diagnostics details dialog, workspace import/export/refresh/open dialogs,
   capability dialogs, startup smoke hooks, and optional mirrored terminal output
@@ -419,7 +419,7 @@ Focused targets are available when iterating:
 - `make flutter-web-smoke` builds the Web target.
 - `make flutter-android-smoke` builds the Android APK target.
 - `make flutter-android-emulator-smoke` builds, installs, and launches the
-  Android APK on `iosmacs_flutter_pixel`, then checks capability, status,
+  Android APK on `fluttmacs_pixel`, then checks capability, status,
   input, keyboard, resize, redraw, terminal output, workspace import/open,
   document-provider content export, startup-chatter suppression, and
   `*scratch*` screenshot evidence. By default it requires the packaged
@@ -441,7 +441,7 @@ Focused targets are available when iterating:
   `org.gnu.emacs.EmacsNative.getFingerprint()` through reflection.
 - During the isolated Android runtime build, the upstream Java bridge's package
   lookups are patched to the Flutter application id
-  (`com.example.iosmacs_flutter` by default) so official Emacs Java code
+  (`com.example.fluttmacs` by default) so official Emacs Java code
   resolves this APK instead of requiring a separately installed
   `org.gnu.emacs` package.
 - Android Gradle uses extracted JNI packaging for this target so the official

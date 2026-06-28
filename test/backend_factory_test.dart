@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:iosmacs_flutter/src/backend/android_emacs_backend.dart';
-import 'package:iosmacs_flutter/src/backend/backend_factory.dart';
-import 'package:iosmacs_flutter/src/backend/desktop_emacs_backend.dart';
-import 'package:iosmacs_flutter/src/backend/fake_emacs_backend.dart';
-import 'package:iosmacs_flutter/src/backend/native_emacs_backend.dart';
-import 'package:iosmacs_flutter/src/backend/web_wasm_emacs_backend.dart';
+import 'package:fluttmacs/src/backend/android_emacs_backend.dart';
+import 'package:fluttmacs/src/backend/backend_factory.dart';
+import 'package:fluttmacs/src/backend/desktop_emacs_backend.dart';
+import 'package:fluttmacs/src/backend/fake_emacs_backend.dart';
+import 'package:fluttmacs/src/backend/native_emacs_backend.dart';
+import 'package:fluttmacs/src/backend/web_wasm_emacs_backend.dart';
 
 void main() {
   test('default backend is fake during Flutter shell development', () {

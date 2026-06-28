@@ -1,9 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:iosmacs_flutter/src/backend/backend_worker.dart';
-import 'package:iosmacs_flutter/src/backend/fake_backend_worker.dart';
-import 'package:iosmacs_flutter/src/backend/workspace_entry.dart';
+import 'package:fluttmacs/src/backend/backend_worker.dart';
+import 'package:fluttmacs/src/backend/fake_backend_worker.dart';
+import 'package:fluttmacs/src/backend/workspace_entry.dart';
 
 void main() {
   test('worker emits lifecycle, diagnostics, and terminal output on start',

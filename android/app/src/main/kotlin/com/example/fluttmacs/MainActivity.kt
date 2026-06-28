@@ -1,4 +1,4 @@
-package com.example.iosmacs_flutter
+package com.example.fluttmacs
 
 import android.app.Activity
 import android.content.ClipData
@@ -1226,7 +1226,7 @@ private object OfficialAndroidEmacsRuntime {
   val javaBridgeAvailable: Boolean
   val javaBridgeStatus: String
   val javaBridgeFingerprint: String
-  val flutterApplicationId = "com.example.iosmacs_flutter"
+  val flutterApplicationId = "com.example.fluttmacs"
   private var cachedProcessProbe: AndroidEmacsProcessProbe? = null
 
   init {

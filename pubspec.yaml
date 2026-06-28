@@ -1,4 +1,4 @@
-name: iosmacs_flutter
+name: fluttmacs
 description: Cross-platform Flutter shell for iosmacs.
 publish_to: "none"
 
@@ -17,6 +17,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  macos:
+    generate: true
+  image_path: "wasmacs/vendor/emacs/etc/images/icons/hicolor/128x128/apps/emacs.png"
 
 flutter:
   uses-material-design: true

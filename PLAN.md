@@ -26,7 +26,7 @@ Build a Flutter shell beside the existing Xcode app.
 
 - Keep the current `iosmacs.xcodeproj` and SwiftUI/SwiftTerm app working.
 - Create a new Flutter app under this area or a child directory such as
-  `flutter/iosmacs_flutter`.
+  `flutter/fluttmacs`.
 - Start with a fake backend that emits terminal bytes and accepts input.
 - Use that fake backend to validate terminal rendering, keyboard input,
   lifecycle state, resize events, and diagnostics before touching the native
@@ -39,7 +39,7 @@ Goal: create a Flutter application that can run without the native Emacs core.
 Current TODO:
 
 - [x] Record this Flutter workstream in `flutter/LOG.md`.
-- [x] Scaffold `flutter/iosmacs_flutter` without changing the existing native
+- [x] Scaffold `flutter/fluttmacs` without changing the existing native
   Xcode app.
 - [x] Add a first-screen terminal UI, not a landing page.
 - [x] Add lifecycle and diagnostics display.
@@ -265,7 +265,7 @@ Current TODO:
 - [x] Update macOS native smoke evidence so hosts with Emacs must prove
   interactive process startup rather than accepting the old PTY-pending path.
 - [x] Add an app-level narrow-width Flutter smoke test.
-- [x] Verify `IOSMacsFlutterApp` keeps terminal, input, and toolbar controls
+- [x] Verify `FluttmacsApp` keeps terminal, input, and toolbar controls
   available on phone-width viewports.
 - [x] Verify app-level narrow smoke work with format, analyze, tests,
   structure check, and diff check.
@@ -429,7 +429,7 @@ Current TODO:
 SDK verification steps:
 
 ```sh
-cd flutter/iosmacs_flutter
+cd flutter/fluttmacs
 flutter pub get
 flutter test
 flutter run -d macos
@@ -752,7 +752,7 @@ Flutter iOS launch smoke TODO:
 
 - [x] Add a repository script that reuses the Flutter iOS Runner build smoke.
 - [x] Install the built `Runner.app` on a booted simulator.
-- [x] Launch `com.example.iosmacsFlutter` through `xcrun simctl launch`.
+- [x] Launch `com.example.fluttmacs` through `xcrun simctl launch`.
 - [x] Hold briefly, then terminate the app cleanly to prove it stayed alive.
 - [x] Add `make flutter-ios-launch-smoke` at the repository root.
 - [x] Include the launch smoke target in the Flutter structure check.
@@ -770,7 +770,7 @@ Flutter iOS launch smoke status:
 Flutter macOS smoke TODO:
 
 - [x] Add a repository script that builds the Flutter macOS debug app.
-- [x] Check the built `iosmacs_flutter.app` bundle and executable.
+- [x] Check the built `fluttmacs.app` bundle and executable.
 - [x] Launch the macOS app executable briefly.
 - [x] Require the app process to stay alive long enough for clean termination.
 - [x] Add `make flutter-macos-smoke` at the repository root.
@@ -780,7 +780,7 @@ Flutter macOS smoke TODO:
 Flutter macOS smoke status:
 
 - `scripts/run-flutter-macos-smoke.sh` builds the Flutter macOS debug app,
-  checks `iosmacs_flutter.app`, reads `CFBundleExecutable`, launches the app
+  checks `fluttmacs.app`, reads `CFBundleExecutable`, launches the app
   executable briefly, and requires clean termination.
 - `make flutter-macos-smoke` runs the repository macOS smoke.
 - `make flutter-structure-check` now guards the macOS smoke script and Makefile
@@ -1054,7 +1054,7 @@ Flutter Android native channel status:
   app-private storage, and requiring workspace list/open smoke evidence after
   relaunch. The current verified relaunch reached the NW `*scratch*` frame in
   `elapsed_ms=304`, preserved `iosmacs-android-file-smoke`, listed 7 workspace
-  item(s), and reopened `/data/user/0/com.example.iosmacs_flutter/files/iosmacs/workspace/workspace-smoke.txt`.
+  item(s), and reopened `/data/user/0/com.example.fluttmacs/files/iosmacs/workspace/workspace-smoke.txt`.
 - Android NW startup now passes the same `M-X`/command-discovery init used by
   iOS/macOS: clear `read-extended-command-predicate`, bind `M-X` to
   `execute-extended-command`, and autoload `dired`/`tetris`. The current
@@ -1065,7 +1065,7 @@ Flutter Android emulator scratch smoke TODO:
 
 - [x] Install the Android Emulator SDK package.
 - [x] Install an Android 36 Google APIs ARM64 system image.
-- [x] Create a repeatable local AVD named `iosmacs_flutter_pixel`.
+- [x] Create a repeatable local AVD named `fluttmacs_pixel`.
 - [x] Boot the AVD and wait for ADB `sys.boot_completed=1`.
 - [x] Make the Android native-channel start output land on a `*scratch*`
   terminal screen.
@@ -1082,7 +1082,7 @@ Flutter Android emulator scratch smoke status:
   `/Users/seijiro/Applications/Android Studio.app`.
 - Flutter's Android SDK path is
   `/opt/homebrew/share/android-commandlinetools`.
-- The local AVD `iosmacs_flutter_pixel` targets Android 36 Google APIs
+- The local AVD `fluttmacs_pixel` targets Android 36 Google APIs
   `arm64-v8a` and boots as `emulator-5554`.
 - `AndroidNativeEmacsBridge.start` now emits a terminal clear sequence,
   `GNU Emacs 30.2 Android terminal frame`,
@@ -1254,7 +1254,7 @@ Flutter Android GNU Emacs NDK runtime status:
   `org.gnu.emacs` classes into `iosmacs/emacs-android-java.jar`, and Gradle
   consumes that jar when it exists.
 - The runtime build patches upstream Android Java package-id constants for the
-  Flutter app id (`com.example.iosmacs_flutter` by default) so the official
+  Flutter app id (`com.example.fluttmacs` by default) so the official
   bridge code resolves this APK instead of searching for `org.gnu.emacs` as the
   installed package.
 - The runtime build now also generates charset maps such as `8859-2.map`
@@ -1295,7 +1295,7 @@ Flutter Android GNU Emacs NDK runtime status:
   NW route is active.
 - Android workspace export now writes exported workspace files through
   `ContentResolver.openOutputStream()` to app-owned
-  `content://com.example.iosmacs_flutter.workspace_export/...` URIs, and the
+  `content://com.example.fluttmacs.workspace_export/...` URIs, and the
   emulator smoke requires both returned content URI evidence and native byte
   evidence while the NW route is active.
 - Android NW startup now buffers early PTY output until the menu-bar
@@ -1394,7 +1394,7 @@ Flutter macOS workspace TODO:
 Flutter macOS workspace status:
 
 - `MacOSNativeEmacsBridge` now creates a workspace root under
-  Application Support at `iosmacs_flutter/workspace`.
+  Application Support at `fluttmacs/workspace`.
 - `listWorkspace` returns sorted entries with name, path, directory flag, and
   byte size.
 - `importWorkspace` copies passed file URLs into the Application Support

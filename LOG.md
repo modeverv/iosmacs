@@ -29,7 +29,7 @@ Flutter Android NW follow-up:
   tests, `flutter analyze`, and `make flutter-android-emulator-smoke`.
 - Added an Android `WorkspaceExportProvider` and changed native workspace
   export to copy files through `ContentResolver.openOutputStream()` to
-  `content://com.example.iosmacs_flutter.workspace_export/...` URIs.
+  `content://com.example.fluttmacs.workspace_export/...` URIs.
 - Extended the Android emulator smoke so the NW route must now prove returned
   document-provider export URIs and native byte-count evidence in logcat.
 - Added Android NW startup-output filtering in the JNI PTY bridge: Emacs'
@@ -344,7 +344,7 @@ Flutter Android emulator scratch smoke:
   `/opt/homebrew/share/android-commandlinetools` as the Android SDK root.
 - Installed the Android Emulator SDK package and Android 36 Google APIs ARM64
   system image.
-- Created the local AVD `iosmacs_flutter_pixel` with the Pixel 7 device
+- Created the local AVD `fluttmacs_pixel` with the Pixel 7 device
   profile.
 - Booted the AVD as `emulator-5554` and confirmed
   `sys.boot_completed=1` through ADB.
@@ -482,7 +482,7 @@ Flutter Android GNU Emacs NDK runtime:
   logcat evidence in addition to the native library load evidence.
 - Patched upstream Android Java package-id constants in the isolated Emacs
   source copy so `EmacsApplication` and `EmacsNoninteractive` resolve the
-  Flutter app package (`com.example.iosmacs_flutter` by default).
+  Flutter app package (`com.example.fluttmacs` by default).
 - Switched Android packaging to legacy extracted JNI libraries, allowing the
   app-private `libandroid-emacs.so` wrapper to exist as an executable path under
   the installed APK's native library directory.
@@ -519,7 +519,7 @@ Flutter Android GNU Emacs NDK runtime:
   tests locally yet.
 - Added active TODO tracking to the root `PLAN.md` and the detailed
   `flutter/PLAN.md`.
-- Added `flutter/iosmacs_flutter` with a first Flutter shell:
+- Added `flutter/fluttmacs` with a first Flutter shell:
   - `EmacsBackend` Dart interface
   - `FakeEmacsBackend`
   - workspace entry model
@@ -530,7 +530,7 @@ Flutter Android GNU Emacs NDK runtime:
   echo, resize, and workspace placeholder behavior.
 - Marked completed TODOs in `PLAN.md` and `flutter/PLAN.md`.
 - Added `make flutter-fake-smoke`, which runs `flutter pub get` and
-  `flutter test` from `flutter/iosmacs_flutter` when the Flutter SDK is
+  `flutter test` from `flutter/fluttmacs` when the Flutter SDK is
   available.
 - Ran `git diff --check`: passed.
 
@@ -636,7 +636,7 @@ Flutter backend override:
   `macos-native`, `web-wasm`, `android`, `linux`, `windows`, and `win`.
 - Unknown override names fall back to the platform default instead of throwing.
 - Added factory tests for explicit override selection and unknown fallback.
-- Added an app widget test proving `IOSMacsFlutterApp` can force the fake
+- Added an app widget test proving `FluttmacsApp` can force the fake
   backend through the same constructor path used by runtime override wiring.
 - Updated the Flutter structure check to guard the override flag, parser, and
   fallback test marker.
@@ -1258,7 +1258,7 @@ Flutter iOS launch smoke:
 - Ran `flutter analyze`: passed.
 - Ran `flutter test`: passed, 18 tests.
 - Ran `make flutter-ios-launch-smoke`: passed and launched
-  `com.example.iosmacsFlutter` on the booted iPad simulator before clean
+  `com.example.fluttmacs` on the booted iPad simulator before clean
   termination.
 - Ran `make app`: passed, including existing native iOS app build.
 - Ran `flutter build macos --debug`: passed.
@@ -1276,7 +1276,7 @@ Flutter macOS smoke:
   target.
 - Added `scripts/run-flutter-macos-smoke.sh`.
 - The macOS smoke builds the Flutter macOS debug app, checks the
-  `iosmacs_flutter.app` bundle and executable, launches the executable briefly,
+  `fluttmacs.app` bundle and executable, launches the executable briefly,
   and requires clean termination.
 - Added `make flutter-macos-smoke`.
 - Updated `make flutter-structure-check` to guard the macOS smoke script and
@@ -1425,7 +1425,7 @@ Flutter macOS workspace:
 - Implemented `listWorkspace`, `importWorkspace`, and `exportWorkspace` in
   `MacOSNativeEmacsBridge`.
 - The macOS workspace root is created under Application Support at
-  `iosmacs_flutter/workspace`.
+  `fluttmacs/workspace`.
 - Workspace entries return name, path, directory flag, and byte size.
 - `importWorkspace` copies passed file URLs into the sandbox workspace and
   replaces existing same-name items.
@@ -1724,12 +1724,12 @@ Flutter responsive toolbar:
 Flutter app-level narrow smoke:
 
 - Starting app-level narrow-width smoke work.
-- Goal for this unit: prove the real `IOSMacsFlutterApp` entrypoint keeps the
+- Goal for this unit: prove the real `FluttmacsApp` entrypoint keeps the
   terminal, input, and toolbar controls available on phone-width viewports.
 - Planned checks: Dart format, Flutter analyze, Flutter tests, structure check,
   and diff whitespace check.
 - Added an app-level 320px-wide widget smoke using
-  `IOSMacsFlutterApp(backendOverride: 'fake')`.
+  `FluttmacsApp(backendOverride: 'fake')`.
 - Verified the app entrypoint still shows the terminal, text input, Start, and
   Send controls on the narrow viewport.
 - Verified the app-level Start action reaches the running lifecycle state
@@ -1939,7 +1939,7 @@ Flutter analyze verify target:
 - Planned checks: `make flutter-analyze`, structure check, and diff whitespace
   check.
 - Added `make flutter-analyze` to run `flutter pub get` followed by
-  `flutter analyze` in `flutter/iosmacs_flutter`.
+  `flutter analyze` in `flutter/fluttmacs`.
 - Added `flutter-analyze` to the Makefile phony/help surfaces.
 - Included `flutter-analyze` in `make flutter-verify` immediately after
   `flutter-doctor` and before fake tests/runtime smoke targets.
@@ -1957,7 +1957,7 @@ Flutter format check target:
 - Planned checks: `make flutter-format-check`, structure check, and diff
   whitespace check.
 - Added `make flutter-format-check` to run
-  `dart format --set-exit-if-changed lib test` in `flutter/iosmacs_flutter`.
+  `dart format --set-exit-if-changed lib test` in `flutter/fluttmacs`.
 - Added `flutter-format-check` to the Makefile phony/help surfaces.
 - Included `flutter-format-check` in `make flutter-verify` immediately after
   `flutter-doctor` and before analyze/tests/runtime smoke targets.
@@ -2193,7 +2193,7 @@ Flutter native autostart defaults:
   do not autostart by default, and the explicit autostart override wins over
   platform defaults.
 - Updated the Flutter structure check to guard the autostart helper and tests.
-- Ran `dart format flutter/iosmacs_flutter/lib/main.dart flutter/iosmacs_flutter/test/widget_test.dart`:
+- Ran `dart format flutter/fluttmacs/lib/main.dart flutter/fluttmacs/test/widget_test.dart`:
   passed, 1 file changed.
 - Ran `flutter test test/widget_test.dart`: passed, 10 tests.
 - Ran `flutter test`: passed, 66 tests.
@@ -2814,7 +2814,7 @@ Flutter iOS IME and C-SPC follow-up:
   `git diff --check`, and `flutter build ios --simulator --debug`.
 - Installed and launched the built app on the booted iPad Simulator with
   `xcrun simctl install booted build/ios/iphonesimulator/Runner.app` and
-  `xcrun simctl launch booted com.example.iosmacsFlutter`.
+  `xcrun simctl launch booted com.example.fluttmacs`.
 
 Flutter iOS inline Japanese IME:
 

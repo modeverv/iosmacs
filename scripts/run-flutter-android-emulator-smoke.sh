@@ -2,9 +2,9 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-app_dir="$repo_root/flutter/iosmacs_flutter"
+app_dir="$repo_root/flutter/fluttmacs"
 sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}}"
-avd_name="${IOSMACS_FLUTTER_ANDROID_AVD:-iosmacs_flutter_pixel}"
+avd_name="${IOSMACS_FLUTTER_ANDROID_AVD:-fluttmacs_pixel}"
 device_id="${IOSMACS_FLUTTER_ANDROID_DEVICE:-}"
 require_nw="${IOSMACS_ANDROID_REQUIRE_NW:-1}"
 expect_pdump="${IOSMACS_ANDROID_EXPECT_PDUMP:-0}"
@@ -17,7 +17,7 @@ screenshot="$out_dir/scratch.png"
 warm_logcat="$out_dir/logcat-warm-relaunch.txt"
 pdump_recovery_logcat="$out_dir/logcat-pdump-recovery.txt"
 workspace_relaunch_logcat="$out_dir/logcat-workspace-relaunch.txt"
-package_id="com.example.iosmacs_flutter"
+package_id="com.example.fluttmacs"
 android_file_elisp_path="files/iosmacs/workspace/iosmacs-android-file-ops-smoke.el"
 android_file_marker_path="files/iosmacs/workspace/iosmacs-android-file-ops.marker"
 android_file_smoke_path="files/iosmacs/workspace/notes/iosmacs-android-file-smoke.txt"
@@ -741,12 +741,12 @@ grep -q 'iosmacs-workspace-smoke: workspace export candidate(s):' "$out_dir/logc
   printf 'error: did not observe Android workspace export smoke evidence\n' >&2
   exit 1
 }
-grep -q 'iosmacs-workspace-smoke: workspace export uri(s): content://com.example.iosmacs_flutter.workspace_export/' \
+grep -q 'iosmacs-workspace-smoke: workspace export uri(s): content://com.example.fluttmacs.workspace_export/' \
   "$out_dir/logcat.txt" || {
   printf 'error: did not observe Android document-provider export URI evidence\n' >&2
   exit 1
 }
-grep -Eq 'iosmacs Android document-provider export: uri=content://com\.example\.iosmacs_flutter\.workspace_export/.+ bytes=[1-9][0-9]*' \
+grep -Eq 'iosmacs Android document-provider export: uri=content://com\.example\.fluttmacs\.workspace_export/.+ bytes=[1-9][0-9]*' \
   "$out_dir/logcat.txt" || {
   printf 'error: did not observe Android document-provider export byte evidence\n' >&2
   exit 1
@@ -785,7 +785,7 @@ fi
 focused="$("$adb_bin" -s "$device_id" shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' || true)"
 printf '%s\n' "$focused" > "$out_dir/window-focus.txt"
 
-grep -q 'com.example.iosmacs_flutter' "$out_dir/window-focus.txt" || {
+grep -q 'com.example.fluttmacs' "$out_dir/window-focus.txt" || {
   printf 'error: iosmacs Flutter Android activity is not focused\n' >&2
   cat "$out_dir/window-focus.txt" >&2
   exit 1

@@ -61,7 +61,7 @@ flutter-bootstrap:
 	}
 	PATH="$(FLUTTER_PATH)" \
 	  flutter create . \
-	    --project-name iosmacs_flutter \
+	    --project-name fluttmacs \
 	    --platforms=ios,android,macos,linux,windows,web
 
 flutter-format-check:

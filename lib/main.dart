@@ -26,7 +26,7 @@ bool defaultAutoStartBackend({
 
 void main() {
   runApp(
-    IOSMacsFlutterApp(
+    FluttmacsApp(
       autoStartBackend: defaultAutoStartBackend(),
       mirrorTerminalOutputToLog: const bool.fromEnvironment(
         'IOSMACS_FLUTTER_MIRROR_TERMINAL_OUTPUT',
@@ -58,8 +58,8 @@ void main() {
   );
 }
 
-class IOSMacsFlutterApp extends StatefulWidget {
-  const IOSMacsFlutterApp({
+class FluttmacsApp extends StatefulWidget {
+  const FluttmacsApp({
     this.autoStartBackend = false,
     this.mirrorTerminalOutputToLog = false,
     this.runWorkspaceSmoke = false,
@@ -91,10 +91,10 @@ class IOSMacsFlutterApp extends StatefulWidget {
   final String backendOverride;
 
   @override
-  State<IOSMacsFlutterApp> createState() => _IOSMacsFlutterAppState();
+  State<FluttmacsApp> createState() => _FluttmacsAppState();
 }
 
-class _IOSMacsFlutterAppState extends State<IOSMacsFlutterApp> {
+class _FluttmacsAppState extends State<FluttmacsApp> {
   late final EmacsBackend _backend;
 
   @override

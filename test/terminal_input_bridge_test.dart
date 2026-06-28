@@ -3,11 +3,11 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:iosmacs_flutter/src/backend/backend_capabilities.dart';
-import 'package:iosmacs_flutter/src/backend/backend_diagnostics.dart';
-import 'package:iosmacs_flutter/src/backend/emacs_backend.dart';
-import 'package:iosmacs_flutter/src/backend/workspace_entry.dart';
-import 'package:iosmacs_flutter/src/ui/terminal_input_bridge.dart';
+import 'package:fluttmacs/src/backend/backend_capabilities.dart';
+import 'package:fluttmacs/src/backend/backend_diagnostics.dart';
+import 'package:fluttmacs/src/backend/emacs_backend.dart';
+import 'package:fluttmacs/src/backend/workspace_entry.dart';
+import 'package:fluttmacs/src/ui/terminal_input_bridge.dart';
 
 void main() {
   test('forwards xterm output strings as raw UTF-8 bytes', () async {

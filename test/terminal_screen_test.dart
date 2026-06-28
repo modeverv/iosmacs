@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:iosmacs_flutter/src/backend/android_emacs_backend.dart';
-import 'package:iosmacs_flutter/src/backend/desktop_emacs_backend.dart';
-import 'package:iosmacs_flutter/src/backend/emacs_backend.dart';
-import 'package:iosmacs_flutter/src/backend/fake_emacs_backend.dart';
-import 'package:iosmacs_flutter/src/ui/terminal_screen.dart';
+import 'package:fluttmacs/src/backend/android_emacs_backend.dart';
+import 'package:fluttmacs/src/backend/desktop_emacs_backend.dart';
+import 'package:fluttmacs/src/backend/emacs_backend.dart';
+import 'package:fluttmacs/src/backend/fake_emacs_backend.dart';
+import 'package:fluttmacs/src/ui/terminal_screen.dart';
 import 'package:xterm/xterm.dart';
 
 void main() {

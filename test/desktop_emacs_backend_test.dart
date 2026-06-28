@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:iosmacs_flutter/src/backend/desktop_emacs_backend.dart';
+import 'package:fluttmacs/src/backend/desktop_emacs_backend.dart';
 
 void main() {
   test('reports Linux placeholder capabilities explicitly', () {

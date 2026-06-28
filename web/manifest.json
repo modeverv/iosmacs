@@ -1,6 +1,6 @@
 {
-    "name": "iosmacs_flutter",
-    "short_name": "iosmacs_flutter",
+    "name": "fluttmacs",
+    "short_name": "fluttmacs",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
