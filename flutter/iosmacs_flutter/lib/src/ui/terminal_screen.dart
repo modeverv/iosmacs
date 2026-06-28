@@ -1074,13 +1074,20 @@ class _TerminalScreenState extends State<TerminalScreen> {
   }
 
   // Shows the input row (if hidden) and focuses the TextField so the
-  // Android soft keyboard appears.  Reliable cross-device keyboard path.
+  // Android soft keyboard appears.  On Android, uses SHOW_FORCED via a
+  // native channel call so the soft keyboard appears even when a hardware
+  // keyboard is connected (e.g. Android emulator with hw.keyboard=yes).
   void _showKeyboard() {
     if (!_showInputRow) {
       setState(() => _showInputRow = true);
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _inputFocusNode.requestFocus();
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        unawaited(
+          widget.backend.showKeyboard().catchError((_) {}),
+        );
+      }
     });
   }
 

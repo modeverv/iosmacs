@@ -14,6 +14,7 @@ import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.util.Log
+import android.view.inputmethod.InputMethodManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -91,6 +92,7 @@ private class AndroidNativeEmacsBridge(
       "exportWorkspace" -> exportWorkspace(call, result)
       "selectWorkspaceRoot" -> selectWorkspaceRoot(result)
       "clearWorkspaceRoot" -> clearWorkspaceRoot(result)
+      "showKeyboard" -> showKeyboard(result)
       else -> result.notImplemented()
     }
   }
@@ -461,6 +463,13 @@ private class AndroidNativeEmacsBridge(
       pendingWorkspaceTreeResult = null
       result.error("workspace_tree_picker_unavailable", error.localizedMessage, null)
     }
+  }
+
+  private fun showKeyboard(result: MethodChannel.Result) {
+    val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+    val view = activity.currentFocus ?: activity.window.decorView
+    imm.showSoftInput(view, InputMethodManager.SHOW_FORCED)
+    result.success(null)
   }
 
   private fun clearWorkspaceRoot(result: MethodChannel.Result) {

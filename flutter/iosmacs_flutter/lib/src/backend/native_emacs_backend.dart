@@ -271,6 +271,11 @@ class NativeEmacsBackend implements EmacsBackend {
   }
 
   @override
+  Future<void> showKeyboard() async {
+    await _invokeNative<bool>('showKeyboard');
+  }
+
+  @override
   void dispose() {
     _stopOutputPolling();
     _lifecycleState.dispose();

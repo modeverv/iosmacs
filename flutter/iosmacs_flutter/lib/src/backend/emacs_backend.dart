@@ -16,6 +16,7 @@ abstract interface class EmacsBackend {
   Future<void> sendBytes(List<int> bytes);
   Future<bool> pasteSystemClipboard();
   Future<void> resize({required int cols, required int rows});
+  Future<void> showKeyboard();
 
   Future<List<WorkspaceEntry>> listWorkspace();
   Future<int> importToWorkspace(List<Uri> uris);

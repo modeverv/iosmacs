@@ -100,6 +100,9 @@ class AndroidEmacsBackend implements EmacsBackend {
       _nativeBackend.clearWorkspaceRootSelection();
 
   @override
+  Future<void> showKeyboard() => _nativeBackend.showKeyboard();
+
+  @override
   void dispose() {
     _nativeBackend.dispose();
   }

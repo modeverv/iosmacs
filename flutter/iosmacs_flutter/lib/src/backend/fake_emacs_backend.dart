@@ -113,6 +113,9 @@ class FakeEmacsBackend implements EmacsBackend {
   }
 
   @override
+  Future<void> showKeyboard() async {}
+
+  @override
   void dispose() async {
     await _workerSubscription.cancel();
     await _worker.dispose();

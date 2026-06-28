@@ -159,6 +159,9 @@ class DesktopEmacsBackend implements EmacsBackend {
   }
 
   @override
+  Future<void> showKeyboard() async {}
+
+  @override
   void dispose() {
     _lifecycleState.dispose();
     _diagnostics.dispose();

@@ -184,6 +184,9 @@ class _RecordingBackend implements EmacsBackend {
       'recording default workspace set';
 
   @override
+  Future<void> showKeyboard() async {}
+
+  @override
   void dispose() {
     _outputController.close();
     _lifecycleState.dispose();
