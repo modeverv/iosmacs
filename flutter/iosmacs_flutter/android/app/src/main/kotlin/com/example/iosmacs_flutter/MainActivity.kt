@@ -14,6 +14,7 @@ import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.util.Log
+import android.view.KeyEvent
 import android.view.inputmethod.InputMethodManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -43,6 +44,36 @@ class MainActivity : FlutterActivity() {
       return
     }
     super.onActivityResult(requestCode, resultCode, data)
+  }
+
+  // Intercept hardware Ctrl+letter and Alt+letter BEFORE Flutter or the
+  // Android input system can strip the modifier and send plain text.
+  // dispatchKeyEvent runs before any View or TextInputConnection sees the event.
+  // This is the same approach used by Termux and other Android terminals.
+  override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+    if (event.action == KeyEvent.ACTION_DOWN) {
+      val keyCode = event.keyCode
+      Log.d("IOSMacsKey", "dispatchKeyEvent: keyCode=$keyCode ctrl=${event.isCtrlPressed} alt=${event.isAltPressed} meta=${event.metaState}")
+      if (event.isCtrlPressed && keyCode in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z) {
+        val ctrlByte = (keyCode - KeyEvent.KEYCODE_A + 1).toByte()
+        val bytes = if (event.isAltPressed) {
+          byteArrayOf(0x1b, ctrlByte)
+        } else {
+          byteArrayOf(ctrlByte)
+        }
+        Log.i("IOSMacsKey", "Ctrl+letter: keyCode=$keyCode → byte=0x${ctrlByte.toInt().and(0xff).toString(16)}")
+        nativeEmacsBridge.injectBytes(bytes)
+        return true
+      }
+      if (event.isAltPressed && !event.isCtrlPressed &&
+          keyCode in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z) {
+        val lower = (keyCode - KeyEvent.KEYCODE_A + 'a'.code).toByte()
+        Log.i("IOSMacsKey", "Alt+letter: keyCode=$keyCode → Meta+${lower.toInt().toChar()}")
+        nativeEmacsBridge.injectBytes(byteArrayOf(0x1b, lower))
+        return true
+      }
+    }
+    return super.dispatchKeyEvent(event)
   }
 }
 
@@ -462,6 +493,19 @@ private class AndroidNativeEmacsBridge(
     } catch (error: Exception) {
       pendingWorkspaceTreeResult = null
       result.error("workspace_tree_picker_unavailable", error.localizedMessage, null)
+    }
+  }
+
+  // Directly injects bytes into Emacs, bypassing the MethodChannel round-trip.
+  // Used by Activity.onKeyDown to handle hardware Ctrl/Alt key combinations
+  // before Android's input system strips the modifier.
+  fun injectBytes(bytes: ByteArray) {
+    inputBytes += bytes.size
+    lifecycleState = "iosmacs Android native bridge: accepted ${bytes.size} byte(s)"
+    if (officialTerminalStarted) {
+      appendOutput(nativeRuntime.sendOfficialBytes(bytes))
+    } else {
+      appendOutput(nativeRuntime.sendBytes(bytes))
     }
   }
 
