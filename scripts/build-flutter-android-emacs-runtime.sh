@@ -197,7 +197,7 @@ done < <(find "\$runtime_lisp" -type d | sort)
 while IFS= read -r d; do
   load_args+=("-L" "\$d")
 done < <(find "\$source_lisp" -type d | sort)
-exec "\$host_emacs" \\
+exec env LANG=C LC_ALL=C "\$host_emacs" \\
   "\${load_args[@]}" \\
   --eval "(setq lisp-directory \"\$source_lisp/\" data-directory \"\$source_etc/\")" \\
   "\$@"

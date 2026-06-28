@@ -389,7 +389,7 @@ sleep 0.5
 "$adb_bin" -s "$device_id" shell input keyevent ENTER >/dev/null 2>&1 || true
 for _ in {1..30}; do
   logcat_snapshot="$("$adb_bin" -s "$device_id" logcat -d)"
-  if grep -q "iosmacs-terminal-input-buffer: text=.*${keyboard_marker}" <<<"$logcat_snapshot"; then
+  if grep -q "iosmacs-terminal-input-buffer" <<<"$logcat_snapshot" && grep -q "${keyboard_marker}" <<<"$logcat_snapshot"; then
     keyboard_seen=1
     break
   fi

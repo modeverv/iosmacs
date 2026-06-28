@@ -34,8 +34,8 @@ android {
 
     sourceSets {
         getByName("main") {
-            jniLibs.srcDir(file("../../../build/emacs-android/arm64-v8a/iosmacs/jniLibs"))
-            assets.srcDir(file("../../../build/emacs-android/arm64-v8a/java/install_temp/assets"))
+            jniLibs.srcDir(file("../../build/emacs-android/arm64-v8a/iosmacs/jniLibs"))
+            assets.srcDir(file("../../build/emacs-android/arm64-v8a/java/install_temp/assets"))
         }
     }
 
@@ -61,7 +61,7 @@ android {
 }
 
 val androidEmacsJavaBridgeJar =
-    file("../../../build/emacs-android/arm64-v8a/iosmacs/emacs-android-java.jar")
+    file("../../build/emacs-android/arm64-v8a/iosmacs/emacs-android-java.jar")
 
 dependencies {
     if (androidEmacsJavaBridgeJar.exists()) {

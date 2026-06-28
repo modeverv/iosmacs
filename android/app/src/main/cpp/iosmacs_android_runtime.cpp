@@ -328,7 +328,7 @@ void stop_official_emacs_locked() {
 }  // namespace
 
 extern "C" JNIEXPORT jbyteArray JNICALL
-Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_start(
+Java_com_example_fluttmacs_AndroidNativeEmacsRuntime_start(
     JNIEnv *env,
     jobject /* this */,
     jint cols,
@@ -341,7 +341,7 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_start(
 }
 
 extern "C" JNIEXPORT jbyteArray JNICALL
-Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_redraw(
+Java_com_example_fluttmacs_AndroidNativeEmacsRuntime_redraw(
     JNIEnv *env,
     jobject /* this */,
     jint cols,
@@ -353,7 +353,7 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_redraw(
 }
 
 extern "C" JNIEXPORT jbyteArray JNICALL
-Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_sendBytes(
+Java_com_example_fluttmacs_AndroidNativeEmacsRuntime_sendBytes(
     JNIEnv *env,
     jobject /* this */,
     jbyteArray input_bytes) {
@@ -362,7 +362,7 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_sendBytes(
 }
 
 extern "C" JNIEXPORT jbyteArray JNICALL
-Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_pasteBytes(
+Java_com_example_fluttmacs_AndroidNativeEmacsRuntime_pasteBytes(
     JNIEnv *env,
     jobject /* this */,
     jbyteArray input_bytes) {
@@ -371,7 +371,7 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_pasteBytes(
 }
 
 extern "C" JNIEXPORT jbyteArray JNICALL
-Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_startOfficialEmacs(
+Java_com_example_fluttmacs_AndroidNativeEmacsRuntime_startOfficialEmacs(
     JNIEnv *env,
     jobject /* this */,
     jstring executable_path,
@@ -447,7 +447,7 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_startOfficialEmacs(
 }
 
 extern "C" JNIEXPORT jbyteArray JNICALL
-Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_sendOfficialBytes(
+Java_com_example_fluttmacs_AndroidNativeEmacsRuntime_sendOfficialBytes(
     JNIEnv *env,
     jobject /* this */,
     jbyteArray input_bytes) {
@@ -466,7 +466,7 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_sendOfficialBytes(
 }
 
 extern "C" JNIEXPORT jbyteArray JNICALL
-Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_drainOfficialOutput(
+Java_com_example_fluttmacs_AndroidNativeEmacsRuntime_drainOfficialOutput(
     JNIEnv *env,
     jobject /* this */) {
   std::lock_guard<std::mutex> lock(runtime_mutex);
@@ -474,7 +474,7 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_drainOfficialOutput(
 }
 
 extern "C" JNIEXPORT jbyteArray JNICALL
-Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_resizeOfficial(
+Java_com_example_fluttmacs_AndroidNativeEmacsRuntime_resizeOfficial(
     JNIEnv *env,
     jobject /* this */,
     jint cols,
@@ -491,7 +491,7 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_resizeOfficial(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_stopOfficialEmacs(
+Java_com_example_fluttmacs_AndroidNativeEmacsRuntime_stopOfficialEmacs(
     JNIEnv * /* env */,
     jobject /* this */) {
   std::lock_guard<std::mutex> lock(runtime_mutex);
@@ -504,7 +504,7 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_stopOfficialEmacs(
 // --------------------------------------------------------------------- //
 
 extern "C" JNIEXPORT jbyteArray JNICALL
-Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_startNwEmacs(
+Java_com_example_fluttmacs_AndroidNativeEmacsRuntime_startNwEmacs(
     JNIEnv *env,
     jobject /* this */,
     jstring executable_path,
