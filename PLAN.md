@@ -1293,6 +1293,14 @@ Flutter Android GNU Emacs NDK runtime status:
   `iosmacs-terminal-input-buffer` log evidence before accepting the run. This
   proves Android keyboard/IME input reaches the terminal input bridge while the
   NW route is active.
+- Android simulator host-keyboard input now forwards printable
+  `KEYCODE_UNKNOWN` text payloads and ordinary hardware key events directly to
+  the native Emacs bridge as terminal bytes. The workaround still consumes
+  textless UNKNOWN events for Ctrl detection, while Japanese/IME commits and
+  physical-key ASCII input have explicit runtime smoke evidence.
+- Android simulator Ctrl input now also handles `C-SPC` as NUL and accepts
+  control-character payloads for Ctrl-letter sequences, so `C-x C-f` continues
+  to work after the Japanese IME/overlay has focus.
 - Android workspace export now writes exported workspace files through
   `ContentResolver.openOutputStream()` to app-owned
   `content://com.example.fluttmacs.workspace_export/...` URIs, and the

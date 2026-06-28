@@ -503,6 +503,8 @@ grep -q 'xterm-mouse-mode 1' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs-android-pointer-ok' \
   scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-terminal-pointer: kind=touch' \
+  scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs-pointer-smoke' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'IOSMACS_FLUTTER_POINTER_SMOKE' \
@@ -595,6 +597,34 @@ grep -q 'official Android subprocess probe ran on the active NW startup path' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'androidadbinput' \
   scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'iosmacs-android-keyboard-ok:androidadbinput' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'eval-expression' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'iosmacs-overlay-input-buffer' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'iosmacs-overlay-input-buffer' \
+  scripts/run-flutter-android-emulator-smoke.sh
+grep -q 'eventTextPayload' \
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
+grep -q 'controlByteForTextPayload' \
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
+grep -q 'controlByteFromEventPayload' \
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
+grep -q 'Ctrl+space' \
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
+grep -q 'Ctrl payload' \
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
+grep -q 'UNKNOWN text payload' \
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
+grep -q 'terminalBytesForKeyEvent' \
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
+grep -q 'Hardware key payload' \
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
+grep -q 'KEYCODE_FORWARD_DEL' \
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
+grep -q 'textPayload.toByteArray(Charsets.UTF_8)' \
+  "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'did not observe Android adb keyboard input evidence' \
   scripts/run-flutter-android-emulator-smoke.sh
 grep -q 'iosmacs input smoke' \

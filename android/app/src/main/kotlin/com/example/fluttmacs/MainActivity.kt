@@ -61,9 +61,29 @@ class MainActivity : FlutterActivity() {
       val keyCode = event.keyCode
       val now = System.currentTimeMillis()
 
-      // Emulator sends KEYCODE_UNKNOWN for the host Ctrl key.
-      // Record the timestamp and consume — prevents stray input.
+      // Emulator sends KEYCODE_UNKNOWN for the host Ctrl key, but some
+      // simulator keyboard/IME paths also deliver committed text as UNKNOWN.
+      // Handle Ctrl+letter first; otherwise route the committed text directly
+      // to Emacs so hardware-keyboard IME commits do not disappear.
       if (keyCode == KeyEvent.KEYCODE_UNKNOWN) {
+        val textPayload = eventTextPayload(event)
+        if (textPayload.isNotEmpty()) {
+          val emulatorCtrl = (now - lastUnknownKeyMs) < ctrlEmulatorWindowMs
+          val ctrlByte = if (emulatorCtrl) {
+            controlByteForTextPayload(textPayload)
+          } else {
+            null
+          }
+          lastUnknownKeyMs = 0L
+          if (ctrlByte != null) {
+            Log.i("IOSMacsKey", "Ctrl+UNKNOWN text payload: text=$textPayload")
+            nativeEmacsBridge.injectBytes(byteArrayOf(ctrlByte))
+          } else {
+            Log.i("IOSMacsKey", "UNKNOWN text payload: text=$textPayload")
+            nativeEmacsBridge.injectBytes(textPayload.toByteArray(Charsets.UTF_8))
+          }
+          return true
+        }
         lastUnknownKeyMs = now
         return true
       }
@@ -72,6 +92,21 @@ class MainActivity : FlutterActivity() {
       // or (b) letter arriving within 150ms of KEYCODE_UNKNOWN (qemu emulator workaround).
       val emulatorCtrl = (now - lastUnknownKeyMs) < ctrlEmulatorWindowMs
       val hasCtrl = event.isCtrlPressed || emulatorCtrl
+
+      val controlPayloadByte = controlByteFromEventPayload(event)
+      if (controlPayloadByte != null) {
+        lastUnknownKeyMs = 0L
+        Log.i("IOSMacsKey", "Ctrl payload: keyCode=$keyCode → 0x${controlPayloadByte.toInt().and(0xff).toString(16)}")
+        nativeEmacsBridge.injectBytes(byteArrayOf(controlPayloadByte))
+        return true
+      }
+
+      if (hasCtrl && keyCode == KeyEvent.KEYCODE_SPACE) {
+        lastUnknownKeyMs = 0L
+        Log.i("IOSMacsKey", "Ctrl+space: keyCode=$keyCode → 0x00 (emulatorCtrl=$emulatorCtrl)")
+        nativeEmacsBridge.injectBytes(byteArrayOf(0x00))
+        return true
+      }
 
       if (hasCtrl && keyCode in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z) {
         lastUnknownKeyMs = 0L  // reset so next letter without Ctrl isn't also consumed
@@ -91,8 +126,77 @@ class MainActivity : FlutterActivity() {
         nativeEmacsBridge.injectBytes(byteArrayOf(0x1b, lower))
         return true
       }
+      if (!hasCtrl && !event.isAltPressed && !event.isMetaPressed) {
+        val bytes = terminalBytesForKeyEvent(event)
+        if (bytes != null) {
+          Log.i("IOSMacsKey", "Hardware key payload: keyCode=$keyCode bytes=${bytes.size}")
+          nativeEmacsBridge.injectBytes(bytes)
+          return true
+        }
+      }
     }
     return super.dispatchKeyEvent(event)
+  }
+
+  private fun eventTextPayload(event: KeyEvent): String {
+    val characters = event.characters
+    if (!characters.isNullOrEmpty()) {
+      return characters
+    }
+    val unicodeChar = event.unicodeChar
+    if (unicodeChar <= 0) {
+      return ""
+    }
+    return String(Character.toChars(unicodeChar))
+  }
+
+  private fun controlByteForTextPayload(text: String): Byte? {
+    if (text.length != 1) {
+      return null
+    }
+    val upper = text[0].uppercaseChar().code
+    if (upper < 'A'.code || upper > 'Z'.code) {
+      return null
+    }
+    return (upper - 'A'.code + 1).toByte()
+  }
+
+  private fun controlByteFromEventPayload(event: KeyEvent): Byte? {
+    val unicodeChar = event.unicodeChar
+    if (unicodeChar in 1..26) {
+      return unicodeChar.toByte()
+    }
+    val characters = event.characters
+    if (!characters.isNullOrEmpty() && characters.length == 1) {
+      val code = characters[0].code
+      if (code in 1..26) {
+        return code.toByte()
+      }
+    }
+    return null
+  }
+
+  private fun terminalBytesForKeyEvent(event: KeyEvent): ByteArray? {
+    when (event.keyCode) {
+      KeyEvent.KEYCODE_ENTER -> return byteArrayOf(0x0d)
+      KeyEvent.KEYCODE_TAB -> return byteArrayOf(0x09)
+      KeyEvent.KEYCODE_DEL -> return byteArrayOf(0x7f.toByte())
+      KeyEvent.KEYCODE_FORWARD_DEL -> return byteArrayOf(0x1b, 0x5b, 0x33, 0x7e)
+      KeyEvent.KEYCODE_DPAD_UP -> return byteArrayOf(0x1b, 0x5b, 0x41)
+      KeyEvent.KEYCODE_DPAD_DOWN -> return byteArrayOf(0x1b, 0x5b, 0x42)
+      KeyEvent.KEYCODE_DPAD_RIGHT -> return byteArrayOf(0x1b, 0x5b, 0x43)
+      KeyEvent.KEYCODE_DPAD_LEFT -> return byteArrayOf(0x1b, 0x5b, 0x44)
+      KeyEvent.KEYCODE_ESCAPE -> return byteArrayOf(0x1b)
+    }
+
+    val textPayload = eventTextPayload(event)
+    if (textPayload.isEmpty()) {
+      return null
+    }
+    if (textPayload.any { it < ' ' && it != '\n' && it != '\t' }) {
+      return null
+    }
+    return textPayload.toByteArray(Charsets.UTF_8)
   }
 }
 

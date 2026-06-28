@@ -1,5 +1,52 @@
 # iosmacs Flutter Log
 
+## 2026-06-29
+
+Flutter Android Ctrl input after IME focus:
+
+- Fixed the remaining Android simulator Ctrl-key gap after Japanese IME/overlay
+  focus. `MainActivity.dispatchKeyEvent` now handles `C-SPC` directly as NUL
+  (`0x00`) and also accepts Ctrl-letter events delivered as control-character
+  payloads instead of modifier-bearing key codes.
+- Kept the earlier `C-x` / `C-f` path intact while making the native bridge the
+  first responder for `C-SPC`, `C-x`, and `C-f` before Android IME/TextField
+  handling can consume the key sequence.
+- Verified on `emulator-5554` with the rebuilt debug APK: logcat showed
+  `Ctrl+space` -> `0x00`, `Ctrl+letter` for `C-x` -> `0x18`, and
+  `Ctrl+letter` for `C-f` -> `0x06`; the screen opened Emacs `Find file:`.
+- Re-ran `make flutter-structure-check`, `make flutter-android-smoke`, and
+  `make flutter-android-emulator-smoke`.
+
+## 2026-06-28
+
+Flutter Android simulator keyboard input:
+
+- Investigated a regression where normal keyboard input in the Android
+  simulator could stop reaching the Flutter terminal even though the NW Emacs
+  frame displayed `*scratch*`.
+- Confirmed that the visible cursor after `*` is normal `*scratch*` prompt
+  behavior, not evidence that Emacs itself started in the wrong buffer.
+- Fixed two input boundaries in `MainActivity.dispatchKeyEvent`: printable
+  `KEYCODE_UNKNOWN` text payloads are now forwarded to the native Emacs bridge
+  as UTF-8, and non-modified hardware keys now map directly to terminal bytes
+  for printable text, Enter, Tab, Backspace/Delete, Escape, and arrows. The
+  emulator Ctrl workaround still handles textless UNKNOWN events and
+  Ctrl+letter.
+- Rebuilt the Android GNU Emacs runtime and NW/pdumper route after discovering
+  the debug APK was falling back to the diagnostic renderer because
+  `libemacs_nw.so` was missing from the shared `build/emacs-android/...`
+  staging directory. Verified the rebuilt APK contains
+  `lib/arm64-v8a/libemacs_nw.so` and `assets/iosmacs-nw-pdumper-enabled`.
+- Added Android smoke evidence for overlay/IME input buffering,
+  `eval-expression`-based Japanese/file smoke commands, and the current
+  pointer fallback evidence so emulator smoke stays aligned with Android 36
+  input behavior.
+- Verified with `make flutter-structure-check`, `flutter test
+  test/terminal_screen_test.dart`, `make flutter-android-smoke`, and `make
+  flutter-android-emulator-smoke`. Manual emulator proof showed `C-x C-f`
+  opening `Find file:` and `nihongo` typed from adb/host-key equivalents into
+  the real NW Emacs frame.
+
 ## 2026-06-27
 
 Flutter Android NW follow-up:

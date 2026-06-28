@@ -87,12 +87,14 @@ class _TerminalScreenState extends State<TerminalScreen> {
   StreamSubscription<List<int>>? _outputSubscription;
   double _fontSize = 15;
   String _terminalInputMirrorBuffer = '';
+  String _overlayInputMirrorBuffer = '';
   bool _ctrlModifier = false;
   bool _metaModifier = false;
   bool _showControlKeyRow = false;
   bool _showInputRow = false;
   // Previous overlay text for detecting commits vs backspace.
   String _overlayPreviousText = '';
+  bool _clearingOverlayText = false;
   // Composing text shown at the terminal cursor position during IME input.
   String _composingText = '';
 
@@ -169,9 +171,22 @@ class _TerminalScreenState extends State<TerminalScreen> {
                           behavior: HitTestBehavior.translucent,
                           onPointerDown: (PointerDownEvent event) {
                             _logTerminalPointerDown(event);
-                            // Focus the overlay so physical keyboard events
-                            // reach our handler with Ctrl/Meta support.
                             _overlayFocusNode.requestFocus();
+                            // xterm's _onTapDown fires after this and calls
+                            // _terminalFocusNode.requestFocus(), stealing the
+                            // InputConnection.  Re-claim it on the next frame
+                            // so soft-keyboard input reaches the overlay.
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (!mounted) return;
+                              _overlayFocusNode.requestFocus();
+                              if (defaultTargetPlatform ==
+                                  TargetPlatform.android) {
+                                unawaited(
+                                    widget.backend.showKeyboard().catchError(
+                                          (_) {},
+                                        ));
+                              }
+                            });
                           },
                           child: TerminalView(
                             _terminal,
@@ -217,27 +232,29 @@ class _TerminalScreenState extends State<TerminalScreen> {
                             cursorY: _terminal.buffer.cursorY,
                             fontSize: _fontSize,
                           ),
-                        // Transparent 1-px overlay TextField for Japanese IME.
-                        // Uses Flutter's default enableSuggestions: true,
-                        // unlike xterm which hardcodes enableSuggestions: false.
-                        // Physical key events go to _overlayFocusNode.onKeyEvent.
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          height: 1,
-                          child: Opacity(
-                            opacity: 0,
-                            child: TextField(
-                              key: const ValueKey<String>(
-                                  'iosmacs-terminal-overlay'),
-                              focusNode: _overlayFocusNode,
-                              controller: _overlayController,
-                              keyboardType: TextInputType.text,
-                              textInputAction: TextInputAction.send,
-                              maxLines: 1,
-                              onChanged: _handleOverlayTextChanged,
-                              onSubmitted: _onOverlayTextSubmitted,
+                        // Full-size transparent overlay TextField for
+                        // soft-keyboard input and Japanese IME.
+                        // Covers the entire terminal area so Android routes
+                        // InputConnection to it reliably (a 1-px widget can be
+                        // ignored by Android 12+ security heuristics).
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            key: const ValueKey<String>(
+                                'iosmacs-terminal-overlay-hit-test-pass'),
+                            ignoring: true,
+                            child: Opacity(
+                              opacity: 0,
+                              child: TextField(
+                                key: const ValueKey<String>(
+                                    'iosmacs-terminal-overlay'),
+                                focusNode: _overlayFocusNode,
+                                controller: _overlayController,
+                                keyboardType: TextInputType.text,
+                                textInputAction: TextInputAction.send,
+                                maxLines: 1,
+                                onChanged: _handleOverlayTextChanged,
+                                onSubmitted: _onOverlayTextSubmitted,
+                              ),
                             ),
                           ),
                         ),
@@ -371,18 +388,27 @@ class _TerminalScreenState extends State<TerminalScreen> {
       return KeyEventResult.ignored;
     }
 
-    final bytes = _boostedRepeatBytes(event);
+    final bytes = _boostedRepeatBytes(
+      event,
+      includeBaseRepeat: focusNode == _overlayFocusNode,
+    );
     if (bytes.isEmpty) {
       return KeyEventResult.ignored;
     }
 
     unawaited(widget.backend.sendBytes(bytes));
-    return KeyEventResult.ignored;
+    return focusNode == _overlayFocusNode
+        ? KeyEventResult.handled
+        : KeyEventResult.ignored;
   }
 
-  List<int> _boostedRepeatBytes(KeyRepeatEvent event) {
-    const extraRepeats = _keyRepeatMultiplier - 1;
-    if (extraRepeats <= 0) {
+  List<int> _boostedRepeatBytes(
+    KeyRepeatEvent event, {
+    required bool includeBaseRepeat,
+  }) {
+    final repeats =
+        includeBaseRepeat ? _keyRepeatMultiplier : _keyRepeatMultiplier - 1;
+    if (repeats <= 0) {
       return const <int>[];
     }
 
@@ -392,7 +418,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
     }
 
     return List<int>.generate(
-      sequence.length * extraRepeats,
+      sequence.length * repeats,
       (int index) => sequence[index % sequence.length],
       growable: false,
     );
@@ -527,6 +553,28 @@ class _TerminalScreenState extends State<TerminalScreen> {
     debugPrint('iosmacs-terminal-input: text="$printable"');
     debugPrint(
         'iosmacs-terminal-input-buffer: text="$_terminalInputMirrorBuffer"');
+  }
+
+  void _mirrorOverlayInput(String data) {
+    if (!widget.mirrorTerminalInputToLog || data.isEmpty) {
+      return;
+    }
+    final printable = data
+        .replaceAll('\r', '<CR>')
+        .replaceAll('\n', '<LF>')
+        .replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'), '');
+    if (printable.isEmpty) {
+      return;
+    }
+    _overlayInputMirrorBuffer += printable;
+    if (_overlayInputMirrorBuffer.length > 256) {
+      _overlayInputMirrorBuffer = _overlayInputMirrorBuffer.substring(
+        _overlayInputMirrorBuffer.length - 256,
+      );
+    }
+    debugPrint('iosmacs-overlay-input: text="$printable"');
+    debugPrint(
+        'iosmacs-overlay-input-buffer: text="$_overlayInputMirrorBuffer"');
   }
 
   void _logTerminalPointerDown(PointerDownEvent event) {
@@ -668,11 +716,11 @@ class _TerminalScreenState extends State<TerminalScreen> {
   Future<void> _runAndroidJapaneseInputSmoke() async {
     const text = '日本語';
     const elisp =
-        '(let ((marker (expand-file-name "iosmacs-android-japanese-input.marker" "~"))) '
-        '(write-region "iosmacs-android-japanese-input-ok:日本語\\n" nil marker nil nil) '
+        '(progn '
+        '(write-region "iosmacs-android-japanese-input-ok:日本語\\n" nil '
+        '(expand-file-name "iosmacs-android-japanese-input.marker" "~") nil nil) '
         '(message "iosmacs-android-japanese-input-ok:日本語"))';
-    // Use LF (\n = C-j) to trigger eval-print-last-sexp in *scratch*, not CR.
-    final bytes = utf8.encode('$elisp\n');
+    final bytes = utf8.encode('\x1bxeval-expression\r$elisp\r');
     await Future<void>.delayed(const Duration(milliseconds: 500));
     await widget.backend.sendBytes(bytes);
     await Future<void>.delayed(Duration.zero);
@@ -692,7 +740,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   Future<void> _runAndroidFileOpsSmoke() async {
     const elisp = r'''(load "~/iosmacs-android-file-ops-smoke.el")''';
     await Future<void>.delayed(const Duration(seconds: 1));
-    final bytes = utf8.encode('$elisp\n');
+    final bytes = utf8.encode('\x1bxeval-expression\r$elisp\r');
     await widget.backend.sendBytes(bytes);
     await Future<void>.delayed(Duration.zero);
     final diagnostics = widget.backend.diagnostics.value;
@@ -1160,6 +1208,10 @@ class _TerminalScreenState extends State<TerminalScreen> {
     final composing = _overlayController.value.composing;
     final isComposing = composing.isValid && !composing.isCollapsed;
 
+    if (text.isNotEmpty && _clearingOverlayText) {
+      _clearingOverlayText = false;
+    }
+
     if (isComposing) {
       _overlayPreviousText = text;
       if (_composingText != text) {
@@ -1174,6 +1226,11 @@ class _TerminalScreenState extends State<TerminalScreen> {
     }
 
     if (text.isEmpty) {
+      if (_clearingOverlayText) {
+        _clearingOverlayText = false;
+        _overlayPreviousText = '';
+        return;
+      }
       // Either: (a) backspace on empty overlay, or (b) IME dismissed without
       // committing. Only send DEL in case (a): nothing was composing before.
       if (_overlayPreviousText.isEmpty) {
@@ -1186,10 +1243,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
     // Committed text (Latin char or Japanese after candidate selection).
     _overlayPreviousText = '';
+    _mirrorOverlayInput(text);
     await _handleTerminalOutput(text);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _overlayController.clear();
-    });
+    _clearOverlayTextAfterFrame();
   }
 
   // Called when Enter is pressed in the overlay.
@@ -1204,15 +1260,21 @@ class _TerminalScreenState extends State<TerminalScreen> {
     if (pending.isNotEmpty) {
       unawaited(_handleTerminalOutput(pending));
       _overlayPreviousText = '';
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _overlayController.clear();
-      });
+      _clearOverlayTextAfterFrame();
     }
     // Send CR (\r) to Emacs — same as pressing Enter in the terminal.
     unawaited(widget.backend.sendBytes(const <int>[0x0d]));
     // Stay focused so next input is ready immediately.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _overlayFocusNode.requestFocus();
+    });
+  }
+
+  void _clearOverlayTextAfterFrame() {
+    _clearingOverlayText = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _overlayController.clear();
     });
   }
 

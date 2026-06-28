@@ -139,7 +139,6 @@ make flutter-emacs-pdmp
 
 ```sh
 open -a Simulator
-flutter run -d ios
 ```
 
 Launch specifically on a booted iPad simulator:

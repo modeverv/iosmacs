@@ -601,6 +601,61 @@ void main() {
     expect(backend.diagnostics.value.inputBytes, expectedByteCount);
   });
 
+  testWidgets('terminal overlay forwards ASCII once and ignores internal clear',
+      (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(TerminalView));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: 'k',
+        selection: TextSelection.collapsed(offset: 1),
+      ),
+    );
+    await tester.pump();
+
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: '',
+        selection: TextSelection.collapsed(offset: 0),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(backend.diagnostics.value.inputBytes, 1);
+    expect(backend.diagnostics.value.message, 'received 1 input byte(s)');
+  });
+
+  testWidgets('transparent terminal overlay leaves terminal hit testing active',
+      (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+
+    final overlayIgnorePointer = tester.widget<IgnorePointer>(
+      find.byKey(
+        const ValueKey<String>('iosmacs-terminal-overlay-hit-test-pass'),
+      ),
+    );
+    expect(overlayIgnorePointer.ignoring, isTrue);
+  });
+
   testWidgets('terminal body uses normal text keyboard for IME candidates', (
     WidgetTester tester,
   ) async {

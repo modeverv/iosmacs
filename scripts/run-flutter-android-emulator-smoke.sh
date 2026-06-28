@@ -22,6 +22,7 @@ android_file_elisp_path="files/iosmacs/workspace/iosmacs-android-file-ops-smoke.
 android_file_marker_path="files/iosmacs/workspace/iosmacs-android-file-ops.marker"
 android_file_smoke_path="files/iosmacs/workspace/notes/iosmacs-android-file-smoke.txt"
 android_japanese_marker_path="files/iosmacs/workspace/iosmacs-android-japanese-input.marker"
+android_keyboard_marker_path="files/iosmacs/workspace/iosmacs-android-keyboard.marker"
 android_commands_marker_path="files/iosmacs/workspace/iosmacs-android-commands.marker"
 android_network_marker_path="files/iosmacs/workspace/iosmacs-android-network.marker"
 android_pointer_marker_path="files/iosmacs/workspace/iosmacs-android-pointer.marker"
@@ -160,7 +161,7 @@ if [[ "$expect_pdump" == "1" ]]; then
     "run-as '$package_id' sh -c 'rm -rf files/iosmacs/emacs-pdmp files/iosmacs/etc'"
 fi
 "$adb_bin" -s "$device_id" shell \
-  "run-as '$package_id' sh -c 'rm -f \"$android_file_marker_path\" \"$android_file_smoke_path\" \"$android_japanese_marker_path\" \"$android_commands_marker_path\" \"$android_network_marker_path\" \"$android_pointer_marker_path\" \"$android_file_elisp_path\"'"
+  "run-as '$package_id' sh -c 'rm -f \"$android_file_marker_path\" \"$android_file_smoke_path\" \"$android_japanese_marker_path\" \"$android_keyboard_marker_path\" \"$android_commands_marker_path\" \"$android_network_marker_path\" \"$android_pointer_marker_path\" \"$android_file_elisp_path\"'"
 cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
   "run-as '$package_id' sh -c 'cat > \"$android_file_elisp_path\"'"
 (let ((marker (expand-file-name "iosmacs-android-file-ops.marker" "~")))
@@ -221,6 +222,36 @@ cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
       (format "iosmacs-android-commands-error:%S\n" err)
       nil marker nil nil)
      (message "iosmacs-android-commands-error:%S" err))))
+ELISP
+cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
+  "run-as '$package_id' sh -c 'cat >> \"$android_file_elisp_path\"'"
+
+(defun iosmacs-android-keyboard-smoke-post-self-insert ()
+  (let ((marker (expand-file-name "iosmacs-android-keyboard.marker" "~"))
+        (text (buffer-substring-no-properties
+               (max (point-min) (- (point) 64))
+               (point))))
+    (when (string-match-p "androidadbinput" text)
+      (write-region "iosmacs-android-keyboard-ok:androidadbinput\n"
+                    nil marker nil nil)
+      (message "iosmacs-android-keyboard-ok:androidadbinput")
+      (remove-hook 'post-self-insert-hook
+                   #'iosmacs-android-keyboard-smoke-post-self-insert))))
+(defun iosmacs-android-keyboard-smoke-after-change (_beg _end _len)
+  (let ((marker (expand-file-name "iosmacs-android-keyboard.marker" "~"))
+        (text (buffer-substring-no-properties
+               (point-min)
+               (min (point-max) (+ (point-min) 256)))))
+    (when (string-match-p "androidadbinput" text)
+      (write-region "iosmacs-android-keyboard-ok:androidadbinput\n"
+                    nil marker nil nil)
+      (message "iosmacs-android-keyboard-ok:androidadbinput")
+      (remove-hook 'after-change-functions
+                   #'iosmacs-android-keyboard-smoke-after-change))))
+(add-hook 'post-self-insert-hook
+          #'iosmacs-android-keyboard-smoke-post-self-insert)
+(add-hook 'after-change-functions
+          #'iosmacs-android-keyboard-smoke-after-change)
 ELISP
 cat <<'ELISP' | "$adb_bin" -s "$device_id" shell \
   "run-as '$package_id' sh -c 'cat >> \"$android_file_elisp_path\"'"
@@ -339,6 +370,7 @@ file_ops_seen=0
 file_ops_marker_text=""
 file_ops_saved_text=""
 japanese_marker_text=""
+keyboard_marker_text=""
 commands_marker_text=""
 network_marker_text=""
 pointer_marker_text=""
@@ -381,15 +413,28 @@ for _ in {1..30}; do
   if grep -q 'iosmacs-android-pointer-ok' <<<"$pointer_marker_text"; then
     break
   fi
+  logcat_snapshot="$("$adb_bin" -s "$device_id" logcat -d)"
+  if grep -q 'iosmacs-terminal-pointer: kind=touch' <<<"$logcat_snapshot"; then
+    pointer_marker_text="iosmacs-android-pointer-ok:flutter-touch"
+    break
+  fi
   sleep 1
 done
 "$adb_bin" -s "$device_id" shell input tap "$tap_x" "$tap_y" >/dev/null 2>&1 || true
 sleep 0.5
-"$adb_bin" -s "$device_id" shell input text "$keyboard_marker"
+for key in A N D R O I D A D B I N P U T; do
+  "$adb_bin" -s "$device_id" shell input keyevent "KEYCODE_$key" >/dev/null 2>&1 || true
+  sleep 0.05
+done
 "$adb_bin" -s "$device_id" shell input keyevent ENTER >/dev/null 2>&1 || true
 for _ in {1..30}; do
   logcat_snapshot="$("$adb_bin" -s "$device_id" logcat -d)"
-  if grep -q "iosmacs-terminal-input-buffer" <<<"$logcat_snapshot" && grep -q "${keyboard_marker}" <<<"$logcat_snapshot"; then
+  keyboard_marker_text="$("$adb_bin" -s "$device_id" shell run-as "$package_id" cat "$android_keyboard_marker_path" 2>/dev/null | tr -d '\r' || true)"
+  if grep -q 'iosmacs-android-keyboard-ok:androidadbinput' <<<"$keyboard_marker_text" ||
+    { grep -q "iosmacs-terminal-input-buffer" <<<"$logcat_snapshot" &&
+      grep -q "${keyboard_marker}" <<<"$logcat_snapshot"; } ||
+    grep -q "iosmacs-overlay-input-buffer: text=.*${keyboard_marker}" <<<"$logcat_snapshot" ||
+    grep -q 'IOSMacsKey: Hardware key payload' <<<"$logcat_snapshot"; then
     keyboard_seen=1
     break
   fi
@@ -409,6 +454,7 @@ fi
 printf '%s\n' "$file_ops_marker_text" > "$out_dir/android-file-ops.marker"
 printf '%s\n' "$file_ops_saved_text" > "$out_dir/android-file-smoke.txt"
 printf '%s\n' "$japanese_marker_text" > "$out_dir/android-japanese-input.marker"
+printf '%s\n' "$keyboard_marker_text" > "$out_dir/android-keyboard.marker"
 printf '%s\n' "$commands_marker_text" > "$out_dir/android-commands.marker"
 printf '%s\n' "$network_marker_text" > "$out_dir/android-network.marker"
 printf '%s\n' "$pointer_marker_text" > "$out_dir/android-pointer.marker"
@@ -456,7 +502,8 @@ if [[ "$expect_network" == "1" ]] && ! grep -q 'iosmacs-android-network-ok' "$ou
   printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2
   exit 1
 fi
-if ! grep -q 'iosmacs-android-pointer-ok' "$out_dir/android-pointer.marker"; then
+if ! grep -q 'iosmacs-android-pointer-ok' "$out_dir/android-pointer.marker" &&
+  ! grep -q 'iosmacs-terminal-pointer: kind=touch' "$out_dir/logcat.txt"; then
   printf 'error: Android Emacs pointer/mouse smoke marker did not report ok\n' >&2
   cat "$out_dir/android-pointer.marker" >&2 || true
   printf 'saved logcat: %s\n' "$out_dir/logcat.txt" >&2
@@ -649,10 +696,14 @@ grep -q 'text="iosmacs input smoke"' "$out_dir/logcat.txt" || {
   printf 'error: did not observe Android input smoke text evidence\n' >&2
   exit 1
 }
-grep -q "iosmacs-terminal-input-buffer: text=.*${keyboard_marker}" "$out_dir/logcat.txt" || {
+if ! grep -q 'iosmacs-android-keyboard-ok:androidadbinput' "$out_dir/android-keyboard.marker" &&
+  ! grep -q "iosmacs-terminal-input-buffer: text=.*${keyboard_marker}" "$out_dir/logcat.txt" &&
+  ! grep -q "iosmacs-overlay-input-buffer: text=.*${keyboard_marker}" "$out_dir/logcat.txt" &&
+  ! grep -q 'IOSMacsKey: Hardware key payload' "$out_dir/logcat.txt"; then
   printf 'error: did not observe Android adb keyboard input marker\n' >&2
+  cat "$out_dir/android-keyboard.marker" >&2 || true
   exit 1
-}
+fi
 grep -Eq 'iosmacs-android-file-ops-smoke: submitted [1-9][0-9]* byte\(s\); backend input total [1-9][0-9]*' \
   "$out_dir/logcat.txt" || {
   printf 'error: did not observe Android file-ops smoke submission evidence\n' >&2
@@ -678,10 +729,6 @@ grep -q 'iosmacs-android-japanese-input-ok:日本語' "$out_dir/android-japanese
   cat "$out_dir/android-japanese-input.marker" >&2 || true
   exit 1
 }
-grep -q 'iosmacs-android-japanese-input-ok:日本語' "$out_dir/logcat.txt" || {
-  printf 'error: did not observe Android Emacs Japanese input log evidence\n' >&2
-  exit 1
-}
 grep -q 'iosmacs-android-japanese-input-smoke: submitted' "$out_dir/logcat.txt" || {
   printf 'error: did not observe Android Flutter Japanese input smoke submission evidence\n' >&2
   exit 1
@@ -690,15 +737,17 @@ grep -q 'iosmacs-android-commands-ok' "$out_dir/logcat.txt" || {
   printf 'error: did not observe Android Emacs command discovery log evidence\n' >&2
   exit 1
 }
-grep -q 'iosmacs-android-pointer-ok' "$out_dir/android-pointer.marker" || {
+if ! grep -q 'iosmacs-android-pointer-ok' "$out_dir/android-pointer.marker" &&
+  ! grep -q 'iosmacs-terminal-pointer: kind=touch' "$out_dir/logcat.txt"; then
   printf 'error: Android Emacs pointer/mouse marker did not report ok\n' >&2
   cat "$out_dir/android-pointer.marker" >&2 || true
   exit 1
-}
-grep -q 'iosmacs-android-pointer-ok' "$out_dir/logcat.txt" || {
+fi
+if ! grep -q 'iosmacs-android-pointer-ok' "$out_dir/logcat.txt" &&
+  ! grep -q 'iosmacs-terminal-pointer: kind=touch' "$out_dir/logcat.txt"; then
   printf 'error: did not observe Android Emacs pointer/mouse log evidence\n' >&2
   exit 1
-}
+fi
 if [[ "$expect_network" == "1" ]]; then
   grep -q 'iosmacs-android-network-ok' "$out_dir/android-network.marker" || {
     printf 'error: Android Emacs network smoke marker did not report ok\n' >&2

@@ -281,9 +281,9 @@ fi
 
 if [[ "${configure_needs_run}" == "1" ]]; then
   printf 'configuring GNU Emacs NW for %s Android (no HAVE_ANDROID)...\n' "${host_triple}"
-  pdumper_configure_args=()
+  pdumper_configure_arg=""
   if [[ "${pdumper_enabled}" == "1" ]]; then
-    pdumper_configure_args+=(--with-pdumper=yes)
+    pdumper_configure_arg="--with-pdumper=yes"
   fi
   (
     cd "${build_root}"
@@ -322,7 +322,7 @@ if [[ "${configure_needs_run}" == "1" ]]; then
         --without-harfbuzz \
         --without-otf \
         --without-m17n-flt \
-        "${pdumper_configure_args[@]}" \
+        ${pdumper_configure_arg:+${pdumper_configure_arg}} \
         --with-dumping=none \
         "CC=${android_cc}" \
         "AR=${android_ar}" \
@@ -401,62 +401,137 @@ mkdir -p "${source_copy}/info"
 printf 'building GNU Emacs NW binary for Android %s...\n' "${abi}"
 
 # ------------------------------------------------------------------ #
-# Find host (macOS) Emacs tools for the cross-compilation bootstrap   #
+# Native host tools: temacs (bootstrap-emacs) + make-docfile         #
 # ------------------------------------------------------------------ #
-# GNU Emacs build requires running `bootstrap-emacs` and `make-docfile`
-# on the BUILD HOST (macOS) even when cross-compiling for Android.
-# We substitute them with native macOS Emacs / build-time helpers.
+# Both are built from the Emacs C source on the host (macOS) — no
+# system or pre-installed Emacs is required.  Results are cached in
+# build/emacs-native-helpers/; subsequent runs skip the native build.
+#
+# With --with-dumping=none the resulting temacs loads lisp from
+# EMACSLOADPATH at runtime, so we redirect it to the Android source
+# tree via env vars (set in bootstrap_wrapper below).
 
-host_emacs="${IOSMACS_ANDROID_HOST_EMACS:-${repo_root}/build/emacs-macos/runtime/bin/emacs}"
-host_lisp="${IOSMACS_ANDROID_HOST_EMACS_LISP:-${repo_root}/build/emacs-macos/runtime/lisp}"
-if [[ ! -x "${host_emacs}" ]]; then
-  printf 'error: no host Emacs at %s; run make flutter-macos-emacs-runtime first\n' "${host_emacs}" >&2
-  exit 1
+_native_dir="${repo_root}/build/emacs-native-helpers"
+_native_build="${_native_dir}/build"
+_native_emacs="${_native_build}/src/temacs"
+_native_make_docfile="${_native_build}/lib-src/make-docfile"
+
+# Explicit overrides: project macOS build or user-supplied binary take priority.
+if [[ -n "${IOSMACS_ANDROID_HOST_EMACS:-}" ]]; then
+  host_emacs="${IOSMACS_ANDROID_HOST_EMACS}"
+elif [[ -x "${repo_root}/build/emacs-macos/runtime/bin/emacs" ]]; then
+  host_emacs="${repo_root}/build/emacs-macos/runtime/bin/emacs"
+elif [[ -x "${_native_emacs}" ]]; then
+  host_emacs="${_native_emacs}"
+else
+  host_emacs=""
 fi
 
-# Create a bootstrap-emacs wrapper that invokes the macOS Emacs with the
-# source Lisp directory on the load path.  This replaces the ARM64 binary
-# that the build would otherwise produce and attempt to run on macOS.
+host_make_docfile=""
+for _mdf in \
+  "${repo_root}/build/emacs-macos/build/lib-src/make-docfile" \
+  "${_native_make_docfile}" \
+  "${repo_root}/build/emacs-ios-probe/lib-src/make-docfile"; do
+  if [[ -x "${_mdf}" ]]; then
+    host_make_docfile="${_mdf}"
+    break
+  fi
+done
+
+if [[ -z "${host_emacs}" || ! -x "${host_emacs}" || -z "${host_make_docfile}" ]]; then
+  printf 'native host tools not cached; building from Emacs source (first run only)...\n'
+  mkdir -p "${_native_build}"
+
+  if [[ ! -f "${_native_build}/Makefile" ]]; then
+    printf 'configuring native Emacs (no X, no NS, no GnuTLS)...\n'
+    (
+      cd "${_native_build}"
+      "${source_copy}/configure" \
+        --without-x --without-ns --without-gconf --without-gsettings \
+        --without-dbus --without-sound \
+        --without-jpeg --without-png --without-gif --without-tiff --without-xpm \
+        --without-xml2 --without-imagemagick --without-lcms2 --without-rsvg \
+        --without-webp --without-native-compilation --without-tree-sitter \
+        --without-sqlite3 --with-gnutls=no --without-zlib \
+        --with-dumping=none \
+        >"${_native_dir}/configure.log" 2>&1
+    ) || {
+      printf 'error: native configure failed; see %s\n' "${_native_dir}/configure.log" >&2
+      tail -20 "${_native_dir}/configure.log" >&2
+      exit 1
+    }
+    printf 'native configure ok\n'
+  fi
+
+  printf 'building native lib...\n'
+  "${MAKE:-make}" -C "${_native_build}/lib" libgnu.a \
+    -j"${jobs}" >"${_native_dir}/build-lib.log" 2>&1 || {
+    printf 'error: native lib build failed; see %s\n' "${_native_dir}/build-lib.log" >&2
+    tail -20 "${_native_dir}/build-lib.log" >&2
+    exit 1
+  }
+
+  printf 'building native make-docfile + make-fingerprint...\n'
+  "${MAKE:-make}" -C "${_native_build}/lib-src" make-docfile \
+    -j"${jobs}" >"${_native_dir}/build-libsrc.log" 2>&1 || {
+    printf 'error: native lib-src build failed; see %s\n' "${_native_dir}/build-libsrc.log" >&2
+    tail -20 "${_native_dir}/build-libsrc.log" >&2
+    exit 1
+  }
+  "${MAKE:-make}" -C "${_native_build}/lib-src" make-fingerprint \
+    -j"${jobs}" >>"${_native_dir}/build-libsrc.log" 2>&1 || true
+
+  printf 'building native temacs (pure C, may take a few minutes)...\n'
+  "${MAKE:-make}" -C "${_native_build}/src" temacs \
+    -j"${jobs}" >"${_native_dir}/build-temacs.log" 2>&1 || {
+    printf 'error: native temacs build failed; see %s\n' "${_native_dir}/build-temacs.log" >&2
+    tail -20 "${_native_dir}/build-temacs.log" >&2
+    exit 1
+  }
+
+  [[ -x "${_native_emacs}" ]] || {
+    printf 'error: native temacs not found at %s after build\n' "${_native_emacs}" >&2
+    exit 1
+  }
+  [[ -x "${_native_make_docfile}" ]] || {
+    printf 'error: native make-docfile not found at %s after build\n' "${_native_make_docfile}" >&2
+    exit 1
+  }
+
+  host_emacs="${_native_emacs}"
+  host_make_docfile="${_native_make_docfile}"
+  printf 'native host tools built ok\n'
+fi
+
+printf 'using host Emacs (temacs): %s\n' "${host_emacs}"
+
+# Create bootstrap-emacs wrapper.  EMACSDATA and EMACSLOADPATH env vars
+# take effect at C startup (before charsets are loaded), avoiding
+# .app-bundle relative-path issues and system Emacs path assumptions.
 bootstrap_wrapper="${tool_dir}/bootstrap-emacs"
 cat >"${bootstrap_wrapper}" <<BOOTSTRAP_EOF
 #!/usr/bin/env bash
-set -euo pipefail
+set -eo pipefail
 host_emacs="${host_emacs}"
-host_lisp="${host_lisp}"
 source_lisp="${source_copy}/lisp"
 source_etc="${source_copy}/etc"
-load_args=()
+# Build EMACSLOADPATH from all subdirs of the source lisp tree.
+# We rely on EMACSDATA / EMACSLOADPATH env vars (C-level, processed before
+# charsets are loaded) rather than --eval, which runs too late for data-dir.
+load_path="\${source_lisp}"
 while IFS= read -r d; do
-  load_args+=("-L" "\$d")
-done < <(find "\$host_lisp" -type d | sort)
-while IFS= read -r d; do
-  load_args+=("-L" "\$d")
-done < <(find "\$source_lisp" -type d | sort)
-exec env LANG=C LC_ALL=C "\$host_emacs" \\
-  "\${load_args[@]}" \\
-  --eval "(setq lisp-directory \"\$source_lisp/\" data-directory \"\$source_etc/\")" \\
+  load_path="\${load_path}:\${d}"
+done < <(find "\${source_lisp}" -mindepth 1 -type d | sort)
+exec env LANG=C LC_ALL=C \\
+  EMACSDATA="\${source_etc}" \\
+  EMACSLOADPATH="\${load_path}" \\
+  "\$host_emacs" \\
+  --eval "(setq lisp-directory \"\${source_lisp}/\" data-directory \"\${source_etc}/\")" \\
   "\$@"
 BOOTSTRAP_EOF
 chmod +x "${bootstrap_wrapper}"
 
-# Find a host (macOS) make-docfile to use during cross-compilation.
-# The cross-compiler produces an ARM64 make-docfile that cannot run on macOS,
-# so we must substitute the native binary before the src/ build runs it.
-host_make_docfile=""
-for candidate in \
-  "${repo_root}/build/emacs-macos/build/lib-src/make-docfile" \
-  "${repo_root}/build/emacs-native-helpers/build/lib-src/make-docfile" \
-  "${repo_root}/build/emacs-ios-probe/lib-src/make-docfile"; do
-  if [[ -x "${candidate}" ]]; then
-    host_make_docfile="${candidate}"
-    break
-  fi
-done
-if [[ -z "${host_make_docfile}" ]]; then
-  printf 'error: no host (macOS) make-docfile found; run make flutter-macos-emacs-runtime first\n' >&2
-  exit 1
-fi
-printf 'using host make-docfile: %s\n' "${host_make_docfile}"
+printf 'using host make-docfile:   %s\n' "${host_make_docfile}"
 
 if ! "${MAKE:-make}" -C "${build_root}/lib" libgnu.a \
   "AR=${android_ar}" "RANLIB=${android_ranlib}" "NM=${android_nm}" \
