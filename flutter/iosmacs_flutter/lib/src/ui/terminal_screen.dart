@@ -92,6 +92,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
   bool _showInputRow = false;
   // Previous overlay text for detecting commits vs backspace.
   String _overlayPreviousText = '';
+  // Composing text shown at the terminal cursor position during IME input.
+  String _composingText = '';
 
   @override
   void initState() {
@@ -206,6 +208,14 @@ class _TerminalScreenState extends State<TerminalScreen> {
                         ),
                           ),
                         ),
+                        // Composing text badge at terminal cursor position.
+                        if (_composingText.isNotEmpty)
+                          _TerminalComposingOverlay(
+                            composingText: _composingText,
+                            cursorX: _terminal.buffer.cursorX,
+                            cursorY: _terminal.buffer.cursorY,
+                            fontSize: _fontSize,
+                          ),
                         // Transparent 1-px overlay TextField for Japanese IME.
                         // Uses Flutter's default enableSuggestions: true,
                         // unlike xterm which hardcodes enableSuggestions: false.
@@ -1139,7 +1149,15 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
     if (isComposing) {
       _overlayPreviousText = text;
+      if (_composingText != text) {
+        setState(() => _composingText = text);
+      }
       return; // IME is still composing — candidate bar is showing
+    }
+
+    // Composing ended: clear the cursor-position badge.
+    if (_composingText.isNotEmpty) {
+      setState(() => _composingText = '');
     }
 
     if (text.isEmpty) {
@@ -1164,10 +1182,12 @@ class _TerminalScreenState extends State<TerminalScreen> {
   // Called when Enter is pressed in the overlay.
   // Commits any pending composing text and sends CR to Emacs.
   void _onOverlayTextSubmitted(String text) {
+    if (_composingText.isNotEmpty) {
+      setState(() => _composingText = '');
+    }
     // If there's uncommitted composing text (Japanese candidate bar showing),
     // commit it first.
-    final pending =
-        text.isNotEmpty ? text : _overlayPreviousText;
+    final pending = text.isNotEmpty ? text : _overlayPreviousText;
     if (pending.isNotEmpty) {
       unawaited(_handleTerminalOutput(pending));
       _overlayPreviousText = '';
@@ -1626,6 +1646,64 @@ class _CapabilityLine extends StatelessWidget {
           const Text('- '),
           Expanded(child: Text(label)),
         ],
+      ),
+    );
+  }
+}
+
+// Shows the IME composing text (preedit) at the terminal cursor position.
+// Positioned using cursorX/Y cell coordinates converted to pixel offsets.
+class _TerminalComposingOverlay extends StatelessWidget {
+  const _TerminalComposingOverlay({
+    required this.composingText,
+    required this.cursorX,
+    required this.cursorY,
+    required this.fontSize,
+  });
+
+  final String composingText;
+  final int cursorX;
+  final int cursorY;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    // Approximate cell dimensions for a monospace font.
+    final cellWidth = fontSize * 0.62;
+    final cellHeight = fontSize * 1.35;
+    const terminalPadding = 12.0;
+
+    return Positioned(
+      left: cursorX * cellWidth + terminalPadding,
+      top: cursorY * cellHeight + terminalPadding,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xff2e3440),
+          borderRadius: BorderRadius.circular(3),
+          border: Border.all(
+            color: const Color(0xff88c0d0),
+            width: 1,
+          ),
+          boxShadow: const <BoxShadow>[
+            BoxShadow(
+              color: Color(0x88000000),
+              blurRadius: 4,
+              offset: Offset(1, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        child: Text(
+          composingText,
+          style: TextStyle(
+            color: const Color(0xffeceff4),
+            fontSize: fontSize,
+            fontFamily: 'monospace',
+            decoration: TextDecoration.underline,
+            decorationColor: const Color(0xff88c0d0),
+            decorationThickness: 2,
+          ),
+        ),
       ),
     );
   }
