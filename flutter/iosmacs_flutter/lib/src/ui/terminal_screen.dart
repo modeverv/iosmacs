@@ -223,7 +223,10 @@ class _TerminalScreenState extends State<TerminalScreen> {
                               focusNode: _overlayFocusNode,
                               controller: _overlayController,
                               keyboardType: TextInputType.text,
+                              textInputAction: TextInputAction.send,
+                              maxLines: 1,
                               onChanged: _handleOverlayTextChanged,
+                              onSubmitted: _onOverlayTextSubmitted,
                             ),
                           ),
                         ),
@@ -1132,29 +1135,52 @@ class _TerminalScreenState extends State<TerminalScreen> {
   // Latin (direct) and Japanese (after IME candidate selection).
   Future<void> _handleOverlayTextChanged(String text) async {
     final composing = _overlayController.value.composing;
-    final isComposing =
-        composing.isValid && !composing.isCollapsed;
+    final isComposing = composing.isValid && !composing.isCollapsed;
 
     if (isComposing) {
       _overlayPreviousText = text;
-      return; // IME is still composing (candidate bar showing)
+      return; // IME is still composing — candidate bar is showing
     }
 
-    if (text.isEmpty && _overlayPreviousText.isNotEmpty) {
-      // Backspace: clear previous text, send DEL to terminal.
+    if (text.isEmpty) {
+      // Either: (a) backspace on empty overlay, or (b) IME dismissed without
+      // committing. Only send DEL in case (a): nothing was composing before.
+      if (_overlayPreviousText.isEmpty) {
+        await widget.backend.sendBytes(const <int>[0x7f]);
+      }
+      // Case (b): composing was cancelled — discard silently.
       _overlayPreviousText = '';
-      await widget.backend.sendBytes(const <int>[0x7f]);
       return;
     }
 
-    if (text.isNotEmpty) {
+    // Committed text (Latin char or Japanese after candidate selection).
+    _overlayPreviousText = '';
+    await _handleTerminalOutput(text);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlayController.clear();
+    });
+  }
+
+  // Called when Enter is pressed in the overlay.
+  // Commits any pending composing text and sends CR to Emacs.
+  void _onOverlayTextSubmitted(String text) {
+    // If there's uncommitted composing text (Japanese candidate bar showing),
+    // commit it first.
+    final pending =
+        text.isNotEmpty ? text : _overlayPreviousText;
+    if (pending.isNotEmpty) {
+      unawaited(_handleTerminalOutput(pending));
       _overlayPreviousText = '';
-      await _handleTerminalOutput(text);
-      // Clear overlay after commit so it stays empty for next input.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _overlayController.clear();
       });
     }
+    // Send CR (\r) to Emacs — same as pressing Enter in the terminal.
+    unawaited(widget.backend.sendBytes(const <int>[0x0d]));
+    // Stay focused so next input is ready immediately.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlayFocusNode.requestFocus();
+    });
   }
 
   Future<void> _pasteClipboardText() async {
