@@ -611,7 +611,13 @@ Java_com_example_iosmacs_1flutter_AndroidNativeEmacsRuntime_startNwEmacs(
         "(when (fboundp 'execute-extended-command) "
         "(global-set-key (kbd \"M-X\") #'execute-extended-command)) "
         "(autoload 'dired \"dired\" nil t) "
-        "(autoload 'tetris \"tetris\" nil t))");
+        "(autoload 'tetris \"tetris\" nil t) "
+        "(defun iosmacs-android-enable-xterm-mouse () "
+        "(condition-case nil "
+        "(when (fboundp 'xterm-mouse-mode) (xterm-mouse-mode 1)) "
+        "(error nil))) "
+        "(iosmacs-android-enable-xterm-mouse) "
+        "(add-hook 'emacs-startup-hook #'iosmacs-android-enable-xterm-mouse))");
     std::vector<char *> argv;
     argv.reserve(args.size() + 1);
     for (std::string &arg : args) {

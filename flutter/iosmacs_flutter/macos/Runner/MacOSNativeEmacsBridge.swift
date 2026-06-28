@@ -13,7 +13,9 @@ final class MacOSNativeEmacsBridge {
       (when (fboundp 'execute-extended-command)
         (global-set-key (kbd "M-X") #'execute-extended-command))
       (autoload 'dired "dired" nil t)
-      (autoload 'tetris "tetris" nil t))
+      (autoload 'tetris "tetris" nil t)
+      (when (fboundp 'xterm-mouse-mode)
+        (xterm-mouse-mode 1)))
     """
 
   private var lifecycleState = "iosmacs macOS native bridge: idle"

@@ -530,6 +530,19 @@ final class FlutterNativeEmacsBridge {
           encoding: .utf8
         )
       }
+      // Create ~/.emacs.d/init.el with iosmacs defaults (only if it doesn't exist).
+      // Enables xterm-mouse-mode so the Emacs menu bar responds to touch/pointer clicks.
+      let emacsD = workspaceRoot.appendingPathComponent(".emacs.d", isDirectory: true)
+      try FileManager.default.createDirectory(at: emacsD, withIntermediateDirectories: true)
+      let initEl = emacsD.appendingPathComponent("init.el")
+      if !FileManager.default.fileExists(atPath: initEl.path) {
+        try """
+;; iosmacs Flutter — auto-generated defaults.
+;; Add your own Emacs configuration below this line.
+(when (fboundp 'xterm-mouse-mode)
+  (xterm-mouse-mode 1))
+""".write(to: initEl, atomically: true, encoding: .utf8)
+      }
       cachedWorkspaceRootURL = workspaceRoot
       return workspaceRoot
     } catch {
