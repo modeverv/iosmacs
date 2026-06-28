@@ -6,6 +6,8 @@
 #endif
 
 #include "flutter/generated_plugin_registrant.h"
+#include "linux_native_emacs_bridge.h"
+
 
 struct _MyApplication {
   GtkApplication parent_instance;
@@ -75,7 +77,16 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
+  // Initialize the native Emacs bridge for Linux
+  FlEngine* engine = fl_view_get_engine(view);
+  FlBinaryMessenger* messenger = fl_engine_get_binary_messenger(engine);
+  static LinuxNativeEmacsBridge* bridge = nullptr;
+  if (!bridge) {
+    bridge = new LinuxNativeEmacsBridge(messenger);
+  }
+
   gtk_widget_grab_focus(GTK_WIDGET(view));
+
 }
 
 // Implements GApplication::local_command_line.

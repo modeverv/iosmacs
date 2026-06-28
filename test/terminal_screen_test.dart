@@ -932,13 +932,13 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.byTooltip('Sticky Meta — next letter typed in terminal becomes M-letter'),
+      find.byTooltip(
+          'Sticky Meta — next letter typed in terminal becomes M-letter'),
       findsOneWidget,
     );
   });
 
-  testWidgets(
-      'ESC control key button sends escape byte to backend', (
+  testWidgets('ESC control key button sends escape byte to backend', (
     WidgetTester tester,
   ) async {
     final backend = FakeEmacsBackend();

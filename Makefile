@@ -9,7 +9,7 @@ JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || printf '4')
 .PHONY: help bootstrap \
 	flutter-doctor flutter-structure-check flutter-bootstrap \
 	flutter-format-check flutter-analyze flutter-fake-smoke flutter-ios-smoke flutter-ios-launch-smoke flutter-macos-smoke \
-	flutter-ios-native-smoke flutter-macos-native-smoke flutter-backend-override-smoke flutter-web-smoke flutter-android-smoke \
+	flutter-ios-native-smoke flutter-macos-native-smoke flutter-linux-smoke flutter-linux-native-smoke flutter-linux-emacs-runtime flutter-backend-override-smoke flutter-web-smoke flutter-android-smoke \
 	flutter-android-emulator-smoke flutter-android-parity-smoke flutter-android-emacs-configure flutter-android-emacs-runtime \
 	flutter-android-emacs-nw-configure flutter-android-emacs-nw-build flutter-android-emacs-nw-pdumper-build \
 	flutter-emacs-static flutter-emacs-pdmp flutter-macos-emacs-runtime flutter-ipad-launch \
@@ -29,10 +29,13 @@ help:
 	  '  make flutter-ios-native-smoke Capture Flutter iOS native backend runtime smoke logs' \
 	  '  make flutter-emacs-static   Build Emacs static lib into build/emacs-ios (isolated)' \
 	  '  make flutter-emacs-pdmp    Build Emacs pdmp into build/emacs-ios (isolated)' \
+	  '  make flutter-linux-emacs-runtime Build bundled Linux Emacs runtime for Flutter' \
 	  '  make flutter-macos-emacs-runtime Build bundled macOS Emacs runtime for Flutter' \
 	  '  make flutter-ipad-launch    Build Flutter iOS app and launch on booted iPad simulator' \
 	  '  make flutter-macos-smoke Build and launch Flutter macOS app briefly' \
 	  '  make flutter-macos-native-smoke Autostart and verify Flutter macOS native probe' \
+	  '  make flutter-linux-smoke Build and launch Flutter Linux app briefly' \
+	  '  make flutter-linux-native-smoke Autostart and verify Flutter Linux native probe' \
 	  '  make flutter-backend-override-smoke Verify forced Flutter backend selection on macOS' \
 	  '  make flutter-web-smoke   Build Flutter Web debug output' \
 	  '  make flutter-android-smoke Build Flutter Android debug APK' \
@@ -96,6 +99,9 @@ flutter-emacs-pdmp: flutter-emacs-static
 	IOSMACS_BUILD_ROOT="$(FLUTTER_EMACS_BUILD_ROOT)" JOBS="$(JOBS)" \
 	  scripts/run-emacs-ios-nw-smoke.sh
 
+flutter-linux-emacs-runtime:
+	JOBS="$(JOBS)" scripts/build-flutter-linux-emacs-runtime.sh
+
 flutter-macos-emacs-runtime:
 	JOBS="$(JOBS)" scripts/build-flutter-macos-emacs-runtime.sh
 
@@ -133,6 +139,12 @@ flutter-macos-smoke:
 
 flutter-macos-native-smoke:
 	scripts/run-flutter-macos-native-smoke.sh
+
+flutter-linux-smoke:
+	scripts/run-flutter-linux-smoke.sh
+
+flutter-linux-native-smoke:
+	scripts/run-flutter-linux-native-smoke.sh
 
 flutter-backend-override-smoke:
 	scripts/run-flutter-backend-override-smoke.sh
@@ -179,6 +191,8 @@ flutter-verify:
 	$(MAKE) flutter-ios-native-smoke
 	$(MAKE) flutter-macos-smoke
 	$(MAKE) flutter-macos-native-smoke
+	$(MAKE) flutter-linux-smoke
+	$(MAKE) flutter-linux-native-smoke
 	$(MAKE) flutter-backend-override-smoke
 	$(MAKE) flutter-web-smoke
 	$(MAKE) flutter-android-smoke

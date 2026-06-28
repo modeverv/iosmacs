@@ -25,9 +25,9 @@ Flutter App
 
 Backends
   - FakeEmacsBackend for UI tests, deterministic smoke runs, and development
-  - NativeEmacsBackend for the current iosmacs iOS/macOS MethodChannel bridge
+  - NativeEmacsBackend for the current iosmacs iOS/macOS/Linux MethodChannel bridge
   - AndroidEmacsBackend placeholder for Android native-runtime work
-  - DesktopEmacsBackend placeholders for Linux and Windows desktop runtime work
+  - DesktopEmacsBackend placeholder for Windows desktop runtime work
   - WebWasmEmacsBackend placeholder for wasmacs/WASM integration
 
 GNU Emacs Runtime
@@ -53,15 +53,15 @@ Implemented pieces:
 - `FakeEmacsBackend` and `FakeBackendWorker` provide deterministic output and
   UI-test behavior without native runtime dependencies.
 - `NativeEmacsBackend` routes through the `iosmacs/native_emacs`
-  MethodChannel. It is the default backend on iOS and macOS.
+  MethodChannel. It is the default backend on iOS, macOS, and Linux.
 - `AndroidEmacsBackend` uses the shared native MethodChannel through an
   Android Runner bridge. Kotlin owns Android app APIs and the MethodChannel,
   while a JNI shared library owns the diagnostic terminal transport until the
   loaded GNU Emacs NDK runtime and packaged `org.gnu.emacs` Java bridge replace
   it.
-- `DesktopEmacsBackend` and `WebWasmEmacsBackend` make the remaining
-  non-iOS backend boundaries explicit while unsupported runtime features are
-  still being built.
+- `DesktopEmacsBackend` (for Windows) and `WebWasmEmacsBackend` make the remaining
+  non-iOS/macOS/Linux backend boundaries explicit while unsupported runtime features are
+  unsupported.
 
 Default backend selection is centralized in `backend_factory.dart`.
 `IOSMACS_FLUTTER_BACKEND` can force a backend for smoke testing. Supported
@@ -263,10 +263,22 @@ expanded.
 
 ### Linux
 
-The Linux backend is currently represented by a `DesktopEmacsBackend`
-placeholder. It should follow the macOS process-plus-PTY shape where possible.
-Linux-specific packaging, font, clipboard, and filesystem behavior should stay
-behind the backend.
+The Linux backend is implemented in `NativeEmacsBackend` using the shared MethodChannel.
+The native side (`linux_native_emacs_bridge.cc`) uses a POSIX PTY process bridge to start
+and communicate with a bundled GNU Emacs binary.
+
+The bundled Emacs runtime is built from `wasmacs/vendor/emacs` by
+`scripts/build-flutter-linux-emacs-runtime.sh` and staged under `build/emacs-linux/runtime`.
+The Flutter Linux `linux/CMakeLists.txt` install step copies the runtime into the app bundle
+at `data/iosmacs-emacs/` during `flutter build linux`.
+
+At startup, `LinuxNativeEmacsBridge::GetEmacsCandidates()` reads `/proc/self/exe` to locate
+the bundle executable, then resolves `data/iosmacs-emacs/bin/emacs` relative to it.
+System Emacs paths are not used; `IOSMACS_FLUTTER_EMACS` is available as a debug override.
+`GetEmacsRuntimeEnvironment()` sets `EMACSLOADPATH`, `EMACSDATA`, `EMACSDOC`, and
+`EMACSPATH` for the child process so the bundled runtime is self-contained.
+
+Linux-specific filesystem and workspace behavior stays behind the backend.
 
 ### Windows
 

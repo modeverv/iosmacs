@@ -30,7 +30,8 @@ EmacsBackend createEmacsBackend({BackendKind kind = BackendKind.fake}) {
     case BackendKind.android:
       return AndroidEmacsBackend();
     case BackendKind.linux:
-      return DesktopEmacsBackend(platform: DesktopEmacsPlatform.linux);
+      return NativeEmacsBackend(
+          initialDiagnosticsMessage: 'linux native backend channel ready');
     case BackendKind.windows:
       return DesktopEmacsBackend(platform: DesktopEmacsPlatform.windows);
   }

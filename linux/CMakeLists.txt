@@ -126,3 +126,13 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
   install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 endif()
+
+# Bundle Linux Emacs runtime into the app bundle if the runtime has been built.
+# Run scripts/build-flutter-linux-emacs-runtime.sh to produce the runtime.
+set(LINUX_EMACS_RUNTIME "${CMAKE_SOURCE_DIR}/../build/emacs-linux/runtime")
+if(EXISTS "${LINUX_EMACS_RUNTIME}/bin/emacs")
+  install(DIRECTORY "${LINUX_EMACS_RUNTIME}/"
+    DESTINATION "${INSTALL_BUNDLE_DATA_DIR}/iosmacs-emacs"
+    COMPONENT Runtime
+    USE_SOURCE_PERMISSIONS)
+endif()

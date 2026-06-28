@@ -182,31 +182,31 @@ class _TerminalScreenState extends State<TerminalScreen> {
                             onKeyEvent: _handleTerminalKeyEvent,
                             padding: const EdgeInsets.all(12),
                             textStyle: TerminalStyle(fontSize: _fontSize),
-                        theme: const TerminalTheme(
-                          cursor: Color(0xffeceff4),
-                          selection: Color(0xff4c566a),
-                          foreground: Color(0xffd8dee9),
-                          background: Color(0xff101214),
-                          black: Color(0xff101214),
-                          red: Color(0xffbf616a),
-                          green: Color(0xffa3be8c),
-                          yellow: Color(0xffebcb8b),
-                          blue: Color(0xff81a1c1),
-                          magenta: Color(0xffb48ead),
-                          cyan: Color(0xff88c0d0),
-                          white: Color(0xffeceff4),
-                          brightBlack: Color(0xff4c566a),
-                          brightRed: Color(0xffbf616a),
-                          brightGreen: Color(0xffa3be8c),
-                          brightYellow: Color(0xffebcb8b),
-                          brightBlue: Color(0xff81a1c1),
-                          brightMagenta: Color(0xffb48ead),
-                          brightCyan: Color(0xff8fbcbb),
-                          brightWhite: Color(0xffffffff),
-                          searchHitBackground: Color(0xff5e81ac),
-                          searchHitBackgroundCurrent: Color(0xffebcb8b),
-                          searchHitForeground: Color(0xff101214),
-                        ),
+                            theme: const TerminalTheme(
+                              cursor: Color(0xffeceff4),
+                              selection: Color(0xff4c566a),
+                              foreground: Color(0xffd8dee9),
+                              background: Color(0xff101214),
+                              black: Color(0xff101214),
+                              red: Color(0xffbf616a),
+                              green: Color(0xffa3be8c),
+                              yellow: Color(0xffebcb8b),
+                              blue: Color(0xff81a1c1),
+                              magenta: Color(0xffb48ead),
+                              cyan: Color(0xff88c0d0),
+                              white: Color(0xffeceff4),
+                              brightBlack: Color(0xff4c566a),
+                              brightRed: Color(0xffbf616a),
+                              brightGreen: Color(0xffa3be8c),
+                              brightYellow: Color(0xffebcb8b),
+                              brightBlue: Color(0xff81a1c1),
+                              brightMagenta: Color(0xffb48ead),
+                              brightCyan: Color(0xff8fbcbb),
+                              brightWhite: Color(0xffffffff),
+                              searchHitBackground: Color(0xff5e81ac),
+                              searchHitBackgroundCurrent: Color(0xffebcb8b),
+                              searchHitForeground: Color(0xff101214),
+                            ),
                           ),
                         ),
                         // Composing text badge at terminal cursor position.
@@ -348,9 +348,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
         if (controlByte != null) {
           final List<int> bytes;
           if (hasCtrl) {
-            bytes = hasMeta
-                ? <int>[0x1b, controlByte]
-                : <int>[controlByte];
+            bytes = hasMeta ? <int>[0x1b, controlByte] : <int>[controlByte];
           } else {
             // Meta only: ESC + lowercase letter.
             final lower = event.logicalKey.keyId & 0xff;
@@ -1902,8 +1900,9 @@ class _ModifierKeyButton extends StatelessWidget {
         child: TextButton(
           onPressed: onPressed,
           style: TextButton.styleFrom(
-            backgroundColor:
-                active ? activeColor.withValues(alpha: 0.25) : Colors.transparent,
+            backgroundColor: active
+                ? activeColor.withValues(alpha: 0.25)
+                : Colors.transparent,
             foregroundColor: active ? activeColor : const Color(0xffd8dee9),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             minimumSize: const Size(36, 28),

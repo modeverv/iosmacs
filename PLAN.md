@@ -1859,8 +1859,23 @@ Android:
 
 Linux:
 
-- Start with a process plus PTY backend.
-- Keep the interface aligned with macOS.
+- [x] Implement a native POSIX PTY process bridge in C++ (linux_native_emacs_bridge.cc).
+- [x] Align method channel interface with the macOS implementation.
+- [x] Add verify and smoke scripts (run-flutter-linux-smoke.sh & run-flutter-linux-native-smoke.sh).
+- [x] Add `scripts/build-flutter-linux-emacs-runtime.sh` that builds GNU Emacs from
+  `wasmacs/vendor/emacs` into `build/emacs-linux/runtime` for Linux x86_64.
+- [x] Add CMake install step in `linux/CMakeLists.txt` that copies the built runtime
+  into the Flutter Linux bundle under `data/iosmacs-emacs/` when available.
+- [x] Update `LinuxNativeEmacsBridge::GetEmacsCandidates()` to prefer the bundled
+  Emacs at `<exe_dir>/data/iosmacs-emacs/bin/emacs` discovered via `/proc/self/exe`.
+- [x] Remove system Emacs path fallbacks (`/usr/bin/emacs` etc.) so only the bundled
+  or env-override Emacs is used.
+- [x] Add `LinuxNativeEmacsBridge::GetEmacsRuntimeEnvironment()` to set
+  `EMACSLOADPATH`, `EMACSDATA`, `EMACSDOC`, and `EMACSPATH` for the bundled runtime.
+- [x] Apply runtime environment variables in child process before `execv()`.
+- [x] Add `make flutter-linux-emacs-runtime` Makefile target.
+- [x] Update `run-flutter-linux-native-smoke.sh` to verify bundled Emacs path and
+  require `data/iosmacs-emacs/bin/emacs` in the bundle.
 
 Windows:
 

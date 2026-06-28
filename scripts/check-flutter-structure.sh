@@ -44,6 +44,8 @@ required_files=(
   "$app_dir/android/app/src/main/cpp/iosmacs_android_runtime.cpp"
   "$app_dir/web/index.html"
   "$app_dir/linux/CMakeLists.txt"
+  "$app_dir/linux/runner/linux_native_emacs_bridge.h"
+  "$app_dir/linux/runner/linux_native_emacs_bridge.cc"
   "$app_dir/windows/CMakeLists.txt"
 )
 
@@ -80,6 +82,10 @@ if [[ ! -x scripts/build-flutter-android-emacs-runtime.sh ]]; then
 fi
 if [[ ! -x scripts/run-flutter-macos-native-smoke.sh ]]; then
   printf 'error: missing executable Flutter macOS native smoke script\n' >&2
+  exit 1
+fi
+if [[ ! -x scripts/build-flutter-linux-emacs-runtime.sh ]]; then
+  printf 'error: missing executable Flutter Linux Emacs runtime build script\n' >&2
   exit 1
 fi
 if [[ ! -x scripts/build-flutter-macos-emacs-runtime.sh ]]; then
@@ -683,6 +689,24 @@ grep -q 'document-provider-export' \
   "$app_dir/android/app/src/main/kotlin/com/example/fluttmacs/MainActivity.kt"
 grep -q 'workspace_export' \
   "$app_dir/android/app/src/main/AndroidManifest.xml"
+grep -q 'proc/self/exe' \
+  "$app_dir/linux/runner/linux_native_emacs_bridge.cc"
+grep -q 'data/iosmacs-emacs/bin/emacs' \
+  "$app_dir/linux/runner/linux_native_emacs_bridge.cc"
+grep -q 'GetEmacsRuntimeEnvironment' \
+  "$app_dir/linux/runner/linux_native_emacs_bridge.cc"
+grep -q 'EMACSLOADPATH' \
+  "$app_dir/linux/runner/linux_native_emacs_bridge.cc"
+grep -q 'Linux interactive GNU Emacs process started' \
+  "$app_dir/linux/runner/linux_native_emacs_bridge.cc"
+grep -q 'build/emacs-linux/runtime' \
+  "$app_dir/linux/CMakeLists.txt"
+grep -q 'iosmacs-emacs' \
+  "$app_dir/linux/CMakeLists.txt"
+grep -q 'flutter-linux-emacs-runtime' \
+  "$app_dir/Makefile"
+grep -q 'build-flutter-linux-emacs-runtime.sh' \
+  "$app_dir/Makefile"
 grep -q 'DesktopEmacsPlatform.linux' \
   "$app_dir/lib/src/backend/desktop_emacs_backend.dart"
 grep -q 'DesktopEmacsPlatform.windows' \
@@ -709,7 +733,7 @@ grep -q 'defaultAutoStartBackend' \
   "$app_dir/lib/main.dart"
 grep -q 'native platforms autostart backend by default' \
   "$app_dir/test/widget_test.dart"
-grep -q 'web and desktop placeholder platforms do not autostart by default' \
+grep -q 'web and windows placeholder do not autostart by default' \
   "$app_dir/test/widget_test.dart"
 grep -q 'autostart environment override wins over platform default' \
   "$app_dir/test/widget_test.dart"
