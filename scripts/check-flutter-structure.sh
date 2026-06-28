@@ -707,6 +707,20 @@ grep -q 'flutter-linux-emacs-runtime' \
   "$app_dir/Makefile"
 grep -q 'build-flutter-linux-emacs-runtime.sh' \
   "$app_dir/Makefile"
+grep -q 'CreatePseudoConsole' \
+  "$app_dir/windows/runner/windows_native_emacs_bridge.cc"
+grep -q 'data.iosmacs-emacs.bin.emacs' \
+  "$app_dir/windows/runner/windows_native_emacs_bridge.cc"
+grep -q 'GetEmacsRuntimeEnvironment' \
+  "$app_dir/windows/runner/windows_native_emacs_bridge.cc"
+grep -q 'EMACSLOADPATH' \
+  "$app_dir/windows/runner/windows_native_emacs_bridge.cc"
+grep -q 'Windows interactive GNU Emacs process started' \
+  "$app_dir/windows/runner/windows_native_emacs_bridge.cc"
+grep -q 'build/emacs-windows/runtime' \
+  "$app_dir/windows/CMakeLists.txt"
+grep -q 'iosmacs-emacs' \
+  "$app_dir/windows/CMakeLists.txt"
 grep -q 'DesktopEmacsPlatform.linux' \
   "$app_dir/lib/src/backend/desktop_emacs_backend.dart"
 grep -q 'DesktopEmacsPlatform.windows' \
@@ -733,7 +747,7 @@ grep -q 'defaultAutoStartBackend' \
   "$app_dir/lib/main.dart"
 grep -q 'native platforms autostart backend by default' \
   "$app_dir/test/widget_test.dart"
-grep -q 'web and windows placeholder do not autostart by default' \
+grep -q 'web does not autostart by default' \
   "$app_dir/test/widget_test.dart"
 grep -q 'autostart environment override wins over platform default' \
   "$app_dir/test/widget_test.dart"
@@ -1070,24 +1084,24 @@ grep -q 'lib-src in Resources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
 grep -q 'emacs.pdmp in Resources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
-grep -q '../../build/emacs-ios/source/lisp' \
+grep -q '../build/emacs-ios/source/lisp' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
-grep -q '../../build/emacs-ios/source/etc' \
+grep -q '../build/emacs-ios/source/etc' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
-grep -q '../../build/emacs-ios/lib-src' \
+grep -q '../build/emacs-ios/lib-src' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
-grep -q '../../build/emacs-ios/iosmacs/nw-pdmp/emacs.pdmp' \
+grep -q '../build/emacs-ios/iosmacs/nw-pdmp/emacs.pdmp' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
-grep -q '../../build/emacs-ios/iosmacs/libiosmacs-temacs.a' \
+grep -q '../build/emacs-ios/iosmacs/libiosmacs-temacs.a' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
-grep -q 'IOSMACS_BUILD_ROOT=\\"${SRCROOT}/../../build/emacs-ios\\"' \
+grep -q 'IOSMACS_BUILD_ROOT=\\"${SRCROOT}/../build/emacs-ios\\"' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
 if grep -q 'IOSMACS_EMACS_CORE_ENTRY_OPTIONAL=1' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"; then
   printf 'error: Flutter Runner must link iosmacs_emacs_main instead of using optional-entry mode\n' >&2
   exit 1
 fi
-if grep -q '../../../build/emacs-ios-probe' \
+if grep -q '../../build/emacs-ios-probe' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"; then
   printf 'error: Flutter Runner must use flutter/build/emacs-ios, not root build/emacs-ios-probe\n' >&2
   exit 1

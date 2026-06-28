@@ -24,15 +24,15 @@ void main() {
       defaultAutoStartBackend(platform: TargetPlatform.linux, isWeb: false),
       isTrue,
     );
-  });
-
-  test('web and windows placeholder do not autostart by default', () {
-    expect(
-      defaultAutoStartBackend(platform: TargetPlatform.iOS, isWeb: true),
-      isFalse,
-    );
     expect(
       defaultAutoStartBackend(platform: TargetPlatform.windows, isWeb: false),
+      isTrue,
+    );
+  });
+
+  test('web does not autostart by default', () {
+    expect(
+      defaultAutoStartBackend(platform: TargetPlatform.iOS, isWeb: true),
       isFalse,
     );
   });

@@ -33,7 +33,8 @@ EmacsBackend createEmacsBackend({BackendKind kind = BackendKind.fake}) {
       return NativeEmacsBackend(
           initialDiagnosticsMessage: 'linux native backend channel ready');
     case BackendKind.windows:
-      return DesktopEmacsBackend(platform: DesktopEmacsPlatform.windows);
+      return NativeEmacsBackend(
+          initialDiagnosticsMessage: 'windows native backend channel ready');
   }
 }
 

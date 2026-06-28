@@ -13,6 +13,7 @@ JOBS ?= $(shell sysctl -n hw.ncpu 2>/dev/null || printf '4')
 	flutter-android-emulator-smoke flutter-android-parity-smoke flutter-android-emacs-configure flutter-android-emacs-runtime \
 	flutter-android-emacs-nw-configure flutter-android-emacs-nw-build flutter-android-emacs-nw-pdumper-build \
 	flutter-emacs-static flutter-emacs-pdmp flutter-macos-emacs-runtime flutter-ipad-launch \
+	flutter-windows-emacs-runtime flutter-windows-native-smoke \
 	flutter-verify check clean distclean
 
 help:
@@ -31,11 +32,13 @@ help:
 	  '  make flutter-emacs-pdmp    Build Emacs pdmp into build/emacs-ios (isolated)' \
 	  '  make flutter-linux-emacs-runtime Build bundled Linux Emacs runtime for Flutter' \
 	  '  make flutter-macos-emacs-runtime Build bundled macOS Emacs runtime for Flutter' \
+	  '  make flutter-windows-emacs-runtime Build bundled Windows Emacs runtime via MSYS2/MinGW' \
 	  '  make flutter-ipad-launch    Build Flutter iOS app and launch on booted iPad simulator' \
 	  '  make flutter-macos-smoke Build and launch Flutter macOS app briefly' \
 	  '  make flutter-macos-native-smoke Autostart and verify Flutter macOS native probe' \
 	  '  make flutter-linux-smoke Build and launch Flutter Linux app briefly' \
 	  '  make flutter-linux-native-smoke Autostart and verify Flutter Linux native probe' \
+	  '  make flutter-windows-native-smoke Build and verify Flutter Windows native Emacs bridge smoke' \
 	  '  make flutter-backend-override-smoke Verify forced Flutter backend selection on macOS' \
 	  '  make flutter-web-smoke   Build Flutter Web debug output' \
 	  '  make flutter-android-smoke Build Flutter Android debug APK' \
@@ -104,6 +107,12 @@ flutter-linux-emacs-runtime:
 
 flutter-macos-emacs-runtime:
 	JOBS="$(JOBS)" scripts/build-flutter-macos-emacs-runtime.sh
+
+flutter-windows-emacs-runtime:
+	powershell.exe -ExecutionPolicy Bypass -File scripts/build-emacs-windows-runtime.ps1
+
+flutter-windows-native-smoke:
+	powershell.exe -ExecutionPolicy Bypass -File scripts/run-flutter-windows-native-smoke.ps1
 
 flutter-ios-launch-smoke:
 	scripts/run-flutter-ios-launch-smoke.sh

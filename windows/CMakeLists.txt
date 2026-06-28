@@ -106,3 +106,13 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
+# Bundle Windows Emacs runtime into the app bundle if the runtime has been
+# built. Run scripts/build-emacs-windows-runtime.ps1 to produce the runtime.
+set(WINDOWS_EMACS_RUNTIME "${CMAKE_SOURCE_DIR}/../build/emacs-windows/runtime")
+if(EXISTS "${WINDOWS_EMACS_RUNTIME}/bin/emacs.exe")
+  install(DIRECTORY "${WINDOWS_EMACS_RUNTIME}/"
+    DESTINATION "${INSTALL_BUNDLE_DATA_DIR}/iosmacs-emacs"
+    COMPONENT Runtime
+    USE_SOURCE_PERMISSIONS)
+endif()

@@ -27,6 +27,11 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
+  // Initialize the native Emacs bridge (Windows ConPTY + MethodChannel).
+  auto* messenger =
+      flutter_controller_->engine()->messenger();
+  emacs_bridge_ = std::make_unique<WindowsNativeEmacsBridge>(messenger);
+
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
   });

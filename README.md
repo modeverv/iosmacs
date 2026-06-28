@@ -1,6 +1,6 @@
 # fluttmacs
 
-`fluttmacs` is an experiment to run real GNU Emacs on iOS, iPadOS, Android, macOS, and Linux as a cross-platform Flutter application.
+`fluttmacs` is an experiment to run real GNU Emacs on iOS, iPadOS, Android, macOS, Linux, and Windows as a cross-platform Flutter application.
 
 Flutter owns the cross-platform application shell and terminal surface, while platform backends handle running GNU Emacs and connecting terminal bytes via PTY or JNI bridges.
 
@@ -20,6 +20,7 @@ Flutter owns the cross-platform application shell and terminal surface, while pl
 | Dart | bundled with Flutter | |
 | Xcode | 15+ | macOS/iOS targets only |
 | Android SDK | API 35+ | Android target only |
+| MSYS2 + MinGW-w64 | latest | Windows target only — see [Windows section](#windows-desktop) |
 
 ### Installing Flutter (Linux)
 
@@ -189,6 +190,53 @@ make flutter-android-parity-smoke
 
 ---
 
+### Windows (Desktop)
+
+The Windows backend starts a bundled GNU Emacs child process using the Windows
+[ConPTY](https://devblogs.microsoft.com/commandline/windows-command-line-introducing-the-windows-pseudo-console-conpty/)
+API (`CreatePseudoConsole`). This requires Windows 10 version 1809 (SDK 10.0.17763) or later.
+
+**Step 0 — install MSYS2** (one-time):
+
+Download and install [MSYS2](https://www.msys2.org/), then install the MinGW-w64 toolchain inside MSYS2:
+
+```sh
+# Run in MSYS2 MinGW64 shell
+pacman -S --noconfirm mingw-w64-x86_64-toolchain autoconf automake make pkg-config
+```
+
+**Step 1 — build the bundled Emacs runtime** (one-time, ~15 min):
+
+```powershell
+.\scripts\build-emacs-windows-runtime.ps1
+```
+
+This builds GNU Emacs into `build/emacs-windows/runtime/`. The Flutter CMake build copies that runtime into the app bundle under `data/iosmacs-emacs/` automatically on the next `flutter build windows`.
+
+**Step 2 — run the app**:
+
+```powershell
+flutter run -d windows
+```
+
+**Smoke tests**:
+
+```powershell
+# Full native smoke: verifies bundled Emacs starts, input/resize/workspace/stop
+.\scripts\run-flutter-windows-native-smoke.ps1
+# Or via Make (from Git Bash or MSYS2):
+make flutter-windows-native-smoke
+```
+
+**Debug override** — point to a different Emacs binary without rebuilding:
+
+```powershell
+$env:IOSMACS_FLUTTER_EMACS = "C:\path\to\emacs.exe"
+flutter run -d windows
+```
+
+---
+
 ### Web
 
 The Web backend is a placeholder. A real WASM-based Emacs backend (`wasmacs`) is the intended future route.
@@ -208,10 +256,12 @@ flutter run -d chrome
 | `make flutter-fake-smoke` | Run unit/widget tests with fake backend |
 | `make flutter-linux-emacs-runtime` | Build bundled GNU Emacs for Linux |
 | `make flutter-macos-emacs-runtime` | Build bundled GNU Emacs for macOS |
+| `make flutter-windows-emacs-runtime` | Build bundled GNU Emacs for Windows via MSYS2 |
 | `make flutter-linux-smoke` | Build and launch Flutter Linux app briefly |
 | `make flutter-linux-native-smoke` | Full Linux native Emacs smoke test |
 | `make flutter-macos-smoke` | Build and launch Flutter macOS app briefly |
 | `make flutter-macos-native-smoke` | Full macOS native Emacs smoke test |
+| `make flutter-windows-native-smoke` | Full Windows native Emacs smoke test |
 | `make flutter-ios-smoke` | Verify Flutter iOS Runner bundle resources |
 | `make flutter-ios-launch-smoke` | Install and launch on iOS simulator |
 | `make flutter-ios-native-smoke` | Full iOS native Emacs smoke test |
@@ -229,9 +279,9 @@ Each platform uses an independent backend behind the shared `EmacsBackend` Dart 
 |---|---|---|
 | macOS | `NativeEmacsBackend` | MethodChannel → `MacOSNativeEmacsBridge.swift` → `forkpty` |
 | Linux | `NativeEmacsBackend` | MethodChannel → `linux_native_emacs_bridge.cc` → `forkpty` |
+| Windows | `NativeEmacsBackend` | MethodChannel → `windows_native_emacs_bridge.cc` → ConPTY |
 | iOS / iPadOS | `NativeEmacsBackend` | MethodChannel → `FlutterNativeEmacsBridge.swift` → static archive |
 | Android | `AndroidEmacsBackend` → `NativeEmacsBackend` | MethodChannel → `AndroidNativeEmacsBridge.kt` → JNI/`forkpty` |
 | Web | `WebWasmEmacsBackend` | placeholder (future WASM route) |
-| Windows | `DesktopEmacsBackend` | placeholder |
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for full details.

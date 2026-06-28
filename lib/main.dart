@@ -22,7 +22,8 @@ bool defaultAutoStartBackend({
       (targetPlatform == TargetPlatform.iOS ||
           targetPlatform == TargetPlatform.macOS ||
           targetPlatform == TargetPlatform.android ||
-          targetPlatform == TargetPlatform.linux);
+          targetPlatform == TargetPlatform.linux ||
+          targetPlatform == TargetPlatform.windows);
 }
 
 void main() {

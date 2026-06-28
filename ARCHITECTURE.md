@@ -25,9 +25,9 @@ Flutter App
 
 Backends
   - FakeEmacsBackend for UI tests, deterministic smoke runs, and development
-  - NativeEmacsBackend for the current iosmacs iOS/macOS/Linux MethodChannel bridge
+  - NativeEmacsBackend for the current iosmacs iOS/macOS/Linux/Windows MethodChannel bridge
   - AndroidEmacsBackend placeholder for Android native-runtime work
-  - DesktopEmacsBackend placeholder for Windows desktop runtime work
+  - DesktopEmacsBackend explicit placeholder for overrides and unsupported-feature reporting
   - WebWasmEmacsBackend placeholder for wasmacs/WASM integration
 
 GNU Emacs Runtime
@@ -53,15 +53,14 @@ Implemented pieces:
 - `FakeEmacsBackend` and `FakeBackendWorker` provide deterministic output and
   UI-test behavior without native runtime dependencies.
 - `NativeEmacsBackend` routes through the `iosmacs/native_emacs`
-  MethodChannel. It is the default backend on iOS, macOS, and Linux.
+  MethodChannel. It is the default backend on iOS, macOS, Linux, and Windows.
 - `AndroidEmacsBackend` uses the shared native MethodChannel through an
   Android Runner bridge. Kotlin owns Android app APIs and the MethodChannel,
   while a JNI shared library owns the diagnostic terminal transport until the
   loaded GNU Emacs NDK runtime and packaged `org.gnu.emacs` Java bridge replace
   it.
-- `DesktopEmacsBackend` (for Windows) and `WebWasmEmacsBackend` make the remaining
-  non-iOS/macOS/Linux backend boundaries explicit while unsupported runtime features are
-  unsupported.
+- `DesktopEmacsBackend` and `WebWasmEmacsBackend` remain as explicit placeholders for
+  override scenarios and unsupported-feature reporting.
 
 Default backend selection is centralized in `backend_factory.dart`.
 `IOSMACS_FLUTTER_BACKEND` can force a backend for smoke testing. Supported
@@ -282,10 +281,27 @@ Linux-specific filesystem and workspace behavior stays behind the backend.
 
 ### Windows
 
-The Windows backend is currently represented by a `DesktopEmacsBackend`
-placeholder. It should use a Windows-native terminal transport such as ConPTY.
-Windows path handling, executable discovery, bundled runtime behavior, and
-workspace mapping must be explicit backend responsibilities.
+The Windows backend uses the same `NativeEmacsBackend` (Dart, `iosmacs/native_emacs`
+MethodChannel) as iOS/macOS/Linux, backed by `WindowsNativeEmacsBridge` in the Win32
+runner (`windows/runner/windows_native_emacs_bridge.h/cc`).
+
+`WindowsNativeEmacsBridge` launches headless GNU Emacs (`-nw`) as a child process using
+the Windows ConPTY (Pseudo Console) API (`CreatePseudoConsole` / Win32 SDK 10.0.17763+).
+A background reader thread drains output from the ConPTY pipe into an output buffer;
+the Dart side calls `drainOutput` to collect it. `ResizePseudoConsole` handles terminal
+geometry updates.
+
+At startup, `GetEmacsCandidates()` uses `GetModuleFileNameW` to locate the bundle
+executable, then resolves `data\iosmacs-emacs\bin\emacs.exe` relative to it.
+System Emacs paths are not searched; `IOSMACS_FLUTTER_EMACS` is available as a debug
+override. `GetEmacsRuntimeEnvironment()` sets `EMACSLOADPATH`, `EMACSDATA`, `EMACSDOC`,
+and `EMACSPATH` for the child process. The workspace root is under
+`%LOCALAPPDATA%\fluttmacs\workspace`.
+
+Build the Windows Emacs runtime via MSYS2/MinGW-w64:
+`scripts/build-emacs-windows-runtime.ps1`. The CMake install step bundles it into
+`data/iosmacs-emacs` next to the Flutter executable if `build/emacs-windows/runtime`
+exists.
 
 ### Android
 

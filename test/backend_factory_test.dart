@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluttmacs/src/backend/android_emacs_backend.dart';
 import 'package:fluttmacs/src/backend/backend_factory.dart';
-import 'package:fluttmacs/src/backend/desktop_emacs_backend.dart';
 import 'package:fluttmacs/src/backend/fake_emacs_backend.dart';
 import 'package:fluttmacs/src/backend/native_emacs_backend.dart';
 import 'package:fluttmacs/src/backend/web_wasm_emacs_backend.dart';
@@ -43,18 +42,15 @@ void main() {
     expect(backend, isA<AndroidEmacsBackend>());
   });
 
-  test('explicit desktop placeholder backends are available behind factory',
-      () {
+  test('explicit native desktop backends are available behind factory', () {
     final linuxBackend = createEmacsBackend(kind: BackendKind.linux);
     addTearDown(linuxBackend.dispose);
 
     final windowsBackend = createEmacsBackend(kind: BackendKind.windows);
     addTearDown(windowsBackend.dispose);
 
-    expect(linuxBackend, isA<DesktopEmacsBackend>());
-    expect(linuxBackend.capabilities.id, 'linux-placeholder');
-    expect(windowsBackend, isA<DesktopEmacsBackend>());
-    expect(windowsBackend.capabilities.id, 'windows-placeholder');
+    expect(linuxBackend, isA<NativeEmacsBackend>());
+    expect(windowsBackend, isA<NativeEmacsBackend>());
   });
 
   test('platform default selects platform-specific backends', () {
@@ -98,10 +94,8 @@ void main() {
     expect(macosBackend, isA<NativeEmacsBackend>());
     expect(webBackend, isA<WebWasmEmacsBackend>());
     expect(androidBackend, isA<AndroidEmacsBackend>());
-    expect(linuxBackend, isA<DesktopEmacsBackend>());
-    expect(linuxBackend.capabilities.id, 'linux-placeholder');
-    expect(windowsBackend, isA<DesktopEmacsBackend>());
-    expect(windowsBackend.capabilities.id, 'windows-placeholder');
+    expect(linuxBackend, isA<NativeEmacsBackend>());
+    expect(windowsBackend, isA<NativeEmacsBackend>());
   });
 
   test('backend override names select explicit backends', () {
@@ -142,8 +136,8 @@ void main() {
 
     expect(fakeBackend, isA<FakeEmacsBackend>());
     expect(webBackend, isA<WebWasmEmacsBackend>());
-    expect(linuxBackend.capabilities.id, 'linux-placeholder');
-    expect(windowsBackend.capabilities.id, 'windows-placeholder');
+    expect(linuxBackend, isA<NativeEmacsBackend>());
+    expect(windowsBackend, isA<NativeEmacsBackend>());
     expect(nativeBackend, isA<NativeEmacsBackend>());
   });
 
