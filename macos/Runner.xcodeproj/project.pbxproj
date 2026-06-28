@@ -359,7 +359,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nREPO_ROOT=\"$(cd \"$PROJECT_DIR/../../..\" && pwd)\"\nIOSMACS_FLUTTER_MACOS_EMACS_DEST=\"$TARGET_BUILD_DIR/$WRAPPER_NAME/Contents/Resources\" \"$REPO_ROOT/scripts/build-flutter-macos-emacs-runtime.sh\"\n";
+			shellScript = "set -euo pipefail\nREPO_ROOT=\"$(cd \"$PROJECT_DIR/..\" && pwd)\"\nIOSMACS_FLUTTER_MACOS_EMACS_DEST=\"$TARGET_BUILD_DIR/$WRAPPER_NAME/Contents/Resources\" \"$REPO_ROOT/scripts/build-flutter-macos-emacs-runtime.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

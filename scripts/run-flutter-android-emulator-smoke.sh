@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-app_dir="$repo_root/flutter/fluttmacs"
+app_dir="$repo_root"
 sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}}"
 avd_name="${IOSMACS_FLUTTER_ANDROID_AVD:-fluttmacs_pixel}"
 device_id="${IOSMACS_FLUTTER_ANDROID_DEVICE:-}"
@@ -12,7 +12,7 @@ expect_pdump_reuse="${IOSMACS_ANDROID_EXPECT_PDUMP_REUSE:-0}"
 expect_pdump_recovery="${IOSMACS_ANDROID_EXPECT_PDUMP_RECOVERY:-0}"
 expect_network="${IOSMACS_ANDROID_EXPECT_NETWORK:-0}"
 expect_workspace_relaunch="${IOSMACS_ANDROID_EXPECT_WORKSPACE_RELAUNCH:-1}"
-out_dir="$repo_root/flutter/build/android-emulator-smoke"
+out_dir="$repo_root/build/android-emulator-smoke"
 screenshot="$out_dir/scratch.png"
 warm_logcat="$out_dir/logcat-warm-relaunch.txt"
 pdump_recovery_logcat="$out_dir/logcat-pdump-recovery.txt"
