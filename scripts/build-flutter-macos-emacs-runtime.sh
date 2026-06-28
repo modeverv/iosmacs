@@ -10,6 +10,7 @@ runtime_root="${build_root}/runtime"
 runtime_name="${IOSMACS_FLUTTER_MACOS_EMACS_RUNTIME_NAME:-iosmacs-emacs}"
 destination="${IOSMACS_FLUTTER_MACOS_EMACS_DEST:-}"
 jobs="${JOBS:-$(sysctl -n hw.ncpu 2>/dev/null || printf '4')}"
+runtime_label="${IOSMACS_FLUTTER_MACOS_EMACS_RUNTIME_LABEL:-flutter macOS Emacs runtime}"
 
 if [[ ! -d "${source_root}/src" ]]; then
   printf 'error: missing Emacs source at %s\n' "${source_root}" >&2
@@ -91,4 +92,4 @@ if [[ -n "${destination}" ]]; then
   rsync -a --delete "${runtime_root}/" "${destination}/${runtime_name}/"
 fi
 
-printf 'flutter macOS Emacs runtime ready: %s\n' "${runtime_root}"
+printf '%s ready: %s\n' "${runtime_label}" "${runtime_root}"

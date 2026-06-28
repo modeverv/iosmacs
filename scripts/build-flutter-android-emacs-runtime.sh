@@ -181,8 +181,10 @@ exec "\$real_javac" --release 8 "\${args[@]}"
 EOF
 chmod +x "${tool_dir}/javac"
 
-host_emacs="${IOSMACS_ANDROID_HOST_EMACS:-${repo_root}/build/emacs-macos/runtime/bin/emacs}"
-runtime_lisp="${IOSMACS_ANDROID_HOST_EMACS_LISP:-${repo_root}/build/emacs-macos/runtime/lisp}"
+default_host_emacs="${repo_root}/build/emacs-macos/runtime/bin/emacs"
+default_runtime_lisp="${repo_root}/build/emacs-macos/runtime/lisp"
+host_emacs="${IOSMACS_ANDROID_HOST_EMACS:-${default_host_emacs}}"
+runtime_lisp="${IOSMACS_ANDROID_HOST_EMACS_LISP:-${default_runtime_lisp}}"
 cat >"${tool_dir}/host-emacs-for-android" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
@@ -273,8 +275,20 @@ if [[ "${IOSMACS_ANDROID_EMACS_BUILD_LIBS:-0}" != "1" ]]; then
 fi
 
 if [[ ! -x "${host_emacs}" || ! -d "${runtime_lisp}" ]]; then
-  printf 'error: missing host Emacs runtime for Android generated Lisp at %s\n' "${host_emacs}" >&2
-  printf 'hint: run make flutter-macos-emacs-runtime or set IOSMACS_ANDROID_HOST_EMACS\n' >&2
+  if [[ -n "${IOSMACS_ANDROID_HOST_EMACS:-}" || -n "${IOSMACS_ANDROID_HOST_EMACS_LISP:-}" ]]; then
+    printf 'error: missing Android host Emacs runtime override at %s\n' "${host_emacs}" >&2
+    printf 'hint: unset IOSMACS_ANDROID_HOST_EMACS/IOSMACS_ANDROID_HOST_EMACS_LISP or point both at a valid host runtime\n' >&2
+    exit 1
+  fi
+  printf 'Android host Emacs runtime not cached; building required host tools for Android...\n'
+  JOBS="${jobs}" \
+    IOSMACS_FLUTTER_MACOS_EMACS_RUNTIME_LABEL="Android host Emacs runtime" \
+    "${repo_root}/scripts/build-flutter-macos-emacs-runtime.sh"
+fi
+
+if [[ ! -x "${host_emacs}" || ! -d "${runtime_lisp}" ]]; then
+  printf 'error: Android host Emacs runtime preparation did not produce %s and %s\n' \
+    "${host_emacs}" "${runtime_lisp}" >&2
   exit 1
 fi
 

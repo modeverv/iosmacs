@@ -45,7 +45,7 @@ help:
 	  '  make flutter-android-emulator-smoke Build, install, launch, and screenshot Android emulator app' \
 	  '  make flutter-android-parity-smoke Require Android NW pdump, recovery, network, and relaunch evidence' \
 	  '  make flutter-android-emacs-configure Configure GNU Emacs for Android NDK runtime work' \
-	  '  make flutter-android-emacs-runtime Attempt GNU Emacs Android NDK native library build' \
+	  '  make flutter-android-emacs-runtime Build GNU Emacs Android runtime and required host tools' \
 	  '  make flutter-android-emacs-nw-configure Configure GNU Emacs NW text-terminal for Android' \
 	  '  make flutter-android-emacs-nw-build Build GNU Emacs NW binary for Android (libemacs_nw.so)' \
 	  '  make flutter-android-emacs-nw-pdumper-build Build Android NW binary with pdumper support' \

@@ -153,16 +153,25 @@ Verify the full native smoke (requires a booted simulator):
 make flutter-ios-native-smoke
 ```
 
+To reproduce a clean iOS simulator build from generated artifacts removed:
+
+```sh
+make clean
+make flutter-emacs-pdmp
+make flutter-ios-native-smoke
+```
+
 ---
 
 ### Android (Emulator)
 
 The Android backend runs a GNU Emacs NW binary (`libemacs_nw.so`) via `forkpty(3)` inside the app process.
 
-**Build the Android Emacs NW binary** (one-time, requires Android SDK + NDK):
+**Build the Android Emacs runtime and NW pdumper binary** (one-time, requires Android SDK + NDK):
 
 ```sh
-make flutter-android-emacs-nw-build
+make flutter-android-emacs-runtime
+make flutter-android-emacs-nw-pdumper-build
 ```
 
 **Create and boot the local AVD** (one-time):
@@ -186,6 +195,17 @@ make flutter-android-emulator-smoke
 # Full parity check including pdump, network, workspace, and pointer
 make flutter-android-parity-smoke
 ```
+
+To reproduce a clean Android emulator build from generated artifacts removed:
+
+```sh
+make clean
+make flutter-android-emacs-runtime
+make flutter-android-emacs-nw-pdumper-build
+make flutter-android-emulator-smoke
+```
+
+The Android runtime target prepares any host-side Emacs tools it needs. The emulator smoke builds the debug APK, installs and launches it on the booted emulator, verifies the NW Emacs PTY route, and writes a screenshot under `build/android-emulator-smoke/`.
 
 ---
 
