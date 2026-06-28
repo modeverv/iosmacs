@@ -7,7 +7,7 @@ sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/opt/homebrew/share/android-comman
 abi="${IOSMACS_ANDROID_ABI:-arm64-v8a}"
 api="${IOSMACS_ANDROID_API:-35}"
 app_id="${IOSMACS_ANDROID_APP_ID:-com.example.iosmacs_flutter}"
-build_root="${IOSMACS_ANDROID_EMACS_BUILD_ROOT:-${repo_root}/flutter/build/emacs-android/${abi}}"
+build_root="${IOSMACS_ANDROID_EMACS_BUILD_ROOT:-${repo_root}/build/emacs-android/${abi}}"
 source_copy="${build_root}/source"
 tool_dir="${build_root}/tools"
 out_dir="${build_root}/iosmacs"
@@ -181,8 +181,8 @@ exec "\$real_javac" --release 8 "\${args[@]}"
 EOF
 chmod +x "${tool_dir}/javac"
 
-host_emacs="${IOSMACS_ANDROID_HOST_EMACS:-${repo_root}/flutter/build/emacs-macos/runtime/bin/emacs}"
-runtime_lisp="${IOSMACS_ANDROID_HOST_EMACS_LISP:-${repo_root}/flutter/build/emacs-macos/runtime/lisp}"
+host_emacs="${IOSMACS_ANDROID_HOST_EMACS:-${repo_root}/build/emacs-macos/runtime/bin/emacs}"
+runtime_lisp="${IOSMACS_ANDROID_HOST_EMACS_LISP:-${repo_root}/build/emacs-macos/runtime/lisp}"
 cat >"${tool_dir}/host-emacs-for-android" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail

@@ -28,7 +28,7 @@ else
   pdumper_enabled=0
   build_flavor="${abi}"
 fi
-build_root="${repo_root}/flutter/build/emacs-android-nw/${build_flavor}"
+build_root="${repo_root}/build/emacs-android-nw/${build_flavor}"
 source_copy="${build_root}/source"
 tool_dir="${build_root}/tools"
 out_dir="${build_root}/iosmacs"
@@ -378,8 +378,8 @@ fi
 # Step 4: Reuse .elc files from macOS or Android host build           #
 # ------------------------------------------------------------------ #
 
-android_lisp="${repo_root}/flutter/build/emacs-android/${abi}/java/install_temp/assets/lisp"
-macos_lisp="${repo_root}/flutter/build/emacs-macos/runtime/lisp"
+android_lisp="${repo_root}/build/emacs-android/${abi}/java/install_temp/assets/lisp"
+macos_lisp="${repo_root}/build/emacs-macos/runtime/lisp"
 
 if [[ -d "${macos_lisp}" ]]; then
   rsync -a --include='*/' --include='*.elc' --exclude='*' \
@@ -407,8 +407,8 @@ printf 'building GNU Emacs NW binary for Android %s...\n' "${abi}"
 # on the BUILD HOST (macOS) even when cross-compiling for Android.
 # We substitute them with native macOS Emacs / build-time helpers.
 
-host_emacs="${IOSMACS_ANDROID_HOST_EMACS:-${repo_root}/flutter/build/emacs-macos/runtime/bin/emacs}"
-host_lisp="${IOSMACS_ANDROID_HOST_EMACS_LISP:-${repo_root}/flutter/build/emacs-macos/runtime/lisp}"
+host_emacs="${IOSMACS_ANDROID_HOST_EMACS:-${repo_root}/build/emacs-macos/runtime/bin/emacs}"
+host_lisp="${IOSMACS_ANDROID_HOST_EMACS_LISP:-${repo_root}/build/emacs-macos/runtime/lisp}"
 if [[ ! -x "${host_emacs}" ]]; then
   printf 'error: no host Emacs at %s; run make flutter-macos-emacs-runtime first\n' "${host_emacs}" >&2
   exit 1
@@ -444,7 +444,7 @@ chmod +x "${bootstrap_wrapper}"
 # so we must substitute the native binary before the src/ build runs it.
 host_make_docfile=""
 for candidate in \
-  "${repo_root}/flutter/build/emacs-macos/build/lib-src/make-docfile" \
+  "${repo_root}/build/emacs-macos/build/lib-src/make-docfile" \
   "${repo_root}/build/emacs-native-helpers/build/lib-src/make-docfile" \
   "${repo_root}/build/emacs-ios-probe/lib-src/make-docfile"; do
   if [[ -x "${candidate}" ]]; then
@@ -538,12 +538,12 @@ cp -p "${nw_binary}" "${jni_lib_dir}/libemacs_nw.so"
 
 # Copy to the SHARED jniLibs directory used by Gradle (same as the Android
 # HAVE_ANDROID build) so no Gradle source-set changes are needed.
-shared_jni_dir="${repo_root}/flutter/build/emacs-android/${abi}/iosmacs/jniLibs/${abi}"
+shared_jni_dir="${repo_root}/build/emacs-android/${abi}/iosmacs/jniLibs/${abi}"
 if [[ -d "${shared_jni_dir}" ]]; then
   cp -p "${jni_lib_dir}/libemacs_nw.so" "${shared_jni_dir}/libemacs_nw.so"
   printf 'copied libemacs_nw.so to shared jniLibs: %s\n' "${shared_jni_dir}"
 fi
-shared_assets_dir="${repo_root}/flutter/build/emacs-android/${abi}/java/install_temp/assets"
+shared_assets_dir="${repo_root}/build/emacs-android/${abi}/java/install_temp/assets"
 if [[ -d "${shared_assets_dir}" ]]; then
   if [[ "${pdumper_enabled}" == "1" ]]; then
     printf '1\n' >"${shared_assets_dir}/iosmacs-nw-pdumper-enabled"

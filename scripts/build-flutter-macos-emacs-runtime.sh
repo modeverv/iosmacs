@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source_root="${IOSMACS_EMACS_SOURCE:-${repo_root}/wasmacs/vendor/emacs}"
-build_root="${IOSMACS_FLUTTER_MACOS_EMACS_BUILD_ROOT:-${repo_root}/flutter/build/emacs-macos}"
+build_root="${IOSMACS_FLUTTER_MACOS_EMACS_BUILD_ROOT:-${repo_root}/build/emacs-macos}"
 source_copy="${build_root}/source"
 build_dir="${build_root}/build"
 runtime_root="${build_root}/runtime"

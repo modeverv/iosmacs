@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-app_dir="flutter/iosmacs_flutter"
+app_dir="."
 
 required_files=(
   "$app_dir/pubspec.yaml"
@@ -218,29 +218,29 @@ grep -q 'did not keep the selected Emacs process alive at startup' \
 grep -q 'macOS interactive GNU Emacs process started:' \
   scripts/run-flutter-macos-native-smoke.sh
 grep -q 'IOSMACS_GC_THRESHOLD_MB' \
-  iosmacs/Emacs/iosmacs_emacs_core.c
+  999_old/iosmacs/Emacs/iosmacs_emacs_core.c
 grep -q 'IOSMACS_LIGHT_XTERM_INIT' \
-  iosmacs/Emacs/iosmacs_emacs_core.c
+  999_old/iosmacs/Emacs/iosmacs_emacs_core.c
 grep -q 'IOSMACS_SKIP_XTERM_INIT' \
-  iosmacs/Emacs/iosmacs_emacs_core.c
+  999_old/iosmacs/Emacs/iosmacs_emacs_core.c
 grep -q 'IOSMACS_DISABLE_TERMINFO' \
-  scripts/build-emacs-ios-probe.sh
+  999_old/scripts/build-emacs-ios-probe.sh
 grep -q 'IOSMACS_TRACE_EMACS_HOTPATH' \
-  iosmacs/Host/iosmacs_host_facade.c
+  999_old/iosmacs/Host/iosmacs_host_facade.c
 grep -q 'iosmacs_host_trace_hotpath_active' \
-  iosmacs/Host/iosmacs_host_facade.c
+  999_old/iosmacs/Host/iosmacs_host_facade.c
 grep -q 'last_input_push_ms' \
-  iosmacs/Host/iosmacs_host_facade.c
+  999_old/iosmacs/Host/iosmacs_host_facade.c
 grep -q 'hotpath redisplay-internal entry' \
-  scripts/build-emacs-ios-probe.sh
+  999_old/scripts/build-emacs-ios-probe.sh
 grep -q 'hotpath display-line entry' \
-  scripts/build-emacs-ios-probe.sh
+  999_old/scripts/build-emacs-ios-probe.sh
 grep -q 'hotpath garbage-collect entry' \
-  scripts/build-emacs-ios-probe.sh
+  999_old/scripts/build-emacs-ios-probe.sh
 grep -q 'kbd_buffer_events_waiting' \
-  scripts/build-emacs-ios-probe.sh
+  999_old/scripts/build-emacs-ios-probe.sh
 grep -q '&& !kbd_buffer_events_waiting ()' \
-  scripts/build-emacs-ios-probe.sh
+  999_old/scripts/build-emacs-ios-probe.sh
 grep -q 'Android NDK GNU Emacs runtime artifact packaging' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'Android GNU Emacs NW PTY terminal route' \
@@ -1003,28 +1003,28 @@ grep -q 'iosmacs_emacs_diagnostic.c in Sources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
 grep -q 'iosmacs_emacs_core.c in Sources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
-grep -q "autoload 'dired" iosmacs/Emacs/iosmacs_emacs_core.c
-grep -q "autoload 'tetris" iosmacs/Emacs/iosmacs_emacs_core.c
-grep -q 'global-set-key (kbd \\"M-X\\")' iosmacs/Emacs/iosmacs_emacs_core.c
-grep -q 'iosmacs-force-xterm-input-decode' iosmacs/Emacs/iosmacs_emacs_core.c
-grep -q 'terminal-init-xterm' iosmacs/Emacs/iosmacs_emacs_core.c
-grep -q 'iosmacs-fast-xterm-pasted-text' iosmacs/Emacs/iosmacs_emacs_core.c
-grep -q 'inhibit-redisplay t' iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q "autoload 'dired" 999_old/iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q "autoload 'tetris" 999_old/iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'global-set-key (kbd \\"M-X\\")' 999_old/iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'iosmacs-force-xterm-input-decode' 999_old/iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'terminal-init-xterm' 999_old/iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'iosmacs-fast-xterm-pasted-text' 999_old/iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'inhibit-redisplay t' 999_old/iosmacs/Emacs/iosmacs_emacs_core.c
 grep -q 'iosmacs_terminal_shim.c in Sources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
-grep -q 'iosmacs_host_terminal_read' iosmacs/Host/iosmacs_host_facade.h
-grep -q 'iosmacs_os_terminal_read_available' iosmacs/Host/iosmacs_host_facade.c
-if grep -q 'dup2(fd, STDERR_FILENO)' iosmacs/Host/iosmacs_terminal_shim.c; then
+grep -q 'iosmacs_host_terminal_read' 999_old/iosmacs/Host/iosmacs_host_facade.h
+grep -q 'iosmacs_os_terminal_read_available' 999_old/iosmacs/Host/iosmacs_host_facade.c
+if grep -q 'dup2(fd, STDERR_FILENO)' 999_old/iosmacs/Host/iosmacs_terminal_shim.c; then
   printf 'error: Flutter iOS fake tty must not redirect process stderr into the terminal screen\n' >&2
   exit 1
 fi
-if grep -q 'fd <= STDERR_FILENO' iosmacs/Host/iosmacs_terminal_shim.c \
-  || grep -q 'fd <= STDERR_FILENO' iosmacs/Host/iosmacs_host_facade.c; then
+if grep -q 'fd <= STDERR_FILENO' 999_old/iosmacs/Host/iosmacs_terminal_shim.c \
+  || grep -q 'fd <= STDERR_FILENO' 999_old/iosmacs/Host/iosmacs_host_facade.c; then
   printf 'error: Flutter iOS fake tty must not classify process stderr as the terminal tty\n' >&2
   exit 1
 fi
 grep -q 'iosmacs_host_terminal_read (tty_buf, nbyte)' \
-  scripts/build-emacs-ios-probe.sh
+  999_old/scripts/build-emacs-ios-probe.sh
 if [[ -f build/emacs-ios-probe/source/src/sysdep.c ]] \
   && grep -q 'byte = iosmacs_host_terminal_read_byte' build/emacs-ios-probe/source/src/sysdep.c; then
   printf 'error: generated Emacs sysdep.c still has stale byte-at-a-time tty read path\n' >&2
@@ -1128,12 +1128,12 @@ grep -q 'exportWorkspaceSelection' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'flutter-ios-smoke' Makefile
 grep -q 'check-flutter-ios-runner-smoke.sh' Makefile
-grep -Fq 'FLUTTER_EMACS_BUILD_ROOT ?= $(abspath flutter/build/emacs-ios)' Makefile
+grep -Fq 'FLUTTER_EMACS_BUILD_ROOT ?= $(abspath build/emacs-ios)' Makefile
 grep -q 'flutter-emacs-static' Makefile
 grep -q 'flutter-emacs-pdmp' Makefile
 grep -q 'flutter-ipad-launch' Makefile
 grep -Fq 'IOSMACS_BUILD_ROOT="$(FLUTTER_EMACS_BUILD_ROOT)"' Makefile
-grep -q 'Build Emacs static lib into flutter/build/emacs-ios' Makefile
+grep -q 'Build Emacs static lib into build/emacs-ios' Makefile
 grep -q 'flutter-ios-launch-smoke' Makefile
 grep -q 'run-flutter-ios-launch-smoke.sh' Makefile
 grep -q 'flutter-ios-native-smoke' Makefile
@@ -1200,7 +1200,7 @@ grep -q 'flutter-macos-smoke' Makefile
 grep -q 'run-flutter-macos-smoke.sh' Makefile
 grep -q 'flutter-macos-native-smoke' Makefile
 grep -q 'run-flutter-macos-native-smoke.sh' Makefile
-grep -q 'flutter/build/' .gitignore
+grep -q 'build/' .gitignore
 grep -q 'flutter-backend-override-smoke' Makefile
 grep -q 'run-flutter-backend-override-smoke.sh' Makefile
 grep -q 'IOSMACS_FLUTTER_BACKEND_SMOKE_BACKENDS' \
@@ -1296,65 +1296,65 @@ grep -q 'flutter-macos-smoke' Makefile
 grep -q 'flutter-macos-native-smoke' Makefile
 
 grep -q 'Runtime Smoke Flags' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'IOSMACS_FLUTTER_AUTOSTART_NATIVE' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'IOSMACS_FLUTTER_MIRROR_TERMINAL_OUTPUT' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'IOSMACS_FLUTTER_MIRROR_TERMINAL_INPUT' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'IOSMACS_FLUTTER_WORKSPACE_SMOKE' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'IOSMACS_FLUTTER_CAPABILITIES_SMOKE' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'IOSMACS_FLUTTER_INPUT_SMOKE' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'IOSMACS_FLUTTER_RESIZE_SMOKE' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'IOSMACS_FLUTTER_REDRAW_SMOKE' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'IOSMACS_FLUTTER_STATUS_SMOKE' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'IOSMACS_FLUTTER_STOP_SMOKE' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'IOSMACS_FLUTTER_BACKEND' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'make flutter-macos-native-smoke' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'make flutter-analyze' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'make flutter-format-check' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'Dart format check' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'Flutter analyze' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'terminal output mirroring, capabilities, input, resize, redraw, status smoke' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'evidence, stop, and workspace list/import/open/export smoke evidence' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'list, import, open, and' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'make flutter-backend-override-smoke' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'capability, input, resize, redraw, status smoke output, workspace smoke' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'list/import/open/export output, and stop smoke output' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'status smoke output' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'make flutter-android-emulator-smoke' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'flutter-android-parity-smoke' Makefile
 grep -q 'IOSMACS_ANDROID_EXPECT_PDUMP_RECOVERY=1' Makefile
 grep -q 'document-provider content export' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'ACTION_CREATE_DOCUMENT' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'diagnostic evidence does not block first' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 grep -q 'startup-chatter suppression' \
-  flutter/ARCHITECTURE.md
+  ARCHITECTURE.md
 
 grep -q 'Android Ctrl/Meta modifier key row for terminal input' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
