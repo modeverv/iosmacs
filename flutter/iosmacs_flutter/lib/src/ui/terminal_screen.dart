@@ -151,10 +151,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                     color: const Color(0xff101214),
                     child: Listener(
                       behavior: HitTestBehavior.translucent,
-                      onPointerDown: (PointerDownEvent event) {
-                        _logTerminalPointerDown(event);
-                        _terminalFocusNode.requestFocus();
-                      },
+                      onPointerDown: _logTerminalPointerDown,
                       child: TerminalView(
                         _terminal,
                         autofocus: true,
@@ -211,7 +208,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                   onSendBytes: (List<int> bytes) =>
                       unawaited(widget.backend.sendBytes(bytes)),
                   onPaste: _pasteClipboardText,
-                  onFocusTerminal: _requestTerminalFocus,
+                  onShowKeyboard: _showKeyboard,
                 ),
                 _Toolbar(
                   fontSize: _fontSize,
@@ -1076,8 +1073,15 @@ class _TerminalScreenState extends State<TerminalScreen> {
     await _inputBridge.sendTerminalOutput(data);
   }
 
-  void _requestTerminalFocus() {
-    _terminalFocusNode.requestFocus();
+  // Shows the input row (if hidden) and focuses the TextField so the
+  // Android soft keyboard appears.  Reliable cross-device keyboard path.
+  void _showKeyboard() {
+    if (!_showInputRow) {
+      setState(() => _showInputRow = true);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _inputFocusNode.requestFocus();
+    });
   }
 
   Future<void> _pasteClipboardText() async {
@@ -1536,7 +1540,7 @@ class _ControlKeyRow extends StatelessWidget {
     required this.onMetaToggle,
     required this.onSendBytes,
     required this.onPaste,
-    required this.onFocusTerminal,
+    required this.onShowKeyboard,
   });
 
   final bool ctrlActive;
@@ -1545,7 +1549,7 @@ class _ControlKeyRow extends StatelessWidget {
   final VoidCallback onMetaToggle;
   final void Function(List<int>) onSendBytes;
   final Future<void> Function() onPaste;
-  final VoidCallback onFocusTerminal;
+  final VoidCallback onShowKeyboard;
 
   @override
   Widget build(BuildContext context) {
@@ -1559,8 +1563,8 @@ class _ControlKeyRow extends StatelessWidget {
           children: <Widget>[
             _ModifierKeyButton(
               label: 'KB',
-              tooltip: 'Focus terminal and show keyboard',
-              onPressed: onFocusTerminal,
+              tooltip: 'Show input bar and keyboard',
+              onPressed: onShowKeyboard,
               active: false,
               activeColor: const Color(0xffd8dee9),
             ),

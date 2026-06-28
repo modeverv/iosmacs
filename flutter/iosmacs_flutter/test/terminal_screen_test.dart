@@ -903,7 +903,7 @@ void main() {
     );
     expect(find.byTooltip('M-x (execute-extended-command)'), findsOneWidget);
     expect(find.byTooltip('Paste from clipboard'), findsOneWidget);
-    expect(find.byTooltip('Focus terminal and show keyboard'), findsOneWidget);
+    expect(find.byTooltip('Show input bar and keyboard'), findsOneWidget);
     expect(
       find.byTooltip(
           'Sticky Ctrl — next letter typed in terminal becomes C-letter'),
@@ -933,6 +933,27 @@ void main() {
 
     expect(backend.diagnostics.value.inputBytes, 1);
     expect(backend.diagnostics.value.message, 'received 1 input byte(s)');
+  });
+
+  testWidgets('KB button shows input row so keyboard can appear', (
+    WidgetTester tester,
+  ) async {
+    final backend = FakeEmacsBackend();
+    addTearDown(backend.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: TerminalScreen(backend: backend)),
+    );
+    await tester.pump();
+
+    // Input row is hidden by default.
+    expect(find.byType(TextField), findsNothing);
+
+    // Pressing the KB button shows the input row.
+    await tester.tap(find.byTooltip('Show input bar and keyboard'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsOneWidget);
   });
 
   testWidgets('Ctrl modifier converts letter to Ctrl byte', (

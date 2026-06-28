@@ -1378,7 +1378,7 @@ grep -q '_handleTerminalOutput' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q '_showInputRow' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
-grep -q '_requestTerminalFocus' \
+grep -q '_showKeyboard' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'input row is hidden by default' \
   "$app_dir/test/terminal_screen_test.dart"
@@ -1388,8 +1388,12 @@ grep -q 'Meta modifier via terminal inline input' \
   "$app_dir/test/terminal_screen_test.dart"
 grep -q 'M-x (execute-extended-command)' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
-grep -q 'Focus terminal and show keyboard' \
+grep -q 'Show input bar and keyboard' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q '_showKeyboard' \
+  "$app_dir/lib/src/ui/terminal_screen.dart"
+grep -q 'KB button shows input row so keyboard can appear' \
+  "$app_dir/test/terminal_screen_test.dart"
 grep -q 'Show input row' \
   "$app_dir/lib/src/ui/terminal_screen.dart"
 grep -q 'onToggleInputRow' \
