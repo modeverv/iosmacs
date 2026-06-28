@@ -31,6 +31,12 @@ class MainActivity : FlutterActivity() {
     AndroidNativeEmacsBridge(this)
   }
 
+  // Emulator workaround: qemu sends KEYCODE_UNKNOWN (0) for the host Ctrl key
+  // instead of KEYCODE_CTRL_LEFT (113) with META_CTRL_ON.  We detect the
+  // pattern "KEYCODE_UNKNOWN immediately before a letter" as Ctrl+letter.
+  private var lastUnknownKeyMs = 0L
+  private val ctrlEmulatorWindowMs = 150L
+
   override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
     super.configureFlutterEngine(flutterEngine)
     MethodChannel(
@@ -53,22 +59,35 @@ class MainActivity : FlutterActivity() {
   override fun dispatchKeyEvent(event: KeyEvent): Boolean {
     if (event.action == KeyEvent.ACTION_DOWN) {
       val keyCode = event.keyCode
-      Log.d("IOSMacsKey", "dispatchKeyEvent: keyCode=$keyCode ctrl=${event.isCtrlPressed} alt=${event.isAltPressed} meta=${event.metaState}")
-      if (event.isCtrlPressed && keyCode in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z) {
+      val now = System.currentTimeMillis()
+
+      // Emulator sends KEYCODE_UNKNOWN for the host Ctrl key.
+      // Record the timestamp and consume — prevents stray input.
+      if (keyCode == KeyEvent.KEYCODE_UNKNOWN) {
+        lastUnknownKeyMs = now
+        return true
+      }
+
+      // Detect Ctrl via: (a) proper META_CTRL_ON (real device / future emulator),
+      // or (b) letter arriving within 150ms of KEYCODE_UNKNOWN (qemu emulator workaround).
+      val emulatorCtrl = (now - lastUnknownKeyMs) < ctrlEmulatorWindowMs
+      val hasCtrl = event.isCtrlPressed || emulatorCtrl
+
+      if (hasCtrl && keyCode in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z) {
+        lastUnknownKeyMs = 0L  // reset so next letter without Ctrl isn't also consumed
         val ctrlByte = (keyCode - KeyEvent.KEYCODE_A + 1).toByte()
         val bytes = if (event.isAltPressed) {
           byteArrayOf(0x1b, ctrlByte)
         } else {
           byteArrayOf(ctrlByte)
         }
-        Log.i("IOSMacsKey", "Ctrl+letter: keyCode=$keyCode → byte=0x${ctrlByte.toInt().and(0xff).toString(16)}")
+        Log.i("IOSMacsKey", "Ctrl+letter: keyCode=$keyCode → 0x${ctrlByte.toInt().and(0xff).toString(16)} (emulatorCtrl=$emulatorCtrl)")
         nativeEmacsBridge.injectBytes(bytes)
         return true
       }
-      if (event.isAltPressed && !event.isCtrlPressed &&
+      if (event.isAltPressed && !hasCtrl &&
           keyCode in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z) {
         val lower = (keyCode - KeyEvent.KEYCODE_A + 'a'.code).toByte()
-        Log.i("IOSMacsKey", "Alt+letter: keyCode=$keyCode → Meta+${lower.toInt().toChar()}")
         nativeEmacsBridge.injectBytes(byteArrayOf(0x1b, lower))
         return true
       }
