@@ -1,6 +1,6 @@
 # fluttmacs
 
-`fluttmacs` is an experiment to run real GNU Emacs on iOS, iPadOS, and macOS as a cross-platform Flutter application.
+`fluttmacs` is an experiment to run real GNU Emacs on iOS, iPadOS, Android, and macOS as a cross-platform Flutter application.
 
 Flutter owns the cross-platform application shell and terminal surface, while platform backends handle running/embedding GNU Emacs and connecting terminal bytes.
 
