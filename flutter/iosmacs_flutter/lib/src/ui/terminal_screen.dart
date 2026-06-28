@@ -89,6 +89,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   String _terminalInputMirrorBuffer = '';
   bool _ctrlModifier = false;
   bool _metaModifier = false;
+  bool _showControlKeyRow = false;
   bool _showInputRow = false;
   // Previous overlay text for detecting commits vs backspace.
   String _overlayPreviousText = '';
@@ -252,23 +253,25 @@ class _TerminalScreenState extends State<TerminalScreen> {
                     ctrlActive: _ctrlModifier,
                     metaActive: _metaModifier,
                   ),
-                _ControlKeyRow(
-                  ctrlActive: _ctrlModifier,
-                  metaActive: _metaModifier,
-                  onCtrlToggle: () =>
-                      setState(() => _ctrlModifier = !_ctrlModifier),
-                  onMetaToggle: () =>
-                      setState(() => _metaModifier = !_metaModifier),
-                  onSendBytes: (List<int> bytes) =>
-                      unawaited(widget.backend.sendBytes(bytes)),
-                  onPaste: _pasteClipboardText,
-                  onShowKeyboard: _showKeyboard,
-                ),
+                if (_showControlKeyRow)
+                  _ControlKeyRow(
+                    ctrlActive: _ctrlModifier,
+                    metaActive: _metaModifier,
+                    onCtrlToggle: () =>
+                        setState(() => _ctrlModifier = !_ctrlModifier),
+                    onMetaToggle: () =>
+                        setState(() => _metaModifier = !_metaModifier),
+                    onSendBytes: (List<int> bytes) =>
+                        unawaited(widget.backend.sendBytes(bytes)),
+                    onPaste: _pasteClipboardText,
+                    onShowKeyboard: _showKeyboard,
+                  ),
                 _Toolbar(
                   fontSize: _fontSize,
                   minFontSize: _minFontSize,
                   maxFontSize: _maxFontSize,
                   showInputRow: _showInputRow,
+                  showControlKeyRow: _showControlKeyRow,
                   onStart: widget.backend.start,
                   onStop: widget.backend.stop,
                   onReset: widget.backend.resetOrRedraw,
@@ -277,6 +280,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
                   onCapabilities: _openCapabilities,
                   onToggleInputRow: () =>
                       setState(() => _showInputRow = !_showInputRow),
+                  onToggleControlKeyRow: () =>
+                      setState(() => _showControlKeyRow = !_showControlKeyRow),
                 ),
               ],
             ),
@@ -1542,6 +1547,7 @@ class _Toolbar extends StatelessWidget {
     required this.minFontSize,
     required this.maxFontSize,
     required this.showInputRow,
+    required this.showControlKeyRow,
     required this.onStart,
     required this.onStop,
     required this.onReset,
@@ -1549,6 +1555,7 @@ class _Toolbar extends StatelessWidget {
     required this.onWorkspace,
     required this.onCapabilities,
     required this.onToggleInputRow,
+    required this.onToggleControlKeyRow,
   });
 
   static const double _toolbarSliderWidth = 168;
@@ -1557,6 +1564,7 @@ class _Toolbar extends StatelessWidget {
   final double minFontSize;
   final double maxFontSize;
   final bool showInputRow;
+  final bool showControlKeyRow;
   final Future<void> Function() onStart;
   final Future<void> Function() onStop;
   final Future<void> Function() onReset;
@@ -1564,6 +1572,7 @@ class _Toolbar extends StatelessWidget {
   final Future<void> Function() onWorkspace;
   final VoidCallback onCapabilities;
   final VoidCallback onToggleInputRow;
+  final VoidCallback onToggleControlKeyRow;
 
   @override
   Widget build(BuildContext context) {
@@ -1619,6 +1628,18 @@ class _Toolbar extends StatelessWidget {
               icon: Icon(showInputRow ? Icons.keyboard_hide : Icons.keyboard),
               color: showInputRow
                   ? const Color(0xff88c0d0)
+                  : const Color(0xff4c566a),
+            ),
+            IconButton(
+              tooltip: showControlKeyRow
+                  ? 'Hide control key row'
+                  : 'Show control key row',
+              onPressed: onToggleControlKeyRow,
+              icon: Icon(
+                showControlKeyRow ? Icons.tune : Icons.tune_outlined,
+              ),
+              color: showControlKeyRow
+                  ? const Color(0xffebcb8b)
                   : const Color(0xff4c566a),
             ),
             const SizedBox(width: 8),

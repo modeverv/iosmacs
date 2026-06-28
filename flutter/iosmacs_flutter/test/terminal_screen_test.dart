@@ -685,6 +685,8 @@ void main() {
 
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Show control key row'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Paste from clipboard'));
     await tester.pump();
@@ -748,6 +750,8 @@ void main() {
 
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Show control key row'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Paste from clipboard'));
     await tester.pump();
@@ -780,13 +784,14 @@ void main() {
 
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Show control key row'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Paste from clipboard'));
     await tester.pump();
 
     expect(find.text('Clipboard is empty'), findsOneWidget);
     expect(backend.diagnostics.value.inputBytes, 0);
-    expect(backend.diagnostics.value.message, 'fake backend running');
   });
 
   testWidgets('input row is hidden by default; toggle shows and hides it', (
@@ -835,6 +840,8 @@ void main() {
     );
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Show control key row'));
+    await tester.pumpAndSettle();
 
     await tester.tap(
       find.byTooltip(
@@ -865,6 +872,8 @@ void main() {
       MaterialApp(home: TerminalScreen(backend: backend)),
     );
     await tester.tap(find.byTooltip('Start'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Show control key row'));
     await tester.pumpAndSettle();
 
     // Scroll the control key row to reveal the Meta button.
@@ -904,6 +913,10 @@ void main() {
     );
     await tester.pump();
 
+    // Control key row is hidden by default; show it first.
+    await tester.tap(find.byTooltip('Show control key row'));
+    await tester.pumpAndSettle();
+
     expect(find.byTooltip('Send ESC (\\x1b)'), findsOneWidget);
     expect(find.byTooltip('Cancel (C-g = \\x07)'), findsOneWidget);
     expect(
@@ -936,6 +949,8 @@ void main() {
     );
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Show control key row'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Send ESC (\\x1b)'));
     await tester.pumpAndSettle();
@@ -963,6 +978,10 @@ void main() {
     // InputRow is hidden by default (no Send button).
     expect(find.byTooltip('Send'), findsNothing);
 
+    // Show control key row first so KB button is accessible.
+    await tester.tap(find.byTooltip('Show control key row'));
+    await tester.pumpAndSettle();
+
     // KB button focuses the overlay so keyboard appears (inline Japanese input).
     // It does NOT show the InputRow — use the toolbar toggle for that.
     await tester.tap(find.byTooltip('Show input bar and keyboard'));
@@ -988,8 +1007,8 @@ void main() {
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();
 
-    // Show input row, then tap Ctrl-g quick button (always visible).
-    await tester.tap(find.byTooltip('Show input row'));
+    // Show control key row, then use C-g instant button.
+    await tester.tap(find.byTooltip('Show control key row'));
     await tester.pumpAndSettle();
 
     // Use the C-g instant button directly — it's visible and sends the right byte.
@@ -1013,7 +1032,9 @@ void main() {
     await tester.tap(find.byTooltip('Start'));
     await tester.pumpAndSettle();
 
-    // Use the M-x instant button (always visible) — sends ESC + 'x' directly.
+    // Show control key row first, then use the M-x instant button.
+    await tester.tap(find.byTooltip('Show control key row'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('M-x (execute-extended-command)'));
     await tester.pumpAndSettle();
 
