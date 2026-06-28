@@ -218,29 +218,29 @@ grep -q 'did not keep the selected Emacs process alive at startup' \
 grep -q 'macOS interactive GNU Emacs process started:' \
   scripts/run-flutter-macos-native-smoke.sh
 grep -q 'IOSMACS_GC_THRESHOLD_MB' \
-  999_old/iosmacs/Emacs/iosmacs_emacs_core.c
+  iosmacs/Emacs/iosmacs_emacs_core.c
 grep -q 'IOSMACS_LIGHT_XTERM_INIT' \
-  999_old/iosmacs/Emacs/iosmacs_emacs_core.c
+  iosmacs/Emacs/iosmacs_emacs_core.c
 grep -q 'IOSMACS_SKIP_XTERM_INIT' \
-  999_old/iosmacs/Emacs/iosmacs_emacs_core.c
+  iosmacs/Emacs/iosmacs_emacs_core.c
 grep -q 'IOSMACS_DISABLE_TERMINFO' \
-  999_old/scripts/build-emacs-ios-probe.sh
+  scripts/build-emacs-ios-probe.sh
 grep -q 'IOSMACS_TRACE_EMACS_HOTPATH' \
-  999_old/iosmacs/Host/iosmacs_host_facade.c
+  iosmacs/Host/iosmacs_host_facade.c
 grep -q 'iosmacs_host_trace_hotpath_active' \
-  999_old/iosmacs/Host/iosmacs_host_facade.c
+  iosmacs/Host/iosmacs_host_facade.c
 grep -q 'last_input_push_ms' \
-  999_old/iosmacs/Host/iosmacs_host_facade.c
+  iosmacs/Host/iosmacs_host_facade.c
 grep -q 'hotpath redisplay-internal entry' \
-  999_old/scripts/build-emacs-ios-probe.sh
+  scripts/build-emacs-ios-probe.sh
 grep -q 'hotpath display-line entry' \
-  999_old/scripts/build-emacs-ios-probe.sh
+  scripts/build-emacs-ios-probe.sh
 grep -q 'hotpath garbage-collect entry' \
-  999_old/scripts/build-emacs-ios-probe.sh
+  scripts/build-emacs-ios-probe.sh
 grep -q 'kbd_buffer_events_waiting' \
-  999_old/scripts/build-emacs-ios-probe.sh
+  scripts/build-emacs-ios-probe.sh
 grep -q '&& !kbd_buffer_events_waiting ()' \
-  999_old/scripts/build-emacs-ios-probe.sh
+  scripts/build-emacs-ios-probe.sh
 grep -q 'Android NDK GNU Emacs runtime artifact packaging' \
   "$app_dir/lib/src/backend/android_emacs_backend.dart"
 grep -q 'Android GNU Emacs NW PTY terminal route' \
@@ -1003,28 +1003,28 @@ grep -q 'iosmacs_emacs_diagnostic.c in Sources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
 grep -q 'iosmacs_emacs_core.c in Sources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
-grep -q "autoload 'dired" 999_old/iosmacs/Emacs/iosmacs_emacs_core.c
-grep -q "autoload 'tetris" 999_old/iosmacs/Emacs/iosmacs_emacs_core.c
-grep -q 'global-set-key (kbd \\"M-X\\")' 999_old/iosmacs/Emacs/iosmacs_emacs_core.c
-grep -q 'iosmacs-force-xterm-input-decode' 999_old/iosmacs/Emacs/iosmacs_emacs_core.c
-grep -q 'terminal-init-xterm' 999_old/iosmacs/Emacs/iosmacs_emacs_core.c
-grep -q 'iosmacs-fast-xterm-pasted-text' 999_old/iosmacs/Emacs/iosmacs_emacs_core.c
-grep -q 'inhibit-redisplay t' 999_old/iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q "autoload 'dired" iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q "autoload 'tetris" iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'global-set-key (kbd \\"M-X\\")' iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'iosmacs-force-xterm-input-decode' iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'terminal-init-xterm' iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'iosmacs-fast-xterm-pasted-text' iosmacs/Emacs/iosmacs_emacs_core.c
+grep -q 'inhibit-redisplay t' iosmacs/Emacs/iosmacs_emacs_core.c
 grep -q 'iosmacs_terminal_shim.c in Sources' \
   "$app_dir/ios/Runner.xcodeproj/project.pbxproj"
-grep -q 'iosmacs_host_terminal_read' 999_old/iosmacs/Host/iosmacs_host_facade.h
-grep -q 'iosmacs_os_terminal_read_available' 999_old/iosmacs/Host/iosmacs_host_facade.c
-if grep -q 'dup2(fd, STDERR_FILENO)' 999_old/iosmacs/Host/iosmacs_terminal_shim.c; then
+grep -q 'iosmacs_host_terminal_read' iosmacs/Host/iosmacs_host_facade.h
+grep -q 'iosmacs_os_terminal_read_available' iosmacs/Host/iosmacs_host_facade.c
+if grep -q 'dup2(fd, STDERR_FILENO)' iosmacs/Host/iosmacs_terminal_shim.c; then
   printf 'error: Flutter iOS fake tty must not redirect process stderr into the terminal screen\n' >&2
   exit 1
 fi
-if grep -q 'fd <= STDERR_FILENO' 999_old/iosmacs/Host/iosmacs_terminal_shim.c \
-  || grep -q 'fd <= STDERR_FILENO' 999_old/iosmacs/Host/iosmacs_host_facade.c; then
+if grep -q 'fd <= STDERR_FILENO' iosmacs/Host/iosmacs_terminal_shim.c \
+  || grep -q 'fd <= STDERR_FILENO' iosmacs/Host/iosmacs_host_facade.c; then
   printf 'error: Flutter iOS fake tty must not classify process stderr as the terminal tty\n' >&2
   exit 1
 fi
 grep -q 'iosmacs_host_terminal_read (tty_buf, nbyte)' \
-  999_old/scripts/build-emacs-ios-probe.sh
+  scripts/build-emacs-ios-probe.sh
 if [[ -f build/emacs-ios-probe/source/src/sysdep.c ]] \
   && grep -q 'byte = iosmacs_host_terminal_read_byte' build/emacs-ios-probe/source/src/sysdep.c; then
   printf 'error: generated Emacs sysdep.c still has stale byte-at-a-time tty read path\n' >&2

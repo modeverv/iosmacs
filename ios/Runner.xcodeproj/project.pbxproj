@@ -61,15 +61,15 @@
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		78B100002EC9000000000001 /* FlutterNativeEmacsBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlutterNativeEmacsBridge.swift; sourceTree = "<group>"; };
-		78B100022EC9000000000001 /* iosmacs_host_facade.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = iosmacs_host_facade.c; path = ../../999_old/iosmacs/Host/iosmacs_host_facade.c; sourceTree = "<group>"; };
-		78B100042EC9000000000001 /* iosmacs_emacs_diagnostic.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = iosmacs_emacs_diagnostic.c; path = ../../999_old/iosmacs/Emacs/iosmacs_emacs_diagnostic.c; sourceTree = "<group>"; };
-		78B100062EC9000000000001 /* iosmacs_emacs_core.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = iosmacs_emacs_core.c; path = ../../999_old/iosmacs/Emacs/iosmacs_emacs_core.c; sourceTree = "<group>"; };
-		78B100082EC9000000000001 /* iosmacs_terminal_shim.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = iosmacs_terminal_shim.c; path = ../../999_old/iosmacs/Host/iosmacs_terminal_shim.c; sourceTree = "<group>"; };
-		78B100152EC9000000000001 /* IOSMacsURLSessionBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = IOSMacsURLSessionBridge.swift; path = ../../999_old/iosmacs/Host/IOSMacsURLSessionBridge.swift; sourceTree = "<group>"; };
-		78B1000B2EC9000000000001 /* lisp */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ../../build/emacs-ios/source/lisp; sourceTree = SOURCE_ROOT; };
-		78B1000D2EC9000000000001 /* etc */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ../../build/emacs-ios/source/etc; sourceTree = SOURCE_ROOT; };
-		78B1000F2EC9000000000001 /* lib-src */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ../../build/emacs-ios/lib-src; sourceTree = SOURCE_ROOT; };
-		78B100112EC9000000000001 /* emacs.pdmp */ = {isa = PBXFileReference; lastKnownFileType = file; path = ../../build/emacs-ios/iosmacs/nw-pdmp/emacs.pdmp; sourceTree = SOURCE_ROOT; };
+		78B100022EC9000000000001 /* iosmacs_host_facade.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = iosmacs_host_facade.c; path = ../../iosmacs/Host/iosmacs_host_facade.c; sourceTree = "<group>"; };
+		78B100042EC9000000000001 /* iosmacs_emacs_diagnostic.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = iosmacs_emacs_diagnostic.c; path = ../../iosmacs/Emacs/iosmacs_emacs_diagnostic.c; sourceTree = "<group>"; };
+		78B100062EC9000000000001 /* iosmacs_emacs_core.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = iosmacs_emacs_core.c; path = ../../iosmacs/Emacs/iosmacs_emacs_core.c; sourceTree = "<group>"; };
+		78B100082EC9000000000001 /* iosmacs_terminal_shim.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = iosmacs_terminal_shim.c; path = ../../iosmacs/Host/iosmacs_terminal_shim.c; sourceTree = "<group>"; };
+		78B100152EC9000000000001 /* IOSMacsURLSessionBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = IOSMacsURLSessionBridge.swift; path = ../../iosmacs/Host/IOSMacsURLSessionBridge.swift; sourceTree = "<group>"; };
+		78B1000B2EC9000000000001 /* lisp */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ../build/emacs-ios/source/lisp; sourceTree = SOURCE_ROOT; };
+		78B1000D2EC9000000000001 /* etc */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ../build/emacs-ios/source/etc; sourceTree = SOURCE_ROOT; };
+		78B1000F2EC9000000000001 /* lib-src */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ../build/emacs-ios/lib-src; sourceTree = SOURCE_ROOT; };
+		78B100112EC9000000000001 /* emacs.pdmp */ = {isa = PBXFileReference; lastKnownFileType = file; path = ../build/emacs-ios/iosmacs/nw-pdmp/emacs.pdmp; sourceTree = SOURCE_ROOT; };
 		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
@@ -288,11 +288,11 @@
 			);
 			name = "Build Emacs Core Probe";
 			outputPaths = (
-				"$(SRCROOT)/../../build/emacs-ios/iosmacs/libiosmacs-temacs.a",
+				"$(SRCROOT)/../build/emacs-ios/iosmacs/libiosmacs-temacs.a",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"${PLATFORM_NAME}\" = \"iphonesimulator\" ]; then\n  IOSMACS_BUILD_ROOT=\"${SRCROOT}/../../build/emacs-ios\" \"${SRCROOT}/../../../scripts/build-emacs-ios-static-probe.sh\"\nelse\n  echo \"iosmacs Flutter: Emacs static archive integration is currently simulator-only (${PLATFORM_NAME})\"\nfi\n";
+			shellScript = "if [ \"${PLATFORM_NAME}\" = \"iphonesimulator\" ]; then\n  IOSMACS_BUILD_ROOT=\"${SRCROOT}/../build/emacs-ios\" \"${SRCROOT}/../scripts/build-emacs-ios-static-probe.sh\"\nelse\n  echo \"iosmacs Flutter: Emacs static archive integration is currently simulator-only (${PLATFORM_NAME})\"\nfi\n";
 			showEnvVarsInLog = 0;
 		};
 		3B06AD1E1E4923F5004D2608 /* Thin Binary */ = {
@@ -446,8 +446,8 @@
 				ENABLE_BITCODE = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/../../999_old/iosmacs/Host",
-					"$(SRCROOT)/../../999_old/iosmacs/Emacs",
+					"$(SRCROOT)/../iosmacs/Host",
+					"$(SRCROOT)/../iosmacs/Emacs",
 				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -458,7 +458,7 @@
 					"$(inherited)",
 					"-u",
 					"_iosmacs_emacs_main",
-					"$(SRCROOT)/../../build/emacs-ios/iosmacs/libiosmacs-temacs.a",
+					"$(SRCROOT)/../build/emacs-ios/iosmacs/libiosmacs-temacs.a",
 					"-lncurses",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.fluttmacs;
@@ -638,8 +638,8 @@
 				ENABLE_BITCODE = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/../../999_old/iosmacs/Host",
-					"$(SRCROOT)/../../999_old/iosmacs/Emacs",
+					"$(SRCROOT)/../iosmacs/Host",
+					"$(SRCROOT)/../iosmacs/Emacs",
 				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -650,7 +650,7 @@
 					"$(inherited)",
 					"-u",
 					"_iosmacs_emacs_main",
-					"$(SRCROOT)/../../build/emacs-ios/iosmacs/libiosmacs-temacs.a",
+					"$(SRCROOT)/../build/emacs-ios/iosmacs/libiosmacs-temacs.a",
 					"-lncurses",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.fluttmacs;
@@ -673,8 +673,8 @@
 				ENABLE_BITCODE = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/../../999_old/iosmacs/Host",
-					"$(SRCROOT)/../../999_old/iosmacs/Emacs",
+					"$(SRCROOT)/../iosmacs/Host",
+					"$(SRCROOT)/../iosmacs/Emacs",
 				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -685,7 +685,7 @@
 					"$(inherited)",
 					"-u",
 					"_iosmacs_emacs_main",
-					"$(SRCROOT)/../../build/emacs-ios/iosmacs/libiosmacs-temacs.a",
+					"$(SRCROOT)/../build/emacs-ios/iosmacs/libiosmacs-temacs.a",
 					"-lncurses",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.fluttmacs;

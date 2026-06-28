@@ -90,11 +90,11 @@ flutter-ios-smoke:
 
 flutter-emacs-static:
 	IOSMACS_BUILD_ROOT="$(FLUTTER_EMACS_BUILD_ROOT)" JOBS="$(JOBS)" \
-	  999_old/scripts/build-emacs-ios-static-probe.sh
+	  scripts/build-emacs-ios-static-probe.sh
 
 flutter-emacs-pdmp: flutter-emacs-static
 	IOSMACS_BUILD_ROOT="$(FLUTTER_EMACS_BUILD_ROOT)" JOBS="$(JOBS)" \
-	  999_old/scripts/run-emacs-ios-nw-smoke.sh
+	  scripts/run-emacs-ios-nw-smoke.sh
 
 flutter-macos-emacs-runtime:
 	JOBS="$(JOBS)" scripts/build-flutter-macos-emacs-runtime.sh
