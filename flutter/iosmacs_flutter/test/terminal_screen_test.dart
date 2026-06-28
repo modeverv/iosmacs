@@ -32,7 +32,7 @@ void main() {
     await tester.tap(find.byTooltip('Show input row'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'abc');
+    await tester.enterText(find.byType(TextField).last, 'abc');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
 
@@ -354,7 +354,7 @@ void main() {
     await tester.tap(find.byTooltip('Show input row'));
     await tester.pumpAndSettle();
     await backend.resize(cols: 100, rows: 30);
-    await tester.enterText(find.byType(TextField), 'diag');
+    await tester.enterText(find.byType(TextField).last, 'diag');
     await tester.tap(find.byTooltip('Send'));
     await tester.pumpAndSettle();
 
@@ -526,7 +526,7 @@ void main() {
     await tester.tap(find.byTooltip('Show input row'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'send me');
+    await tester.enterText(find.byType(TextField).last, 'send me');
     await tester.tap(find.byTooltip('Send'));
     await tester.pumpAndSettle();
 
@@ -549,7 +549,7 @@ void main() {
     await tester.tap(find.byTooltip('Show input row'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), '日本語');
+    await tester.enterText(find.byType(TextField).last, '日本語');
     await tester.tap(find.byTooltip('Send'));
     await tester.pumpAndSettle();
 
@@ -800,19 +800,28 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byType(TextField), findsNothing);
+    // Overlay TextField is always present (for inline/Japanese input).
+    expect(
+      find.byKey(const ValueKey<String>('iosmacs-terminal-overlay')),
+      findsOneWidget,
+    );
+    // InputRow's Send button is absent when InputRow is hidden.
+    expect(find.byTooltip('Send'), findsNothing);
     expect(find.byTooltip('Show input row'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Show input row'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(TextField), findsOneWidget);
+    // After toggle: overlay + InputRow → 2 TextFields, Send visible.
+    expect(find.byType(TextField), findsNWidgets(2));
     expect(find.byTooltip('Hide input row'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Hide input row'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(TextField), findsNothing);
+    // Overlay remains; InputRow hidden again.
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.byTooltip('Send'), findsNothing);
   });
 
   testWidgets('Ctrl modifier via terminal inline input sends control byte', (
@@ -946,14 +955,25 @@ void main() {
     );
     await tester.pump();
 
-    // Input row is hidden by default.
-    expect(find.byType(TextField), findsNothing);
+    // Overlay TextField is always present for inline input.
+    expect(
+      find.byKey(const ValueKey<String>('iosmacs-terminal-overlay')),
+      findsOneWidget,
+    );
+    // InputRow is hidden by default (no Send button).
+    expect(find.byTooltip('Send'), findsNothing);
 
-    // Pressing the KB button shows the input row.
+    // KB button focuses the overlay so keyboard appears (inline Japanese input).
+    // It does NOT show the InputRow — use the toolbar toggle for that.
     await tester.tap(find.byTooltip('Show input bar and keyboard'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(TextField), findsOneWidget);
+    // Overlay still present, InputRow still hidden.
+    expect(
+      find.byKey(const ValueKey<String>('iosmacs-terminal-overlay')),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('Send'), findsNothing);
   });
 
   testWidgets('Ctrl modifier converts letter to Ctrl byte', (

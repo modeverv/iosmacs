@@ -72,6 +72,11 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
   final FocusNode _terminalFocusNode = FocusNode();
   final FocusNode _inputFocusNode = FocusNode();
+  // Transparent overlay on the terminal for Japanese IME and direct input.
+  // Uses default Flutter TextField (enableSuggestions: true) unlike xterm,
+  // which hardcodes enableSuggestions: false and breaks the candidate bar.
+  final FocusNode _overlayFocusNode = FocusNode();
+  final TextEditingController _overlayController = TextEditingController();
   final TextEditingController _inputController = TextEditingController();
   final TerminalController _terminalController = TerminalController(
     pointerInputs: const PointerInputs.all(),
@@ -85,10 +90,14 @@ class _TerminalScreenState extends State<TerminalScreen> {
   bool _ctrlModifier = false;
   bool _metaModifier = false;
   bool _showInputRow = false;
+  // Previous overlay text for detecting commits vs backspace.
+  String _overlayPreviousText = '';
 
   @override
   void initState() {
     super.initState();
+    // Overlay FocusNode reuses the same key-event logic as the TerminalView.
+    _overlayFocusNode.onKeyEvent = _handleTerminalKeyEvent;
     _inputBridge = TerminalInputBridge(widget.backend);
     _terminal = Terminal(
       onOutput: (String data) {
@@ -123,6 +132,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
     _outputSubscription?.cancel();
     _terminalFocusNode.dispose();
     _inputFocusNode.dispose();
+    _overlayFocusNode.dispose();
+    _overlayController.dispose();
     _inputController.dispose();
     _terminalController.dispose();
     super.dispose();
@@ -149,18 +160,25 @@ class _TerminalScreenState extends State<TerminalScreen> {
                   child: Container(
                     width: double.infinity,
                     color: const Color(0xff101214),
-                    child: Listener(
-                      behavior: HitTestBehavior.translucent,
-                      onPointerDown: _logTerminalPointerDown,
-                      child: TerminalView(
-                        _terminal,
-                        autofocus: true,
-                        controller: _terminalController,
-                        focusNode: _terminalFocusNode,
-                        keyboardType: TextInputType.text,
-                        onKeyEvent: _handleTerminalKeyEvent,
-                        padding: const EdgeInsets.all(12),
-                        textStyle: TerminalStyle(fontSize: _fontSize),
+                    child: Stack(
+                      children: <Widget>[
+                        Listener(
+                          behavior: HitTestBehavior.translucent,
+                          onPointerDown: (PointerDownEvent event) {
+                            _logTerminalPointerDown(event);
+                            // Focus the overlay so physical keyboard events
+                            // reach our handler with Ctrl/Meta support.
+                            _overlayFocusNode.requestFocus();
+                          },
+                          child: TerminalView(
+                            _terminal,
+                            autofocus: false,
+                            controller: _terminalController,
+                            focusNode: _terminalFocusNode,
+                            keyboardType: TextInputType.text,
+                            onKeyEvent: _handleTerminalKeyEvent,
+                            padding: const EdgeInsets.all(12),
+                            textStyle: TerminalStyle(fontSize: _fontSize),
                         theme: const TerminalTheme(
                           cursor: Color(0xffeceff4),
                           selection: Color(0xff4c566a),
@@ -186,7 +204,30 @@ class _TerminalScreenState extends State<TerminalScreen> {
                           searchHitBackgroundCurrent: Color(0xffebcb8b),
                           searchHitForeground: Color(0xff101214),
                         ),
-                      ),
+                          ),
+                        ),
+                        // Transparent 1-px overlay TextField for Japanese IME.
+                        // Uses Flutter's default enableSuggestions: true,
+                        // unlike xterm which hardcodes enableSuggestions: false.
+                        // Physical key events go to _overlayFocusNode.onKeyEvent.
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: 1,
+                          child: Opacity(
+                            opacity: 0,
+                            child: TextField(
+                              key: const ValueKey<String>(
+                                  'iosmacs-terminal-overlay'),
+                              focusNode: _overlayFocusNode,
+                              controller: _overlayController,
+                              keyboardType: TextInputType.text,
+                              onChanged: _handleOverlayTextChanged,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -1073,22 +1114,47 @@ class _TerminalScreenState extends State<TerminalScreen> {
     await _inputBridge.sendTerminalOutput(data);
   }
 
-  // Shows the input row (if hidden) and focuses the TextField so the
-  // Android soft keyboard appears.  On Android, uses SHOW_FORCED via a
-  // native channel call so the soft keyboard appears even when a hardware
-  // keyboard is connected (e.g. Android emulator with hw.keyboard=yes).
+  // Shows the keyboard for inline terminal input (including Japanese IME).
+  // Focuses the overlay (which has enableSuggestions: true for Japanese) and
+  // calls SHOW_FORCED on Android so the keyboard appears even with hw.keyboard=yes.
   void _showKeyboard() {
-    if (!_showInputRow) {
-      setState(() => _showInputRow = true);
-    }
+    // Focus the overlay so the Japanese IME candidate bar appears.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _inputFocusNode.requestFocus();
+      _overlayFocusNode.requestFocus();
       if (defaultTargetPlatform == TargetPlatform.android) {
-        unawaited(
-          widget.backend.showKeyboard().catchError((_) {}),
-        );
+        unawaited(widget.backend.showKeyboard().catchError((_) {}));
       }
     });
+  }
+
+  // Handles text changes in the transparent terminal input overlay.
+  // Forwards committed text to _handleTerminalOutput, supporting both
+  // Latin (direct) and Japanese (after IME candidate selection).
+  Future<void> _handleOverlayTextChanged(String text) async {
+    final composing = _overlayController.value.composing;
+    final isComposing =
+        composing.isValid && !composing.isCollapsed;
+
+    if (isComposing) {
+      _overlayPreviousText = text;
+      return; // IME is still composing (candidate bar showing)
+    }
+
+    if (text.isEmpty && _overlayPreviousText.isNotEmpty) {
+      // Backspace: clear previous text, send DEL to terminal.
+      _overlayPreviousText = '';
+      await widget.backend.sendBytes(const <int>[0x7f]);
+      return;
+    }
+
+    if (text.isNotEmpty) {
+      _overlayPreviousText = '';
+      await _handleTerminalOutput(text);
+      // Clear overlay after commit so it stays empty for next input.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _overlayController.clear();
+      });
+    }
   }
 
   Future<void> _pasteClipboardText() async {
