@@ -329,28 +329,38 @@ class _TerminalScreenState extends State<TerminalScreen> {
   }
 
   KeyEventResult _handleTerminalKeyEvent(FocusNode focusNode, KeyEvent event) {
-    // Apply Ctrl/Meta modifier to key-down events for letter keys.
-    // This covers hardware keyboards when a sticky modifier is active.
-    // Software keyboard (IME) input is handled in _handleTerminalOutput instead.
-    if (event is KeyDownEvent && (_ctrlModifier || _metaModifier)) {
-      final controlByte = _controlByteForKey(event.logicalKey);
-      if (controlByte != null) {
-        if (_ctrlModifier) {
-          final bytes = _metaModifier
-              ? <int>[0x1b, controlByte]
-              : <int>[controlByte];
-          setState(() {
-            _ctrlModifier = false;
-            _metaModifier = false;
-          });
+    // Handle Ctrl/Meta on key-down events for letter keys.
+    // Checks BOTH the hardware keyboard state (Mac Ctrl/Alt keys) and the
+    // sticky on-screen modifier buttons (_ctrlModifier / _metaModifier) so
+    // that physical Ctrl+X Ctrl+F and on-screen toggle+key both work.
+    if (event is KeyDownEvent) {
+      final hw = HardwareKeyboard.instance;
+      final hasCtrl = _ctrlModifier || hw.isControlPressed;
+      final hasMeta = _metaModifier || hw.isAltPressed;
+
+      if (hasCtrl || hasMeta) {
+        final controlByte = _controlByteForKey(event.logicalKey);
+        if (controlByte != null) {
+          final List<int> bytes;
+          if (hasCtrl) {
+            bytes = hasMeta
+                ? <int>[0x1b, controlByte]
+                : <int>[controlByte];
+          } else {
+            // Meta only: ESC + lowercase letter.
+            final lower = event.logicalKey.keyId & 0xff;
+            bytes = <int>[0x1b, lower];
+          }
+          // Clear sticky modifiers (hardware key state clears automatically).
+          if (_ctrlModifier || _metaModifier) {
+            setState(() {
+              _ctrlModifier = false;
+              _metaModifier = false;
+            });
+          }
           unawaited(widget.backend.sendBytes(bytes));
-        } else {
-          // Meta only: ESC + lowercase letter (keyId is the lowercase ASCII code).
-          final lower = event.logicalKey.keyId & 0xff;
-          setState(() => _metaModifier = false);
-          unawaited(widget.backend.sendBytes(<int>[0x1b, lower]));
+          return KeyEventResult.handled;
         }
-        return KeyEventResult.handled;
       }
     }
 
